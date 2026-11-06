@@ -62,7 +62,7 @@ class PageClockApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp(
-      title: 'productivity',
+      title: 'Productivity',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
       theme: ThemeData(
@@ -163,11 +163,11 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        'productivity.',
+                        'Productivity',
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: -0.6,
+                          letterSpacing: -0.5,
                           color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
@@ -392,7 +392,7 @@ class AnalyticsScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Reading Analytics',
+                            'Welcome to Productivity',
                             style: TextStyle(
                               fontSize: 26,
                               fontWeight: FontWeight.w700,
@@ -1007,7 +1007,7 @@ class TimerScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       appBar: AppBar(
-        title: const Text('productivity', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.5)),
+        title: const Text('Productivity', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.5)),
         backgroundColor: Colors.transparent,
         actions: [
           IconButton(

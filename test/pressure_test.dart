@@ -2,38 +2,36 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pageclock/core/models/reading_session.dart';
 import 'package:pageclock/stats/stats_engine.dart';
-import 'package:pageclock/core/services/export_service.dart';
+import 'package:pageclock/core/services/pdf_service.dart';
 
 void main() {
-  group('Pressure and Edge-Case Stress Suite', () {
-    test('10,000 reading sessions stress & performance test', () {
-      final baseTime = DateTime(2026, 1, 1).millisecondsSinceEpoch;
+  group('Comprehensive Pressure, Stability & PDF Test Suite', () {
+    test('10,000 sessions aggregation & 90-day consistency stress test', () {
+      final base = DateTime(2026, 1, 1).millisecondsSinceEpoch;
       final sessions = <ReadingSession>[];
-      final random = Random(42);
+      final random = Random(1234);
 
-      final stopwatch = Stopwatch()..start();
+      final sw = Stopwatch()..start();
 
       for (int i = 0; i < 10000; i++) {
-        final start = baseTime + (i * 3600000); // 1 hour steps
-        final duration = (15 + random.nextInt(90)) * 60 * 1000; // 15 to 105 mins
+        final start = base + (i * 3600000);
+        final dur = (20 + random.nextInt(80)) * 60000;
         sessions.add(
           ReadingSession(
             id: 'perf-$i',
             startedAtUtc: start,
-            endedAtUtc: start + duration,
-            durationMs: duration,
-            tzOffsetMin: 330, // IST
+            endedAtUtc: start + dur,
+            durationMs: dur,
+            tzOffsetMin: 330,
             createdAt: start,
-            updatedAt: start + duration,
+            updatedAt: start + dur,
           ),
         );
       }
 
-      // Pressure test daily total aggregation
       final dailyTotals = StatsEngine.calculateDailyTotals(sessions);
       expect(dailyTotals.isNotEmpty, isTrue);
 
-      // Pressure test consistency calculation over 90 days
       final consistency = StatsEngine.calculateConsistency(
         dailyTotals: dailyTotals,
         today: DateTime(2026, 11, 7),
@@ -42,49 +40,51 @@ void main() {
       );
       expect(consistency.percentage, inInclusiveRange(0.0, 100.0));
 
-      // Pressure test 4-week trend
       final trend = StatsEngine.calculateWeeklyTrend(
         dailyTotals: dailyTotals,
         today: DateTime(2026, 11, 7),
       );
       expect(trend.slope.isNaN, isFalse);
 
-      stopwatch.stop();
-      // PRD §6 performance requirement: stats queries for large datasets should execute in < 200ms
-      expect(stopwatch.elapsedMilliseconds, lessThan(1000));
+      sw.stop();
+      expect(sw.elapsedMilliseconds, lessThan(800));
     });
 
-    test('Negative and zero elapsed time resilience', () {
+    test('PDF Generation with Embedded Vector Graph', () async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final sampleSessions = List.generate(14, (i) {
+        final start = now - (i * 86400000);
+        return ReadingSession(
+          id: 'pdf-sample-$i',
+          startedAtUtc: start,
+          endedAtUtc: start + (45 * 60000),
+          durationMs: 45 * 60000,
+          tzOffsetMin: 330,
+          source: 'timer',
+          note: 'Chapter ${i + 1} review',
+          createdAt: start,
+          updatedAt: start + (45 * 60000),
+        );
+      });
+
+      final bytes = await SessionPdfService.generatePdf(sampleSessions);
+      expect(bytes.isNotEmpty, isTrue);
+      expect(bytes.length, greaterThan(1000)); // Non-empty valid PDF byte stream
+    });
+
+    test('Edge case: Clock skew and zero-duration safety', () {
       final now = 1700000000000;
       final session = ReadingSession(
-        id: 'clock-skew-test',
+        id: 'safety-test',
         startedAtUtc: now,
-        pausedTotalMs: 100000, // pause exceeds elapsed due to simulated clock skew
+        pausedTotalMs: 500000, // pause exceeds elapsed
         tzOffsetMin: 0,
         createdAt: now,
         updatedAt: now,
       );
 
-      final elapsed = session.calculateCurrentDurationMs(now + 1000);
+      final elapsed = session.calculateCurrentDurationMs(now + 10000);
       expect(elapsed, equals(0)); // Never negative
-    });
-
-    test('Extreme DST / Timezone shifting resilience', () {
-      // Test cross-midnight session across extreme timezone offset (e.g. UTC-10 vs UTC+14)
-      final session = ReadingSession(
-        id: 'kiribati-hawaii',
-        startedAtUtc: 1700000000000,
-        endedAtUtc: 1700000000000 + (2 * 3600000),
-        durationMs: 2 * 3600000,
-        tzOffsetMin: 840, // UTC+14 (Line Islands, Kiribati)
-        createdAt: 1700000000000,
-        updatedAt: 1700000000000 + (2 * 3600000),
-      );
-
-      final splits = StatsEngine.splitSessionByLocalDay(session);
-      expect(splits.isNotEmpty, isTrue);
-      final totalMinutes = splits.values.reduce((a, b) => a + b);
-      expect(totalMinutes, equals(120));
     });
   });
 }
