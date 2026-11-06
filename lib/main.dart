@@ -547,9 +547,9 @@ class AnalyticsScreen extends ConsumerWidget {
 
                       final chart7Days = _buildChartCard(
                         title: 'Daily Velocity (Last 7 Days)',
-                        subtitle: 'Minutes read per day • Goal: 30m',
+                        subtitle: 'Minutes read per day • Goal: ${ref.watch(dailyGoalMinutesProvider)}m',
                         isDark: isDark,
-                        child: _buildPrecision7DayChart(dailyTotals, now, isDark),
+                        child: _buildPrecision7DayChart(dailyTotals, now, isDark, ref.watch(dailyGoalMinutesProvider)),
                       );
 
                       final chart4Weeks = _buildChartCard(
@@ -748,11 +748,28 @@ class AnalyticsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPrecision7DayChart(Map<DateTime, int> dailyTotals, DateTime now, bool isDark) {
+  Widget _buildPrecision7DayChart(Map<DateTime, int> dailyTotals, DateTime now, bool isDark, int goalMins) {
     return BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
-        maxY: 120,
+        maxY: (goalMins * 1.5).clamp(90, 300).toDouble(),
+        extraLinesData: ExtraLinesData(
+          horizontalLines: [
+            HorizontalLine(
+              y: goalMins.toDouble(),
+              color: AppColors.accentEmerald.withOpacity(0.6),
+              strokeWidth: 1.5,
+              dashArray: [6, 4],
+              label: HorizontalLineLabel(
+                show: true,
+                alignment: Alignment.topRight,
+                padding: const EdgeInsets.only(right: 6, bottom: 2),
+                style: const TextStyle(color: AppColors.accentEmerald, fontSize: 9, fontWeight: FontWeight.bold),
+                labelResolver: (_) => 'Goal: ${goalMins}m',
+              ),
+            ),
+          ],
+        ),
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
