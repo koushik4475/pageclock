@@ -10,15 +10,26 @@ import '../core/repository/session_repository.dart';
 import '../stats/stats_engine.dart';
 import '../core/services/export_service.dart';
 
-// Theme Mode Provider
-final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
+// Calm Palette
+class CalmPalette {
+  static const primaryLight = Color(0xFF3B6E66); // Soothing sage slate
+  static const surfaceLight = Color(0xFFF9FAF8); // Warm paper white
+  static const containerLight = Color(0xFFEAEFEA);
+  static const accentSage = Color(0xFF5A8D83);
 
-// Settings Providers
+  static const primaryDark = Color(0xFF81A89F);
+  static const surfaceDark = Color(0xFF141918); // Deep forest twilight
+  static const containerDark = Color(0xFF1E2624);
+  static const accentWarm = Color(0xFFE5A86D); // Muted ember for StandBy clock
+}
+
+// State Providers
+final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
 final dailyGoalMinutesProvider = StateProvider<int>((ref) => 30);
+final targetFocusDurationMinutesProvider = StateProvider<int?>((ref) => 25); // Target focus duration (default 25m Pomodoro)
 final consistencyThresholdMinutesProvider = StateProvider<int>((ref) => 10);
 final weekStartDayProvider = StateProvider<int>((ref) => DateTime.monday);
 
-// Sessions Provider
 final sessionsStreamProvider = StreamProvider<List<ReadingSession>>((ref) {
   final repo = ref.watch(sessionRepositoryProvider);
   return repo.watchAllSessions();
@@ -41,16 +52,46 @@ class PageClockApp extends ConsumerWidget {
       themeMode: themeMode,
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1E88E5),
-          brightness: Brightness.light,
+        scaffoldBackgroundColor: CalmPalette.surfaceLight,
+        colorScheme: ColorScheme.light(
+          primary: CalmPalette.primaryLight,
+          surface: CalmPalette.surfaceLight,
+          surfaceVariant: CalmPalette.containerLight,
+          secondary: CalmPalette.accentSage,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: CalmPalette.surfaceLight,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          centerTitle: true,
+          titleTextStyle: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.5,
+            color: Color(0xFF1B2E2B),
+          ),
         ),
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1E88E5),
-          brightness: Brightness.dark,
+        scaffoldBackgroundColor: CalmPalette.surfaceDark,
+        colorScheme: ColorScheme.dark(
+          primary: CalmPalette.primaryDark,
+          surface: CalmPalette.surfaceDark,
+          surfaceVariant: CalmPalette.containerDark,
+          secondary: CalmPalette.accentWarm,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: CalmPalette.surfaceDark,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          centerTitle: true,
+          titleTextStyle: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.5,
+            color: Color(0xFFE0EAE7),
+          ),
         ),
       ),
       home: const MainNavigationScreen(),
@@ -88,28 +129,28 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               onDestinationSelected: (idx) => setState(() => _currentIndex = idx),
               labelType: NavigationRailLabelType.all,
               leading: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Icon(Icons.menu_book_rounded, size: 32, color: Color(0xFF1E88E5)),
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Icon(Icons.spa_outlined, size: 30, color: CalmPalette.primaryLight),
               ),
               destinations: const [
                 NavigationRailDestination(
-                  icon: Icon(Icons.timer_outlined),
-                  selectedIcon: Icon(Icons.timer),
-                  label: Text('Timer'),
+                  icon: Icon(Icons.hourglass_empty_rounded),
+                  selectedIcon: Icon(Icons.hourglass_full_rounded),
+                  label: Text('Focus'),
                 ),
                 NavigationRailDestination(
-                  icon: Icon(Icons.bar_chart_outlined),
-                  selectedIcon: Icon(Icons.bar_chart),
-                  label: Text('Analytics'),
+                  icon: Icon(Icons.insights_rounded),
+                  selectedIcon: Icon(Icons.insights),
+                  label: Text('Insights'),
                 ),
                 NavigationRailDestination(
-                  icon: Icon(Icons.history_outlined),
-                  selectedIcon: Icon(Icons.history),
-                  label: Text('History'),
+                  icon: Icon(Icons.history_edu_rounded),
+                  selectedIcon: Icon(Icons.history_edu),
+                  label: Text('Log'),
                 ),
                 NavigationRailDestination(
-                  icon: Icon(Icons.settings_outlined),
-                  selectedIcon: Icon(Icons.settings),
+                  icon: Icon(Icons.tune_rounded),
+                  selectedIcon: Icon(Icons.tune),
                   label: Text('Settings'),
                 ),
               ],
@@ -136,23 +177,23 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         onDestinationSelected: (idx) => setState(() => _currentIndex = idx),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.timer_outlined),
-            selectedIcon: Icon(Icons.timer),
-            label: 'Timer',
+            icon: Icon(Icons.hourglass_empty_rounded),
+            selectedIcon: Icon(Icons.hourglass_full_rounded),
+            label: 'Focus',
           ),
           NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart),
-            label: 'Analytics',
+            icon: Icon(Icons.insights_rounded),
+            selectedIcon: Icon(Icons.insights),
+            label: 'Insights',
           ),
           NavigationDestination(
-            icon: Icon(Icons.history_outlined),
-            selectedIcon: Icon(Icons.history),
-            label: 'History',
+            icon: Icon(Icons.history_edu_rounded),
+            selectedIcon: Icon(Icons.history_edu),
+            label: 'Log',
           ),
           NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
+            icon: Icon(Icons.tune_rounded),
+            selectedIcon: Icon(Icons.tune),
             label: 'Settings',
           ),
         ],
@@ -162,7 +203,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 }
 
 // -------------------------------------------------------------
-// Screen 1: Timer / Today
+// Screen 1: Calm Focus Timer
 // -------------------------------------------------------------
 class TimerScreen extends ConsumerWidget {
   const TimerScreen({super.key});
@@ -179,27 +220,93 @@ class TimerScreen extends ConsumerWidget {
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
+  void _showCustomDurationDialog(BuildContext context, WidgetRef ref) {
+    final current = ref.read(targetFocusDurationMinutesProvider) ?? 25;
+    final controller = TextEditingController(text: current.toString());
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Set Custom Focus Time'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Enter target focus duration in minutes (or leave 0 for open stopwatch):'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              decoration: InputDecoration(
+                suffixText: 'mins',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              children: [15, 25, 45, 60, 90].map((mins) {
+                return ActionChip(
+                  label: Text('$mins m'),
+                  onPressed: () {
+                    ref.read(targetFocusDurationMinutesProvider.notifier).state = mins;
+                    Navigator.pop(ctx);
+                  },
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              ref.read(targetFocusDurationMinutesProvider.notifier).state = null; // Open mode
+              Navigator.pop(ctx);
+            },
+            child: const Text('Open (No Limit)'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final val = int.tryParse(controller.text) ?? 25;
+              ref.read(targetFocusDurationMinutesProvider.notifier).state = val > 0 ? val : null;
+              Navigator.pop(ctx);
+            },
+            child: const Text('Set'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stopwatchState = ref.watch(stopwatchProvider);
     final sessionsAsync = ref.watch(sessionsStreamProvider);
     final dailyGoal = ref.watch(dailyGoalMinutesProvider);
+    final targetMins = ref.watch(targetFocusDurationMinutesProvider);
 
     final sessions = sessionsAsync.value ?? [];
     final dailyTotals = StatsEngine.calculateDailyTotals(sessions);
     final now = DateTime.now();
     final todayKey = DateTime(now.year, now.month, now.day);
     final todayMinutes = dailyTotals[todayKey] ?? 0;
-    final progress = (todayMinutes / dailyGoal).clamp(0.0, 1.0);
+    final dailyProgress = (todayMinutes / dailyGoal).clamp(0.0, 1.0);
+
+    // Session progress if target set
+    double sessionProgress = 0.0;
+    if (targetMins != null && targetMins > 0) {
+      final elapsedMins = stopwatchState.elapsedMs / 60000.0;
+      sessionProgress = (elapsedMins / targetMins).clamp(0.0, 1.0);
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('PageClock'),
-        centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.fullscreen),
-            tooltip: 'iPhone StandBy Clock Mode',
+            icon: const Icon(Icons.fullscreen_rounded),
+            tooltip: 'StandBy Clock Mode',
             onPressed: () {
               Navigator.push(
                 context,
@@ -211,113 +318,168 @@ class TimerScreen extends ConsumerWidget {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final isCompact = constraints.maxHeight < 500;
+          final isCompact = constraints.maxHeight < 560;
+
           return Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
+              constraints: const BoxConstraints(maxWidth: 540),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 16.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Daily Goal Progress
-                    Card(
-                      elevation: 0,
-                      color: Theme.of(context).colorScheme.surfaceVariant,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                        child: Row(
-                          children: [
-                            CircularProgressIndicator(
-                              value: progress,
-                              strokeWidth: 6,
+                    // Daily Goal Pill
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: CircularProgressIndicator(
+                              value: dailyProgress,
+                              strokeWidth: 3.5,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
-                            const SizedBox(width: 16),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Today: $todayMinutes / $dailyGoal mins',
-                                    style: Theme.of(context).textTheme.titleMedium),
-                                Text('${(progress * 100).toInt()}% of daily goal',
-                                    style: Theme.of(context).textTheme.bodySmall),
-                              ],
+                          ),
+                          const SizedBox(width: 14),
+                          Text(
+                            'Daily Goal: $todayMinutes / $dailyGoal mins (${(dailyProgress * 100).toInt()}%)',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (!isCompact) const Spacer(),
+
+                    // Target Session Duration Selector
+                    const SizedBox(height: 20),
+                    InkWell(
+                      onTap: stopwatchState.status == StopwatchStatus.idle
+                          ? () => _showCustomDurationDialog(context, ref)
+                          : null,
+                      borderRadius: BorderRadius.circular(30),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.edit_calendar_rounded,
+                              size: 16,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              targetMins == null ? 'Target: Open timer' : 'Target: $targetMins mins (custom)',
+                              style: Theme.of(context).textTheme.labelMedium,
                             ),
                           ],
                         ),
                       ),
                     ),
-                    if (!isCompact) const Spacer(),
 
-                    const SizedBox(height: 16),
-                    // Timer Display
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        formatDuration(stopwatchState.elapsedMs),
-                        style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                              fontSize: isCompact ? 56 : 76,
-                              fontWeight: FontWeight.bold,
-                              fontFeatures: const [FontFeature.tabularFigures()],
-                            ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      stopwatchState.status == StopwatchStatus.running
-                          ? 'READING SESSION ACTIVE'
-                          : (stopwatchState.status == StopwatchStatus.paused
-                              ? 'PAUSED'
-                              : 'READY TO READ'),
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: stopwatchState.status == StopwatchStatus.running
-                                ? Colors.green
-                                : (stopwatchState.status == StopwatchStatus.paused
-                                    ? Colors.orange
-                                    : Theme.of(context).hintColor),
-                            letterSpacing: 1.2,
-                          ),
-                    ),
-                    if (!isCompact) const Spacer(),
                     const SizedBox(height: 24),
 
-                    // Controls
+                    // Central Breathing Clock Ring
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(
+                          width: isCompact ? 190 : 250,
+                          height: isCompact ? 190 : 250,
+                          child: CircularProgressIndicator(
+                            value: targetMins != null ? sessionProgress : null,
+                            strokeWidth: 4,
+                            backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              formatDuration(stopwatchState.elapsedMs),
+                              style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                                    fontSize: isCompact ? 46 : 64,
+                                    fontWeight: FontWeight.w300,
+                                    letterSpacing: -1,
+                                    fontFeatures: const [FontFeature.tabularFigures()],
+                                  ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              stopwatchState.status == StopwatchStatus.running
+                                  ? 'DEEP READING'
+                                  : (stopwatchState.status == StopwatchStatus.paused
+                                      ? 'PAUSED'
+                                      : 'READY'),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 2.0,
+                                color: stopwatchState.status == StopwatchStatus.running
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context).hintColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+
+                    if (!isCompact) const Spacer(),
+                    const SizedBox(height: 32),
+
+                    // Soft Minimal Controls
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         if (stopwatchState.status == StopwatchStatus.idle)
                           FilledButton.icon(
                             style: FilledButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 18),
+                              padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 18),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                             ),
                             onPressed: () => ref.read(stopwatchProvider.notifier).start(),
-                            icon: const Icon(Icons.play_arrow),
-                            label: const Text('Start Reading', style: TextStyle(fontSize: 18)),
+                            icon: const Icon(Icons.play_arrow_rounded, size: 24),
+                            label: const Text('Begin Focus', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
                           )
                         else ...[
                           if (stopwatchState.status == StopwatchStatus.running)
                             OutlinedButton.icon(
                               style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                                padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                               ),
                               onPressed: () => ref.read(stopwatchProvider.notifier).pause(),
-                              icon: const Icon(Icons.pause),
+                              icon: const Icon(Icons.pause_rounded),
                               label: const Text('Pause'),
                             )
                           else
                             FilledButton.icon(
                               style: FilledButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                                padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 16),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                               ),
                               onPressed: () => ref.read(stopwatchProvider.notifier).resume(),
-                              icon: const Icon(Icons.play_arrow),
+                              icon: const Icon(Icons.play_arrow_rounded),
                               label: const Text('Resume'),
                             ),
-                          const SizedBox(width: 20),
+                          const SizedBox(width: 16),
                           FilledButton.tonalIcon(
                             style: FilledButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                              padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                             ),
                             onPressed: () async {
                               final session = await ref.read(stopwatchProvider.notifier).stop();
@@ -327,8 +489,8 @@ class TimerScreen extends ConsumerWidget {
                                 );
                               }
                             },
-                            icon: const Icon(Icons.stop),
-                            label: const Text('Stop & Save'),
+                            icon: const Icon(Icons.stop_rounded),
+                            label: const Text('Complete'),
                           ),
                         ],
                       ],
@@ -346,7 +508,7 @@ class TimerScreen extends ConsumerWidget {
 }
 
 // -------------------------------------------------------------
-// StandBy / iPhone Full-Screen Clock Mode
+// StandBy Fullscreen Clock Mode (Calm & Elegant)
 // -------------------------------------------------------------
 class FullscreenClockModeScreen extends ConsumerStatefulWidget {
   const FullscreenClockModeScreen({super.key});
@@ -377,23 +539,21 @@ class _FullscreenClockModeScreenState extends ConsumerState<FullscreenClockModeS
     final dateStr = DateFormat('EEEE, MMMM d').format(now);
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF0C0F0E), // Ambient twilight black
       body: SafeArea(
         child: Stack(
           children: [
-            // Exit button
             Positioned(
               top: 16,
               left: 16,
               child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white54, size: 28),
+                icon: const Icon(Icons.close_rounded, color: Colors.white38, size: 28),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
-            // Standby Content
             Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                padding: const EdgeInsets.symmetric(horizontal: 36.0),
                 child: OrientationBuilder(
                   builder: (context, orientation) {
                     final isLandscape = orientation == Orientation.landscape;
@@ -403,7 +563,6 @@ class _FullscreenClockModeScreenState extends ConsumerState<FullscreenClockModeS
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          // Left side: Giant Clock
                           Column(
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,9 +574,9 @@ class _FullscreenClockModeScreenState extends ConsumerState<FullscreenClockModeS
                                   Text(
                                     timeStr,
                                     style: const TextStyle(
-                                      color: Color(0xFFFF5722),
-                                      fontSize: 108,
-                                      fontWeight: FontWeight.w900,
+                                      color: CalmPalette.accentWarm,
+                                      fontSize: 112,
+                                      fontWeight: FontWeight.w200,
                                       letterSpacing: -2,
                                       fontFeatures: [FontFeature.tabularFigures()],
                                     ),
@@ -426,9 +585,9 @@ class _FullscreenClockModeScreenState extends ConsumerState<FullscreenClockModeS
                                   Text(
                                     amPmStr,
                                     style: const TextStyle(
-                                      color: Color(0xFFFF8A65),
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white54,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w400,
                                     ),
                                   ),
                                 ],
@@ -436,21 +595,20 @@ class _FullscreenClockModeScreenState extends ConsumerState<FullscreenClockModeS
                               Text(
                                 dateStr,
                                 style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white60,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w400,
+                                  letterSpacing: 0.5,
                                 ),
                               ),
                             ],
                           ),
-                          const VerticalDivider(color: Colors.white24, width: 64),
-                          // Right side: Active Reading Timer & Controls
-                          _buildStandByTimerWidget(context, stopwatchState),
+                          const VerticalDivider(color: Colors.white12, width: 64),
+                          _buildStandByControls(context, stopwatchState),
                         ],
                       );
                     }
 
-                    // Portrait Mode
                     return Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -462,29 +620,25 @@ class _FullscreenClockModeScreenState extends ConsumerState<FullscreenClockModeS
                             Text(
                               timeStr,
                               style: const TextStyle(
-                                color: Color(0xFFFF5722),
-                                fontSize: 88,
-                                fontWeight: FontWeight.w900,
+                                color: CalmPalette.accentWarm,
+                                fontSize: 90,
+                                fontWeight: FontWeight.w200,
                                 fontFeatures: [FontFeature.tabularFigures()],
                               ),
                             ),
                             const SizedBox(width: 8),
                             Text(
                               amPmStr,
-                              style: const TextStyle(
-                                color: Color(0xFFFF8A65),
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: const TextStyle(color: Colors.white54, fontSize: 22),
                             ),
                           ],
                         ),
                         Text(
                           dateStr,
-                          style: const TextStyle(color: Colors.white70, fontSize: 18),
+                          style: const TextStyle(color: Colors.white60, fontSize: 16),
                         ),
-                        const SizedBox(height: 48),
-                        _buildStandByTimerWidget(context, stopwatchState),
+                        const SizedBox(height: 52),
+                        _buildStandByControls(context, stopwatchState),
                       ],
                     );
                   },
@@ -497,13 +651,13 @@ class _FullscreenClockModeScreenState extends ConsumerState<FullscreenClockModeS
     );
   }
 
-  Widget _buildStandByTimerWidget(BuildContext context, StopwatchState stopwatchState) {
+  Widget _buildStandByControls(BuildContext context, StopwatchState stopwatchState) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         const Text(
           'READING TIMER',
-          style: TextStyle(color: Colors.white38, fontSize: 13, letterSpacing: 2, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.white30, fontSize: 12, letterSpacing: 2, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         Text(
@@ -511,40 +665,42 @@ class _FullscreenClockModeScreenState extends ConsumerState<FullscreenClockModeS
           style: const TextStyle(
             color: Colors.white,
             fontSize: 54,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w300,
             fontFeatures: [FontFeature.tabularFigures()],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (stopwatchState.status == StopwatchStatus.idle)
               FilledButton.icon(
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF5722),
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                  backgroundColor: CalmPalette.accentWarm,
+                  foregroundColor: Colors.black87,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 ),
                 onPressed: () => ref.read(stopwatchProvider.notifier).start(),
-                icon: const Icon(Icons.play_arrow),
-                label: const Text('Start'),
+                icon: const Icon(Icons.play_arrow_rounded),
+                label: const Text('Start Focus', style: TextStyle(fontWeight: FontWeight.w600)),
               )
             else ...[
               if (stopwatchState.status == StopwatchStatus.running)
                 IconButton.filledTonal(
                   onPressed: () => ref.read(stopwatchProvider.notifier).pause(),
-                  icon: const Icon(Icons.pause),
+                  icon: const Icon(Icons.pause_rounded),
                 )
               else
                 IconButton.filled(
-                  style: IconButton.styleFrom(backgroundColor: const Color(0xFFFF5722)),
+                  style: IconButton.styleFrom(backgroundColor: CalmPalette.accentWarm, foregroundColor: Colors.black),
                   onPressed: () => ref.read(stopwatchProvider.notifier).resume(),
-                  icon: const Icon(Icons.play_arrow),
+                  icon: const Icon(Icons.play_arrow_rounded),
                 ),
               const SizedBox(width: 16),
               IconButton.filledTonal(
                 onPressed: () => ref.read(stopwatchProvider.notifier).stop(),
-                icon: const Icon(Icons.stop),
+                icon: const Icon(Icons.stop_rounded),
               ),
             ],
           ],
@@ -555,7 +711,7 @@ class _FullscreenClockModeScreenState extends ConsumerState<FullscreenClockModeS
 }
 
 // -------------------------------------------------------------
-// Screen 2: Analytics & Charts
+// Screen 2: Analytics & Insights
 // -------------------------------------------------------------
 class AnalyticsScreen extends ConsumerWidget {
   const AnalyticsScreen({super.key});
@@ -569,16 +725,16 @@ class AnalyticsScreen extends ConsumerWidget {
     final sessions = sessionsAsync.value ?? [];
     if (sessions.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Analytics')),
+        appBar: AppBar(title: const Text('Insights')),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.auto_graph, size: 72, color: Theme.of(context).hintColor),
+              Icon(Icons.spa_outlined, size: 64, color: Theme.of(context).hintColor.withOpacity(0.5)),
               const SizedBox(height: 16),
-              const Text('No reading data yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              const Text('Start your first reading session to see analytics!'),
+              const Text('Quiet pages await', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 6),
+              const Text('Log your first focus session to unveil patterns.'),
             ],
           ),
         ),
@@ -609,79 +765,77 @@ class AnalyticsScreen extends ConsumerWidget {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Analytics')),
+      appBar: AppBar(title: const Text('Insights')),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             children: [
-              // Trend summary cards
               Row(
                 children: [
                   Expanded(
                     child: _MetricCard(
                       title: 'Consistency (30d)',
                       value: '${consistency30.percentage.toInt()}%',
-                      subtitle: '${consistency30.activeDays} of 30 days',
-                      icon: Icons.calendar_today,
+                      subtitle: '${consistency30.activeDays} of 30 days met',
+                      icon: Icons.calendar_month_rounded,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: _MetricCard(
                       title: 'Streak',
                       value: '${streaks.currentStreak}d',
-                      subtitle: 'Best: ${streaks.bestStreak}d',
-                      icon: Icons.local_fire_department,
+                      subtitle: 'Longest: ${streaks.bestStreak}d',
+                      icon: Icons.local_fire_department_rounded,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Row(
                 children: [
                   Expanded(
                     child: _MetricCard(
-                      title: 'Daily Trend',
+                      title: 'Day Trend',
                       value: '${dailyTrend.deltaMinutes >= 0 ? '+' : ''}${dailyTrend.deltaMinutes}m',
                       subtitle: '${dailyTrend.percentageChange.toStringAsFixed(1)}% vs yesterday',
-                      icon: dailyTrend.deltaMinutes >= 0 ? Icons.arrow_upward : Icons.arrow_downward,
-                      iconColor: dailyTrend.deltaMinutes >= 0 ? Colors.green : Colors.red,
+                      icon: dailyTrend.deltaMinutes >= 0 ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                      iconColor: dailyTrend.deltaMinutes >= 0 ? Colors.teal : Colors.orangeAccent,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: _MetricCard(
-                      title: 'Weekly Trend',
+                      title: 'Weekly Slope',
                       value: weeklyTrend.direction == TrendDirection.increasing
-                          ? '▲ Increasing'
+                          ? '▲ Ascending'
                           : (weeklyTrend.direction == TrendDirection.decreasing
-                              ? '▼ Decreasing'
-                              : '— Steady'),
-                      subtitle: '${weeklyTrend.deltaHours >= 0 ? '+' : ''}${weeklyTrend.deltaHours.toStringAsFixed(1)}h vs last wk',
-                      icon: Icons.trending_up,
+                              ? '▼ Softening'
+                              : '— Constant'),
+                      subtitle: '${weeklyTrend.deltaHours >= 0 ? '+' : ''}${weeklyTrend.deltaHours.toStringAsFixed(1)}h vs last week',
+                      icon: Icons.trending_up_rounded,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
 
-              // Last 7 days Bar Chart
-              Text('Last 7 Days (Minutes)', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 12),
+              Text('Past 7 Days (Minutes)', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 14),
               SizedBox(
-                height: 220,
+                height: 200,
                 child: BarChart(
                   BarChartData(
                     alignment: BarChartAlignment.spaceAround,
                     barTouchData: BarTouchData(
                       touchTooltipData: BarTouchTooltipData(
-                        getTooltipColor: (_) => Colors.blueGrey,
+                        getTooltipColor: (_) => const Color(0xFF2B3A37),
                         getTooltipItem: (group, groupIndex, rod, rodIndex) {
                           return BarTooltipItem(
                             '${rod.toY.toInt()} mins',
-                            const TextStyle(color: Colors.white),
+                            const TextStyle(color: Colors.white, fontSize: 12),
                           );
                         },
                       ),
@@ -709,9 +863,9 @@ class AnalyticsScreen extends ConsumerWidget {
                         barRods: [
                           BarChartRodData(
                             toY: mins,
-                            color: Theme.of(context).colorScheme.primary,
-                            width: 18,
-                            borderRadius: BorderRadius.circular(4),
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.85),
+                            width: 16,
+                            borderRadius: BorderRadius.circular(6),
                           ),
                         ],
                       );
@@ -721,11 +875,10 @@ class AnalyticsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 32),
 
-              // 4-Week Trend Bar Chart
-              Text('Last 4 Weeks (Hours)', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 12),
+              Text('Past 4 Weeks (Hours)', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 14),
               SizedBox(
-                height: 200,
+                height: 190,
                 child: BarChart(
                   BarChartData(
                     titlesData: FlTitlesData(
@@ -761,9 +914,9 @@ class AnalyticsScreen extends ConsumerWidget {
                         barRods: [
                           BarChartRodData(
                             toY: hours,
-                            color: Colors.teal,
+                            color: CalmPalette.accentSage,
                             width: 22,
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius: BorderRadius.circular(6),
                           ),
                         ],
                       );
@@ -799,24 +952,25 @@ class _MetricCard extends StatelessWidget {
     return Card(
       elevation: 0,
       color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Icon(icon, size: 18, color: iconColor ?? Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(title, style: Theme.of(context).textTheme.bodySmall, overflow: TextOverflow.ellipsis),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Text(value, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            Text(subtitle, style: Theme.of(context).textTheme.labelSmall),
+            Text(subtitle, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Theme.of(context).hintColor)),
           ],
         ),
       ),
@@ -825,7 +979,7 @@ class _MetricCard extends StatelessWidget {
 }
 
 // -------------------------------------------------------------
-// Screen 3: Sessions History & Manual CRUD
+// Screen 3: Sessions History
 // -------------------------------------------------------------
 class SessionsHistoryScreen extends ConsumerWidget {
   const SessionsHistoryScreen({super.key});
@@ -835,15 +989,19 @@ class SessionsHistoryScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Add Manual Session'),
+        title: const Text('Add Reading Session'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Enter reading duration:'),
-            const SizedBox(height: 12),
+            const Text('Enter recorded reading minutes:'),
+            const SizedBox(height: 14),
             TextField(
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Minutes', border: OutlineInputBorder()),
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Minutes',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
               onChanged: (val) {
                 durationMinutes = int.tryParse(val) ?? 30;
               },
@@ -882,32 +1040,33 @@ class SessionsHistoryScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Session History'),
+        title: const Text('Reading Log'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: 'Add manual session',
+            icon: const Icon(Icons.add_rounded),
+            tooltip: 'Add manual entry',
             onPressed: () => _showAddManualDialog(context, ref),
           ),
         ],
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
+          constraints: const BoxConstraints(maxWidth: 760),
           child: sessions.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.history, size: 64, color: Theme.of(context).hintColor),
+                      Icon(Icons.history_rounded, size: 56, color: Theme.of(context).hintColor.withOpacity(0.4)),
                       const SizedBox(height: 12),
-                      const Text('No reading sessions logged yet.'),
+                      const Text('Your reading log is clean and empty.'),
                     ],
                   ),
                 )
               : ListView.separated(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   itemCount: sessions.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
                   itemBuilder: (ctx, idx) {
                     final s = sessions[idx];
                     final date = DateTime.fromMillisecondsSinceEpoch(s.startedAtUtc);
@@ -915,12 +1074,16 @@ class SessionsHistoryScreen extends ConsumerWidget {
 
                     return ListTile(
                       leading: CircleAvatar(
-                        child: Icon(s.source == 'manual' ? Icons.edit_note : Icons.timer),
+                        backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                        child: Icon(
+                          s.source == 'manual' ? Icons.edit_note_rounded : Icons.hourglass_bottom_rounded,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                       ),
-                      title: Text('$durationMins minutes'),
-                      subtitle: Text(DateFormat('EEE, MMM d, yyyy • h:mm a').format(date)),
+                      title: Text('$durationMins minutes', style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text(DateFormat('EEEE, MMM d • h:mm a').format(date)),
                       trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline),
+                        icon: const Icon(Icons.delete_outline_rounded, size: 20),
                         onPressed: () => ref.read(sessionRepositoryProvider).softDeleteSession(s.id),
                       ),
                     );
@@ -943,41 +1106,57 @@ class SettingsScreen extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final dailyGoal = ref.watch(dailyGoalMinutesProvider);
     final consistencyThreshold = ref.watch(consistencyThresholdMinutesProvider);
+    final targetMins = ref.watch(targetFocusDurationMinutesProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
+          constraints: const BoxConstraints(maxWidth: 760),
           child: ListView(
+            padding: const EdgeInsets.all(16),
             children: [
               ListTile(
-                leading: const Icon(Icons.brightness_6),
-                title: const Text('Theme'),
+                leading: const Icon(Icons.palette_outlined),
+                title: const Text('Appearance'),
                 subtitle: Text(themeMode.name.toUpperCase()),
                 trailing: DropdownButton<ThemeMode>(
                   value: themeMode,
+                  underline: const SizedBox(),
                   onChanged: (mode) {
                     if (mode != null) ref.read(themeModeProvider.notifier).state = mode;
                   },
                   items: const [
                     DropdownMenuItem(value: ThemeMode.system, child: Text('System')),
-                    DropdownMenuItem(value: ThemeMode.light, child: Text('Light')),
-                    DropdownMenuItem(value: ThemeMode.dark, child: Text('Dark')),
+                    DropdownMenuItem(value: ThemeMode.light, child: Text('Calm Light')),
+                    DropdownMenuItem(value: ThemeMode.dark, child: Text('Twilight Dark')),
                   ],
                 ),
               ),
               const Divider(),
               ListTile(
+                leading: const Icon(Icons.timer_outlined),
+                title: const Text('Focus Target Preset'),
+                subtitle: Text(targetMins == null ? 'Open timer' : '$targetMins minutes per focus block'),
+                trailing: TextButton(
+                  onPressed: () {
+                    // Quick cycle presets
+                    final next = targetMins == null ? 15 : (targetMins == 15 ? 25 : (targetMins == 25 ? 45 : (targetMins == 45 ? 60 : null)));
+                    ref.read(targetFocusDurationMinutesProvider.notifier).state = next;
+                  },
+                  child: Text(targetMins == null ? 'Open' : '${targetMins}m (Cycle)'),
+                ),
+              ),
+              ListTile(
                 leading: const Icon(Icons.flag_outlined),
-                title: const Text('Daily Reading Goal'),
-                subtitle: Text('$dailyGoal minutes'),
+                title: const Text('Daily Goal'),
+                subtitle: Text('$dailyGoal minutes / day'),
                 trailing: SizedBox(
                   width: 140,
                   child: Slider(
                     min: 5,
-                    max: 120,
-                    divisions: 23,
+                    max: 180,
+                    divisions: 35,
                     value: dailyGoal.toDouble(),
                     onChanged: (val) => ref.read(dailyGoalMinutesProvider.notifier).state = val.toInt(),
                   ),
@@ -985,8 +1164,8 @@ class SettingsScreen extends ConsumerWidget {
               ),
               ListTile(
                 leading: const Icon(Icons.check_circle_outline),
-                title: const Text('Consistency Threshold'),
-                subtitle: Text('At least $consistencyThreshold minutes/day counts towards streaks'),
+                title: const Text('Streak Threshold'),
+                subtitle: Text('At least $consistencyThreshold mins/day to maintain streaks'),
                 trailing: SizedBox(
                   width: 140,
                   child: Slider(
@@ -1001,8 +1180,9 @@ class SettingsScreen extends ConsumerWidget {
               ),
               const Divider(),
               ListTile(
-                leading: const Icon(Icons.download),
-                title: const Text('Export Sessions (CSV)'),
+                leading: const Icon(Icons.file_download_outlined),
+                title: const Text('Export Records (CSV)'),
+                subtitle: const Text('Download all your reading sessions'),
                 onTap: () async {
                   final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
                   final csv = SessionExportService.exportToCsv(sessions);
@@ -1021,16 +1201,16 @@ class SettingsScreen extends ConsumerWidget {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.privacy_tip_outlined),
-                title: const Text('Privacy Policy'),
-                subtitle: const Text('100% offline, zero data collection'),
+                leading: const Icon(Icons.shield_outlined),
+                title: const Text('Privacy & Policy'),
+                subtitle: const Text('100% offline, zero tracking'),
                 onTap: () {
                   showDialog(
                     context: context,
                     builder: (ctx) => AlertDialog(
-                      title: const Text('Privacy Policy'),
+                      title: const Text('Zero-Data Policy'),
                       content: const Text(
-                        'PageClock is 100% offline and collects zero personal data. All reading metrics and notes remain exclusively on your device.',
+                        'PageClock works 100% offline. No analytics, no ads, and no external tracking. Your reading history is solely stored in your local SQLite database.',
                       ),
                       actions: [
                         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
@@ -1040,18 +1220,18 @@ class SettingsScreen extends ConsumerWidget {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.delete_forever, color: Colors.red),
-                title: const Text('Delete All Data', style: TextStyle(color: Colors.red)),
+                leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                title: const Text('Clear All Local Data', style: TextStyle(color: Colors.redAccent)),
                 onTap: () {
                   showDialog(
                     context: context,
                     builder: (ctx) => AlertDialog(
                       title: const Text('Delete all reading data?'),
-                      content: const Text('This action cannot be undone.'),
+                      content: const Text('This will delete all sessions locally on this device.'),
                       actions: [
                         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
                         FilledButton(
-                          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                          style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
                           onPressed: () async {
                             final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
                             for (final s in sessions) {
@@ -1059,7 +1239,7 @@ class SettingsScreen extends ConsumerWidget {
                             }
                             if (ctx.mounted) Navigator.pop(ctx);
                           },
-                          child: const Text('Delete All'),
+                          child: const Text('Confirm Clear'),
                         ),
                       ],
                     ),
