@@ -1180,6 +1180,18 @@ class SettingsScreen extends ConsumerWidget {
               ),
               const Divider(),
               ListTile(
+                leading: const Icon(Icons.auto_fix_high_rounded),
+                title: const Text('Load Demo Reading History'),
+                subtitle: const Text('Populate 28 days of realistic reading records to preview graphs'),
+                onTap: () {
+                  ref.read(sessionRepositoryProvider).seedSampleData();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Sample data populated! Check Insights tab.')),
+                  );
+                },
+              ),
+              const Divider(),
+              ListTile(
                 leading: const Icon(Icons.file_download_outlined),
                 title: const Text('Export Records (CSV)'),
                 subtitle: const Text('Download all your reading sessions'),

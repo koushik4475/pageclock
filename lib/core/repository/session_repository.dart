@@ -11,6 +11,7 @@ abstract class SessionRepository {
   Future<List<ReadingSession>> getSessionsBetween(int startUtc, int endUtc);
   Stream<List<ReadingSession>> watchAllSessions();
   Stream<ReadingSession?> watchActiveSession();
+  void seedSampleData();
 }
 
 class InMemorySessionRepository implements SessionRepository {
@@ -19,11 +20,57 @@ class InMemorySessionRepository implements SessionRepository {
   final _activeController = StreamController<ReadingSession?>.broadcast();
 
   InMemorySessionRepository([List<ReadingSession>? initial]) {
-    if (initial != null) {
+    if (initial != null && initial.isNotEmpty) {
       for (final s in initial) {
         _storage[s.id] = s;
       }
+    } else {
+      seedSampleData();
     }
+  }
+
+  @override
+  void seedSampleData() {
+    final now = DateTime.now();
+    final tz = now.timeZoneOffset.inMinutes;
+
+    // Generate realistic, beautiful 28-day reading history with an ascending trend
+    final sampleSessions = <ReadingSession>[];
+
+    // Last 28 days daily reading sessions (1 to 2 sessions per day)
+    final dailyMinutesPattern = [
+      25, 30, 45, 20, 50, 60, 40, // Week 4 ago
+      35, 40, 55, 30, 60, 75, 50, // Week 3 ago
+      45, 50, 65, 40, 80, 90, 60, // Week 2 ago
+      55, 60, 75, 45, 95, 110, 80 // Current week (ascending)
+    ];
+
+    for (int i = 0; i < dailyMinutesPattern.length; i++) {
+      final daysAgo = 27 - i;
+      final sessionDate = DateTime(now.year, now.month, now.day, 19, 30).subtract(Duration(days: daysAgo));
+      final durationMins = dailyMinutesPattern[i];
+      final startUtc = sessionDate.toUtc().millisecondsSinceEpoch;
+      final durationMs = durationMins * 60 * 1000;
+
+      sampleSessions.add(
+        ReadingSession(
+          id: 'sample-$i',
+          startedAtUtc: startUtc,
+          endedAtUtc: startUtc + durationMs,
+          durationMs: durationMs,
+          tzOffsetMin: tz,
+          source: i % 4 == 0 ? 'manual' : 'timer',
+          note: i % 3 == 0 ? 'Deep focus chapter' : null,
+          createdAt: startUtc,
+          updatedAt: startUtc + durationMs,
+        ),
+      );
+    }
+
+    for (final s in sampleSessions) {
+      _storage[s.id] = s;
+    }
+    _notify();
   }
 
   void _notify() {
@@ -90,10 +137,24 @@ class InMemorySessionRepository implements SessionRepository {
   }
 
   @override
-  Stream<List<ReadingSession>> watchAllSessions() => _controller.stream;
+  Stream<List<ReadingSession>> watchAllSessions() {
+    // Deliver current values immediately
+    final list = _storage.values.where((s) => s.deletedAt == null).toList()
+      ..sort((a, b) => b.startedAtUtc.compareTo(a.startedAtUtc));
+    return Stream.value(list).concatWith([_controller.stream]);
+  }
 
   @override
   Stream<ReadingSession?> watchActiveSession() => _activeController.stream;
+}
+
+extension StreamConcatExtension<T> on Stream<T> {
+  Stream<T> concatWith(Iterable<Stream<T>> others) async* {
+    yield* this;
+    for (final s in others) {
+      yield* s;
+    }
+  }
 }
 
 final sessionRepositoryProvider = Provider<SessionRepository>((ref) {
