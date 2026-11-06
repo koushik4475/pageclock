@@ -62,7 +62,7 @@ class PageClockApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp(
-      title: 'PageClock',
+      title: 'productivity',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
       theme: ThemeData(
@@ -142,21 +142,32 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                   Row(
                     children: [
                       Container(
-                        width: 28,
-                        height: 28,
+                        width: 30,
+                        height: 30,
                         decoration: BoxDecoration(
-                          color: AppColors.accentIndigo,
-                          borderRadius: BorderRadius.circular(6),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF6366F1).withOpacity(0.35),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                        child: const Icon(Icons.timer_outlined, size: 16, color: Colors.white),
+                        child: const Icon(Icons.bolt_rounded, size: 18, color: Colors.white),
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        'pageclock.',
+                        'productivity.',
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.5,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.6,
                           color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
                         ),
                       ),
@@ -996,7 +1007,7 @@ class TimerScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       appBar: AppBar(
-        title: const Text('PageClock', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.5)),
+        title: const Text('productivity', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.5)),
         backgroundColor: Colors.transparent,
         actions: [
           IconButton(
@@ -1539,6 +1550,45 @@ class SettingsScreen extends ConsumerWidget {
                 onTap: () async {
                   final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
                   await SessionPdfService.printOrSharePdf(sessions);
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+                title: const Text('Clear All Local Data', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600)),
+                subtitle: const Text('Purge all sessions and reset history'),
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Are you sure you want to delete all data?'),
+                      content: const Text(
+                        'This action will permanently delete all recorded focus sessions stored locally on this device. This cannot be undone.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('No, Cancel'),
+                        ),
+                        FilledButton(
+                          style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
+                          onPressed: () async {
+                            final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
+                            for (final s in sessions) {
+                              await ref.read(sessionRepositoryProvider).softDeleteSession(s.id);
+                            }
+                            if (ctx.mounted) {
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('All data has been deleted.')),
+                              );
+                            }
+                          },
+                          child: const Text('Yes, Delete All'),
+                        ),
+                      ],
+                    ),
+                  );
                 },
               ),
             ],

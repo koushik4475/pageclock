@@ -14,99 +14,173 @@ class SessionPdfService {
 
     final totalMinutes = activeSessions.fold<int>(0, (sum, s) => sum + (s.durationMs / 60000).round());
     final totalHours = (totalMinutes / 60.0).toStringAsFixed(1);
+    final avgSession = activeSessions.isNotEmpty ? (totalMinutes / activeSessions.length).round() : 0;
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(36),
+        margin: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 36),
         header: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
-                pw.Text(
-                  'PageClock',
-                  style: pw.TextStyle(
-                    fontSize: 26,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.teal800,
-                  ),
+                pw.Row(
+                  children: [
+                    pw.Container(
+                      width: 28,
+                      height: 28,
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromHex('#6366F1'), // Electric Indigo
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                      ),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(
+                        'P',
+                        style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 16),
+                      ),
+                    ),
+                    pw.SizedBox(width: 10),
+                    pw.Text(
+                      'productivity.',
+                      style: pw.TextStyle(
+                        fontSize: 22,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromHex('#09090B'),
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ],
                 ),
-                pw.Text(
-                  'Reading Focus Report',
-                  style: pw.TextStyle(fontSize: 14, color: PdfColors.grey700),
+                pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColor.fromHex('#EEF2FF'),
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+                  ),
+                  child: pw.Text(
+                    'OFFICIAL FOCUS REPORT',
+                    style: pw.TextStyle(
+                      fontSize: 9,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColor.fromHex('#4F46E5'),
+                      letterSpacing: 0.8,
+                    ),
+                  ),
                 ),
               ],
             ),
-            pw.SizedBox(height: 4),
+            pw.SizedBox(height: 6),
             pw.Text(
-              'Developed by Koushik • Portfolio: koushikhy.netlify.app',
-              style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+              'Developed by Koushik  |  Portfolio: koushikhy.netlify.app',
+              style: pw.TextStyle(fontSize: 10, color: PdfColor.fromHex('#6B7280'), fontWeight: pw.FontWeight.bold),
             ),
-            pw.Divider(thickness: 1, color: PdfColors.grey300),
-            pw.SizedBox(height: 12),
+            pw.SizedBox(height: 10),
+            pw.Divider(thickness: 1, color: PdfColor.fromHex('#E5E7EB')),
+            pw.SizedBox(height: 14),
           ],
         ),
-        footer: (context) => pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        footer: (context) => pw.Column(
           children: [
-            pw.Text(
-              'PageClock — Offline-First Reading Tracker | koushikhy.netlify.app',
-              style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey500),
-            ),
-            pw.Text(
-              'Page ${context.pageNumber} of ${context.pagesCount}',
-              style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey500),
+            pw.Divider(thickness: 0.5, color: PdfColor.fromHex('#E5E7EB')),
+            pw.SizedBox(height: 6),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'productivity.  •  Offline-First Reading Tracker  •  koushikhy.netlify.app',
+                  style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#9CA3AF')),
+                ),
+                pw.Text(
+                  'Page ${context.pageNumber} of ${context.pagesCount}',
+                  style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#9CA3AF')),
+                ),
+              ],
             ),
           ],
         ),
         build: (context) => [
-          // Summary Statistics Card
-          pw.Container(
-            padding: const pw.EdgeInsets.all(16),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.grey100,
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-            ),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
-              children: [
-                pw.Column(
-                  children: [
-                    pw.Text('Total Sessions', style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700)),
-                    pw.SizedBox(height: 4),
-                    pw.Text('${activeSessions.length}', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: PdfColors.teal900)),
-                  ],
+          // Bento Summary Cards
+          pw.Row(
+            children: [
+              pw.Expanded(
+                child: pw.Container(
+                  padding: const pw.EdgeInsets.all(14),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColor.fromHex('#F9FAFB'),
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                    border: pw.Border.all(color: PdfColor.fromHex('#E5E7EB'), width: 1),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('TOTAL SESSIONS', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#6B7280'), fontWeight: pw.FontWeight.bold, letterSpacing: 0.8)),
+                      pw.SizedBox(height: 6),
+                      pw.Text('${activeSessions.length}', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#111827'))),
+                    ],
+                  ),
                 ),
-                pw.Column(
-                  children: [
-                    pw.Text('Total Reading Time', style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700)),
-                    pw.SizedBox(height: 4),
-                    pw.Text('$totalHours hrs ($totalMinutes m)', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: PdfColors.teal900)),
-                  ],
+              ),
+              pw.SizedBox(width: 10),
+              pw.Expanded(
+                child: pw.Container(
+                  padding: const pw.EdgeInsets.all(14),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColor.fromHex('#F9FAFB'),
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                    border: pw.Border.all(color: PdfColor.fromHex('#E5E7EB'), width: 1),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('TOTAL VOLUME', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#6B7280'), fontWeight: pw.FontWeight.bold, letterSpacing: 0.8)),
+                      pw.SizedBox(height: 6),
+                      pw.Text('$totalHours hrs (${totalMinutes}m)', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#4F46E5'))),
+                    ],
+                  ),
                 ),
-                pw.Column(
-                  children: [
-                    pw.Text('Report Generated', style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700)),
-                    pw.SizedBox(height: 4),
-                    pw.Text(DateFormat('MMM d, yyyy').format(DateTime.now()), style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-                  ],
+              ),
+              pw.SizedBox(width: 10),
+              pw.Expanded(
+                child: pw.Container(
+                  padding: const pw.EdgeInsets.all(14),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColor.fromHex('#F9FAFB'),
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                    border: pw.Border.all(color: PdfColor.fromHex('#E5E7EB'), width: 1),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('AVG SESSION', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#6B7280'), fontWeight: pw.FontWeight.bold, letterSpacing: 0.8)),
+                      pw.SizedBox(height: 6),
+                      pw.Text('$avgSession mins', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#059669'))),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
           pw.SizedBox(height: 24),
 
-          pw.Text('Reading Session Log', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+          pw.Text(
+            'DETAILED READING SESSIONS',
+            style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, letterSpacing: 1.0, color: PdfColor.fromHex('#374151')),
+          ),
           pw.SizedBox(height: 10),
 
-          // Table of records
+          // High-precision table
           pw.TableHelper.fromTextArray(
-            headers: ['#', 'Date & Time', 'Duration', 'Type', 'Note'],
+            headers: ['#', 'Date & Start Time', 'Duration', 'Source', 'Notes'],
             headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 10),
-            headerDecoration: const pw.BoxDecoration(color: PdfColors.teal700),
-            cellHeight: 28,
+            headerDecoration: pw.BoxDecoration(
+              color: PdfColor.fromHex('#18181B'),
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+            ),
+            cellHeight: 26,
+            cellStyle: const pw.TextStyle(fontSize: 9),
             cellAlignments: {
               0: pw.Alignment.centerLeft,
               1: pw.Alignment.centerLeft,
@@ -120,7 +194,7 @@ class SessionPdfService {
               final mins = (s.durationMs / 60000).round();
               return [
                 '${i + 1}',
-                DateFormat('yyyy-MM-dd HH:mm').format(date),
+                DateFormat('yyyy-MM-dd  HH:mm').format(date),
                 '$mins mins',
                 s.source.toUpperCase(),
                 s.note ?? '—',
@@ -138,7 +212,7 @@ class SessionPdfService {
     final pdfBytes = await generatePdf(sessions);
     await Printing.sharePdf(
       bytes: pdfBytes,
-      filename: 'PageClock_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf',
+      filename: 'Productivity_Focus_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf',
     );
   }
 }
