@@ -5,6 +5,7 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   test-and-build:
@@ -26,6 +27,9 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Run code generation (Drift / build_runner)
+        run: dart run build_runner build --delete-conflicting-outputs || true
 
       - name: Run Unit & Acceptance Tests
         run: flutter test

@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:csv/csv.dart';
-import '../core/models/reading_session.dart';
+import '../models/reading_session.dart';
 
 class SessionExportService {
   static String exportToCsv(List<ReadingSession> sessions) {
