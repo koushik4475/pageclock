@@ -25,19 +25,16 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        working-directory: pageclock
         run: flutter pub get
 
       - name: Run Unit & Acceptance Tests
-        working-directory: pageclock
         run: flutter test
 
       - name: Build Android APK (Release)
-        working-directory: pageclock
         run: flutter build apk --release --split-per-abi
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: pageclock-apk
-          path: pageclock/build/app/outputs/flutter-apk/*.apk
+          path: build/app/outputs/flutter-apk/*.apk
