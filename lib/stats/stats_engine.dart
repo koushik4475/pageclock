@@ -1,5 +1,5 @@
 import 'dart:math';
-import '../models/reading_session.dart';
+import '../core/models/reading_session.dart';
 
 class DailyAggregate {
   final DateTime date; // Local date (midnight)
