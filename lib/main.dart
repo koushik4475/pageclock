@@ -11,23 +11,37 @@ import '../stats/stats_engine.dart';
 import '../core/services/export_service.dart';
 import '../core/services/pdf_service.dart';
 
-// Calm Palette
-class CalmPalette {
-  static const primaryLight = Color(0xFF3B6E66); // Soothing sage slate
-  static const surfaceLight = Color(0xFFF9FAF8); // Warm paper white
-  static const containerLight = Color(0xFFEAEFEA);
-  static const accentSage = Color(0xFF5A8D83);
+// -------------------------------------------------------------
+// Design Tokens: Linear / Vercel Pro Aesthetic
+// -------------------------------------------------------------
+class AppColors {
+  static const bgDark = Color(0xFF09090B); // Obsidian / True deep black
+  static const surfaceDark = Color(0xFF121215); // Layer 1 card surface
+  static const surfaceDarkHover = Color(0xFF18181B);
+  static const borderDark = Color(0xFF27272A); // 1px hairline border
+  static const borderDarkSubtle = Color(0xFF1F1F23);
 
-  static const primaryDark = Color(0xFF81A89F);
-  static const surfaceDark = Color(0xFF141918); // Deep forest twilight
-  static const containerDark = Color(0xFF1E2624);
-  static const accentWarm = Color(0xFFE5A86D); // Muted ember for StandBy clock
+  static const textPrimaryDark = Color(0xFFFAFAFA);
+  static const textSecondaryDark = Color(0xFFA1A1AA);
+  static const textMutedDark = Color(0xFF71717A);
+
+  static const accentIndigo = Color(0xFF6366F1); // Linear signature indigo
+  static const accentEmerald = Color(0xFF10B981); // Crisp success green
+  static const accentOrange = Color(0xFFF97316); // StandBy flame
+
+  // Light Mode Tokens
+  static const bgLight = Color(0xFFFBFBFB);
+  static const surfaceLight = Color(0xFFFFFFFF);
+  static const borderLight = Color(0xFFE4E4E7);
+  static const textPrimaryLight = Color(0xFF09090B);
+  static const textSecondaryLight = Color(0xFF52525B);
+  static const textMutedLight = Color(0xFFA1A1AA);
 }
 
 // State Providers
-final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
+final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.dark);
 final dailyGoalMinutesProvider = StateProvider<int>((ref) => 30);
-final targetFocusDurationMinutesProvider = StateProvider<int?>((ref) => 25); // Target focus duration (default 25m Pomodoro)
+final targetFocusDurationMinutesProvider = StateProvider<int?>((ref) => 25);
 final consistencyThresholdMinutesProvider = StateProvider<int>((ref) => 10);
 final weekStartDayProvider = StateProvider<int>((ref) => DateTime.monday);
 
@@ -53,62 +67,43 @@ class PageClockApp extends ConsumerWidget {
       themeMode: themeMode,
       theme: ThemeData(
         useMaterial3: true,
-        scaffoldBackgroundColor: CalmPalette.surfaceLight,
-        colorScheme: ColorScheme.light(
-          primary: CalmPalette.primaryLight,
-          surface: CalmPalette.surfaceLight,
-          surfaceVariant: CalmPalette.containerLight,
-          secondary: CalmPalette.accentSage,
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: AppColors.bgLight,
+        colorScheme: const ColorScheme.light(
+          primary: AppColors.accentIndigo,
+          surface: AppColors.surfaceLight,
+          outline: AppColors.borderLight,
         ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: CalmPalette.surfaceLight,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          centerTitle: true,
-          titleTextStyle: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.5,
-            color: Color(0xFF1B2E2B),
-          ),
-        ),
+        fontFamily: 'Inter',
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
-        scaffoldBackgroundColor: CalmPalette.surfaceDark,
-        colorScheme: ColorScheme.dark(
-          primary: CalmPalette.primaryDark,
-          surface: CalmPalette.surfaceDark,
-          surfaceVariant: CalmPalette.containerDark,
-          secondary: CalmPalette.accentWarm,
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: AppColors.bgDark,
+        colorScheme: const ColorScheme.dark(
+          primary: AppColors.accentIndigo,
+          surface: AppColors.surfaceDark,
+          outline: AppColors.borderDark,
         ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: CalmPalette.surfaceDark,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          centerTitle: true,
-          titleTextStyle: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.5,
-            color: Color(0xFFE0EAE7),
-          ),
-        ),
+        fontFamily: 'Inter',
       ),
-      home: const MainNavigationScreen(),
+      home: const MainNavigationShell(),
     );
   }
 }
 
-class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({super.key});
+// -------------------------------------------------------------
+// Main Navigation Shell (Ultra-Minimalist Sidebar & Dock)
+// -------------------------------------------------------------
+class MainNavigationShell extends StatefulWidget {
+  const MainNavigationShell({super.key});
 
   @override
-  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+  State<MainNavigationShell> createState() => _MainNavigationShellState();
 }
 
-class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  int _currentIndex = 0;
+class _MainNavigationShellState extends State<MainNavigationShell> {
+  int _currentIndex = 1; // Default to Insights
 
   final _screens = const [
     TimerScreen(),
@@ -119,44 +114,110 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isWide = MediaQuery.of(context).size.width >= 720;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isWide = MediaQuery.of(context).size.width >= 800;
 
     if (isWide) {
       return Scaffold(
+        backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
         body: Row(
           children: [
-            NavigationRail(
-              selectedIndex: _currentIndex,
-              onDestinationSelected: (idx) => setState(() => _currentIndex = idx),
-              labelType: NavigationRailLabelType.all,
-              leading: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Icon(Icons.spa_outlined, size: 30, color: CalmPalette.primaryLight),
+            // Linear-Style Desktop Sidebar
+            Container(
+              width: 220,
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.bgDark : AppColors.surfaceLight,
+                border: Border(
+                  right: BorderSide(
+                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                    width: 1,
+                  ),
+                ),
               ),
-              destinations: const [
-                NavigationRailDestination(
-                  icon: Icon(Icons.hourglass_empty_rounded),
-                  selectedIcon: Icon(Icons.hourglass_full_rounded),
-                  label: Text('Focus'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.insights_rounded),
-                  selectedIcon: Icon(Icons.insights),
-                  label: Text('Insights'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.history_edu_rounded),
-                  selectedIcon: Icon(Icons.history_edu),
-                  label: Text('Log'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.tune_rounded),
-                  selectedIcon: Icon(Icons.tune),
-                  label: Text('Settings'),
-                ),
-              ],
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // App Brand Mark
+                  Row(
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: AppColors.accentIndigo,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(Icons.timer_outlined, size: 16, color: Colors.white),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'pageclock.',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.5,
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 36),
+
+                  // Section Header
+                  Text(
+                    'WORKSPACE',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.2,
+                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  _buildSidebarItem(0, 'Focus Timer', Icons.schedule_rounded, isDark),
+                  _buildSidebarItem(1, 'Insights', Icons.analytics_outlined, isDark),
+                  _buildSidebarItem(2, 'Session Log', Icons.history_rounded, isDark),
+                  _buildSidebarItem(3, 'Settings', Icons.tune_rounded, isDark),
+
+                  const Spacer(),
+
+                  // Bottom Developer Badge
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.surfaceDark : AppColors.bgLight,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                        width: 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Koushik',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'koushikhy.netlify.app',
+                          style: TextStyle(fontSize: 10, color: AppColors.accentIndigo),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const VerticalDivider(thickness: 1, width: 1),
+
+            // Content Area
             Expanded(
               child: IndexedStack(
                 index: _currentIndex,
@@ -168,43 +229,699 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       );
     }
 
+    // Mobile Bottom Navigation Bar
     return Scaffold(
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       body: IndexedStack(
         index: _currentIndex,
         children: _screens,
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (idx) => setState(() => _currentIndex = idx),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.hourglass_empty_rounded),
-            selectedIcon: Icon(Icons.hourglass_full_rounded),
-            label: 'Focus',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.bgDark : AppColors.surfaceLight,
+          border: Border(
+            top: BorderSide(
+              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              width: 1,
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.insights_rounded),
-            selectedIcon: Icon(Icons.insights),
-            label: 'Insights',
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (idx) => setState(() => _currentIndex = idx),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: AppColors.accentIndigo,
+          unselectedItemColor: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+          selectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+          unselectedLabelStyle: const TextStyle(fontSize: 11),
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.schedule_rounded), label: 'Focus'),
+            BottomNavigationBarItem(icon: Icon(Icons.analytics_outlined), label: 'Insights'),
+            BottomNavigationBarItem(icon: Icon(Icons.history_rounded), label: 'Log'),
+            BottomNavigationBarItem(icon: Icon(Icons.tune_rounded), label: 'Settings'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSidebarItem(int idx, String title, IconData icon, bool isDark) {
+    final isSelected = _currentIndex == idx;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4.0),
+      child: InkWell(
+        onTap: () => setState(() => _currentIndex = idx),
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? (isDark ? AppColors.surfaceDarkHover : const Color(0xFFF4F4F5))
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.history_edu_rounded),
-            selectedIcon: Icon(Icons.history_edu),
-            label: 'Log',
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected
+                    ? AppColors.accentIndigo
+                    : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: isSelected
+                      ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
+                      : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                ),
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.tune_rounded),
-            selectedIcon: Icon(Icons.tune),
-            label: 'Settings',
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
 // -------------------------------------------------------------
-// Screen 1: Calm Focus Timer
+// Screen 2: World-Class Bento Grid Insights Screen
+// -------------------------------------------------------------
+class AnalyticsScreen extends ConsumerWidget {
+  const AnalyticsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sessionsAsync = ref.watch(sessionsStreamProvider);
+    final consistencyThreshold = ref.watch(consistencyThresholdMinutesProvider);
+    final weekStartDay = ref.watch(weekStartDayProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final sessions = sessionsAsync.value ?? [];
+    final now = DateTime.now();
+    final dailyTotals = StatsEngine.calculateDailyTotals(sessions);
+
+    final consistency30 = StatsEngine.calculateConsistency(
+      dailyTotals: dailyTotals,
+      today: now,
+      windowDays: 30,
+      thresholdMinutes: consistencyThreshold,
+    );
+    final streaks = StatsEngine.calculateStreaks(
+      dailyTotals: dailyTotals,
+      today: now,
+      thresholdMinutes: consistencyThreshold,
+    );
+    final weeklyTrend = StatsEngine.calculateWeeklyTrend(
+      dailyTotals: dailyTotals,
+      today: now,
+      weekStartDay: weekStartDay,
+    );
+    final dailyTrend = StatsEngine.calculateDailyTrend(
+      dailyTotals: dailyTotals,
+      today: now,
+    );
+
+    // Total stats
+    final totalMins = sessions.where((s) => s.deletedAt == null).fold<int>(0, (acc, s) => acc + (s.durationMs / 60000).round());
+    final totalHours = (totalMins / 60.0).toStringAsFixed(1);
+
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1080),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Page Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'INSIGHTS & VELOCITY',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.5,
+                              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Reading Analytics',
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.8,
+                              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: AppColors.accentEmerald,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Offline SQLite • Realtime',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Row 1: 4 Linear Metric Bento Tiles
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final tileWidth = (constraints.maxWidth - 36) / 4;
+                      final isStacked = constraints.maxWidth < 640;
+
+                      if (isStacked) {
+                        return Column(
+                          children: [
+                            _buildBentoTile(
+                              title: '30D CONSISTENCY',
+                              value: '${consistency30.percentage.toInt()}%',
+                              subtext: '${consistency30.activeDays} of 30 days completed',
+                              badgeText: consistency30.percentage >= 80 ? 'EXCELLENT' : 'ON TRACK',
+                              badgeColor: AppColors.accentEmerald,
+                              isDark: isDark,
+                            ),
+                            const SizedBox(height: 12),
+                            _buildBentoTile(
+                              title: 'STREAK',
+                              value: '${streaks.currentStreak}d',
+                              subtext: 'All-time best: ${streaks.bestStreak} days',
+                              badgeText: '🔥 ACTIVE',
+                              badgeColor: AppColors.accentOrange,
+                              isDark: isDark,
+                            ),
+                            const SizedBox(height: 12),
+                            _buildBentoTile(
+                              title: 'DAY DELTA',
+                              value: '${dailyTrend.deltaMinutes >= 0 ? '+' : ''}${dailyTrend.deltaMinutes}m',
+                              subtext: '${dailyTrend.percentageChange.toStringAsFixed(1)}% vs yesterday',
+                              badgeText: dailyTrend.deltaMinutes >= 0 ? '▲ UP' : '▼ DOWN',
+                              badgeColor: dailyTrend.deltaMinutes >= 0 ? AppColors.accentEmerald : Colors.redAccent,
+                              isDark: isDark,
+                            ),
+                            const SizedBox(height: 12),
+                            _buildBentoTile(
+                              title: '4-WEEK TREND',
+                              value: weeklyTrend.direction == TrendDirection.increasing
+                                  ? 'Increasing'
+                                  : (weeklyTrend.direction == TrendDirection.decreasing ? 'Decreasing' : 'Steady'),
+                              subtext: '${weeklyTrend.deltaHours >= 0 ? '+' : ''}${weeklyTrend.deltaHours.toStringAsFixed(1)}h vs last week',
+                              badgeText: weeklyTrend.direction == TrendDirection.increasing ? '▲ ASCENDING' : 'STEADY',
+                              badgeColor: AppColors.accentIndigo,
+                              isDark: isDark,
+                            ),
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: _buildBentoTile(
+                              title: '30D CONSISTENCY',
+                              value: '${consistency30.percentage.toInt()}%',
+                              subtext: '${consistency30.activeDays} of 30 days met',
+                              badgeText: consistency30.percentage >= 80 ? 'EXCELLENT' : 'ON TRACK',
+                              badgeColor: AppColors.accentEmerald,
+                              isDark: isDark,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildBentoTile(
+                              title: 'CURRENT STREAK',
+                              value: '${streaks.currentStreak}d',
+                              subtext: 'Best: ${streaks.bestStreak} days',
+                              badgeText: 'ACTIVE',
+                              badgeColor: AppColors.accentOrange,
+                              isDark: isDark,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildBentoTile(
+                              title: 'DAILY DELTA',
+                              value: '${dailyTrend.deltaMinutes >= 0 ? '+' : ''}${dailyTrend.deltaMinutes}m',
+                              subtext: '${dailyTrend.percentageChange.toStringAsFixed(1)}% vs yesterday',
+                              badgeText: dailyTrend.deltaMinutes >= 0 ? '▲ UP' : '▼ DOWN',
+                              badgeColor: dailyTrend.deltaMinutes >= 0 ? AppColors.accentEmerald : Colors.redAccent,
+                              isDark: isDark,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildBentoTile(
+                              title: '4-WEEK REGRESSION',
+                              value: weeklyTrend.direction == TrendDirection.increasing
+                                  ? 'Ascending'
+                                  : (weeklyTrend.direction == TrendDirection.decreasing ? 'Softening' : 'Steady'),
+                              subtext: '${weeklyTrend.deltaHours >= 0 ? '+' : ''}${weeklyTrend.deltaHours.toStringAsFixed(1)}h this wk',
+                              badgeText: 'SLOPE: ${weeklyTrend.slope.toStringAsFixed(2)}',
+                              badgeColor: AppColors.accentIndigo,
+                              isDark: isDark,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Row 2: Precision Charts (Last 7 Days & 4-Week Volume)
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isStacked = constraints.maxWidth < 750;
+
+                      final chart7Days = _buildChartCard(
+                        title: 'Daily Velocity (Last 7 Days)',
+                        subtitle: 'Minutes read per day • Goal: 30m',
+                        isDark: isDark,
+                        child: _buildPrecision7DayChart(dailyTotals, now, isDark),
+                      );
+
+                      final chart4Weeks = _buildChartCard(
+                        title: 'Weekly Volume (4-Week Slope)',
+                        subtitle: 'Total volume in hours (Linear regression input)',
+                        isDark: isDark,
+                        child: _buildPrecision4WeekChart(dailyTotals, now, weekStartDay, isDark),
+                      );
+
+                      if (isStacked) {
+                        return Column(
+                          children: [
+                            chart7Days,
+                            const SizedBox(height: 16),
+                            chart4Weeks,
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        children: [
+                          Expanded(flex: 3, child: chart7Days),
+                          const SizedBox(width: 16),
+                          Expanded(flex: 2, child: chart4Weeks),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Row 3: Total Summary Banner
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.auto_awesome, size: 18, color: isDark ? AppColors.accentIndigo : AppColors.accentIndigo),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Cumulative Reading Record',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          '$totalHours Hours ($totalMins mins across ${sessions.length} sessions)',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBentoTile({
+    required String title,
+    required String value,
+    required String subtext,
+    required String badgeText,
+    required Color badgeColor,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.0,
+                  color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: badgeColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  badgeText,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                    color: badgeColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.5,
+              fontFeatures: const [FontFeature.tabularFigures()],
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtext,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w400,
+              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChartCard({
+    required String title,
+    required String subtitle,
+    required Widget child,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.2,
+              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 11,
+              color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+            ),
+          ),
+          const SizedBox(height: 22),
+          SizedBox(height: 220, child: child),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrecision7DayChart(Map<DateTime, int> dailyTotals, DateTime now, bool isDark) {
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: 120,
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: 30,
+          getDrawingHorizontalLine: (val) {
+            return FlLine(
+              color: (isDark ? AppColors.borderDark : AppColors.borderLight).withOpacity(0.5),
+              strokeWidth: 1,
+              dashArray: [4, 4],
+            );
+          },
+        ),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 32,
+              interval: 30,
+              getTitlesWidget: (val, meta) {
+                return Text(
+                  '${val.toInt()}m',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                  ),
+                );
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (val, meta) {
+                final date = now.subtract(Duration(days: 6 - val.toInt()));
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    DateFormat('E').format(date).toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        barTouchData: BarTouchData(
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipColor: (_) => isDark ? const Color(0xFF27272A) : const Color(0xFF18181B),
+            tooltipRoundedRadius: 6,
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              return BarTooltipItem(
+                '${rod.toY.toInt()} mins',
+                const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+              );
+            },
+          ),
+        ),
+        barGroups: List.generate(7, (idx) {
+          final date = DateTime(now.year, now.month, now.day).subtract(Duration(days: 6 - idx));
+          final mins = (dailyTotals[date] ?? 0).toDouble();
+          final isToday = idx == 6;
+
+          return BarChartGroupData(
+            x: idx,
+            barRods: [
+              BarChartRodData(
+                toY: mins,
+                color: isToday ? AppColors.accentIndigo : (isDark ? const Color(0xFF3F3F46) : const Color(0xFFA1A1AA)),
+                width: 14,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+              ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildPrecision4WeekChart(
+    Map<DateTime, int> dailyTotals,
+    DateTime now,
+    int weekStartDay,
+    bool isDark,
+  ) {
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: 16,
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: 4,
+          getDrawingHorizontalLine: (val) {
+            return FlLine(
+              color: (isDark ? AppColors.borderDark : AppColors.borderLight).withOpacity(0.5),
+              strokeWidth: 1,
+              dashArray: [4, 4],
+            );
+          },
+        ),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 28,
+              interval: 4,
+              getTitlesWidget: (val, meta) {
+                return Text(
+                  '${val.toInt()}h',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                  ),
+                );
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (val, meta) {
+                final idx = val.toInt();
+                final text = idx == 3 ? 'THIS WK' : '-${3 - idx}W';
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    text,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        barGroups: List.generate(4, (idx) {
+          final offsetWeeks = 3 - idx;
+          final daysFromStart = (now.weekday - weekStartDay + 7) % 7;
+          final thisWeekStart = DateTime(now.year, now.month, now.day).subtract(Duration(days: daysFromStart));
+          final targetWeekStart = thisWeekStart.subtract(Duration(days: 7 * offsetWeeks));
+
+          int sumMins = 0;
+          for (int d = 0; d < 7; d++) {
+            sumMins += dailyTotals[targetWeekStart.add(Duration(days: d))] ?? 0;
+          }
+          final hours = sumMins / 60.0;
+          final isCurrent = idx == 3;
+
+          return BarChartGroupData(
+            x: idx,
+            barRods: [
+              BarChartRodData(
+                toY: hours,
+                color: isCurrent ? AppColors.accentEmerald : (isDark ? const Color(0xFF3F3F46) : const Color(0xFFA1A1AA)),
+                width: 18,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+              ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+}
+
+// -------------------------------------------------------------
+// Screen 1: Focus Timer (Precision Minimalist)
 // -------------------------------------------------------------
 class TimerScreen extends ConsumerWidget {
   const TimerScreen({super.key});
@@ -228,41 +945,25 @@ class TimerScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Set Custom Focus Time'),
+        title: const Text('Target Focus Duration'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Enter target focus duration in minutes (or leave 0 for open stopwatch):'),
+            const Text('Enter target focus block (mins):'),
             const SizedBox(height: 16),
             TextField(
               controller: controller,
               keyboardType: TextInputType.number,
               autofocus: true,
-              decoration: InputDecoration(
-                suffixText: 'mins',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              children: [15, 25, 45, 60, 90].map((mins) {
-                return ActionChip(
-                  label: Text('$mins m'),
-                  onPressed: () {
-                    ref.read(targetFocusDurationMinutesProvider.notifier).state = mins;
-                    Navigator.pop(ctx);
-                  },
-                );
-              }).toList(),
+              decoration: const InputDecoration(suffixText: 'mins', border: OutlineInputBorder()),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () {
-              ref.read(targetFocusDurationMinutesProvider.notifier).state = null; // Open mode
+              ref.read(targetFocusDurationMinutesProvider.notifier).state = null;
               Navigator.pop(ctx);
             },
             child: const Text('Open (No Limit)'),
@@ -273,7 +974,7 @@ class TimerScreen extends ConsumerWidget {
               ref.read(targetFocusDurationMinutesProvider.notifier).state = val > 0 ? val : null;
               Navigator.pop(ctx);
             },
-            child: const Text('Set'),
+            child: const Text('Set Target'),
           ),
         ],
       ),
@@ -283,18 +984,9 @@ class TimerScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stopwatchState = ref.watch(stopwatchProvider);
-    final sessionsAsync = ref.watch(sessionsStreamProvider);
-    final dailyGoal = ref.watch(dailyGoalMinutesProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final targetMins = ref.watch(targetFocusDurationMinutesProvider);
 
-    final sessions = sessionsAsync.value ?? [];
-    final dailyTotals = StatsEngine.calculateDailyTotals(sessions);
-    final now = DateTime.now();
-    final todayKey = DateTime(now.year, now.month, now.day);
-    final todayMinutes = dailyTotals[todayKey] ?? 0;
-    final dailyProgress = (todayMinutes / dailyGoal).clamp(0.0, 1.0);
-
-    // Session progress if target set
     double sessionProgress = 0.0;
     if (targetMins != null && targetMins > 0) {
       final elapsedMins = stopwatchState.elapsedMs / 60000.0;
@@ -302,214 +994,165 @@ class TimerScreen extends ConsumerWidget {
     }
 
     return Scaffold(
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       appBar: AppBar(
-        title: const Text('PageClock'),
+        title: const Text('PageClock', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.5)),
+        backgroundColor: Colors.transparent,
         actions: [
           IconButton(
             icon: const Icon(Icons.fullscreen_rounded),
             tooltip: 'StandBy Clock Mode',
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const FullscreenClockModeScreen()),
-              );
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const FullscreenClockModeScreen()));
             },
           ),
         ],
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isCompact = constraints.maxHeight < 560;
-
-          return Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 540),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 16.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Daily Goal Pill
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.6),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 28,
-                            height: 28,
-                            child: CircularProgressIndicator(
-                              value: dailyProgress,
-                              strokeWidth: 3.5,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Text(
-                            'Daily Goal: $todayMinutes / $dailyGoal mins (${(dailyProgress * 100).toInt()}%)',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (!isCompact) const Spacer(),
-
-                    // Target Session Duration Selector
-                    const SizedBox(height: 20),
-                    InkWell(
-                      onTap: stopwatchState.status == StopwatchStatus.idle
-                          ? () => _showCustomDurationDialog(context, ref)
-                          : null,
-                      borderRadius: BorderRadius.circular(30),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.edit_calendar_rounded,
-                              size: 16,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              targetMins == null ? 'Target: Open timer' : 'Target: $targetMins mins (custom)',
-                              style: Theme.of(context).textTheme.labelMedium,
-                            ),
-                          ],
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Target Pill
+              InkWell(
+                onTap: stopwatchState.status == StopwatchStatus.idle
+                    ? () => _showCustomDurationDialog(context, ref)
+                    : null,
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.adjust_rounded, size: 14, color: AppColors.accentIndigo),
+                      const SizedBox(width: 8),
+                      Text(
+                        targetMins == null ? 'TARGET: OPEN TIMER' : 'TARGET: $targetMins MINS',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
                         ),
                       ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Central Breathing Clock Ring
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        SizedBox(
-                          width: isCompact ? 190 : 250,
-                          height: isCompact ? 190 : 250,
-                          child: CircularProgressIndicator(
-                            value: targetMins != null ? sessionProgress : null,
-                            strokeWidth: 4,
-                            backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              formatDuration(stopwatchState.elapsedMs),
-                              style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                                    fontSize: isCompact ? 46 : 64,
-                                    fontWeight: FontWeight.w300,
-                                    letterSpacing: -1,
-                                    fontFeatures: const [FontFeature.tabularFigures()],
-                                  ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              stopwatchState.status == StopwatchStatus.running
-                                  ? 'DEEP READING'
-                                  : (stopwatchState.status == StopwatchStatus.paused
-                                      ? 'PAUSED'
-                                      : 'READY'),
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 2.0,
-                                color: stopwatchState.status == StopwatchStatus.running
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(context).hintColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-
-                    if (!isCompact) const Spacer(),
-                    const SizedBox(height: 32),
-
-                    // Soft Minimal Controls
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (stopwatchState.status == StopwatchStatus.idle)
-                          FilledButton.icon(
-                            style: FilledButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 18),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                            ),
-                            onPressed: () => ref.read(stopwatchProvider.notifier).start(),
-                            icon: const Icon(Icons.play_arrow_rounded, size: 24),
-                            label: const Text('Begin Focus', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
-                          )
-                        else ...[
-                          if (stopwatchState.status == StopwatchStatus.running)
-                            OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 16),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                              ),
-                              onPressed: () => ref.read(stopwatchProvider.notifier).pause(),
-                              icon: const Icon(Icons.pause_rounded),
-                              label: const Text('Pause'),
-                            )
-                          else
-                            FilledButton.icon(
-                              style: FilledButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 16),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                              ),
-                              onPressed: () => ref.read(stopwatchProvider.notifier).resume(),
-                              icon: const Icon(Icons.play_arrow_rounded),
-                              label: const Text('Resume'),
-                            ),
-                          const SizedBox(width: 16),
-                          FilledButton.tonalIcon(
-                            style: FilledButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                            ),
-                            onPressed: () async {
-                              final session = await ref.read(stopwatchProvider.notifier).stop();
-                              if (session == null && context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Session under 1 min discarded.')),
-                                );
-                              }
-                            },
-                            icon: const Icon(Icons.stop_rounded),
-                            label: const Text('Complete'),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
-        },
+              const SizedBox(height: 36),
+
+              // Precision Timer Readout
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  SizedBox(
+                    width: 260,
+                    height: 260,
+                    child: CircularProgressIndicator(
+                      value: targetMins != null ? sessionProgress : null,
+                      strokeWidth: 2,
+                      backgroundColor: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      color: AppColors.accentIndigo,
+                    ),
+                  ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        formatDuration(stopwatchState.elapsedMs),
+                        style: TextStyle(
+                          fontSize: 60,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -1.5,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        stopwatchState.status == StopwatchStatus.running
+                            ? 'ACTIVE READING'
+                            : (stopwatchState.status == StopwatchStatus.paused ? 'PAUSED' : 'READY'),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.5,
+                          color: stopwatchState.status == StopwatchStatus.running
+                              ? AppColors.accentEmerald
+                              : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 48),
+
+              // Linear Action Buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (stopwatchState.status == StopwatchStatus.idle)
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.accentIndigo,
+                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () => ref.read(stopwatchProvider.notifier).start(),
+                      child: const Text('Start Focus Session', style: TextStyle(fontWeight: FontWeight.w600)),
+                    )
+                  else ...[
+                    if (stopwatchState.status == StopwatchStatus.running)
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          side: BorderSide(color: isDark ? AppColors.borderDark : AppColors.borderLight),
+                        ),
+                        onPressed: () => ref.read(stopwatchProvider.notifier).pause(),
+                        child: const Text('Pause'),
+                      )
+                    else
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.accentIndigo,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () => ref.read(stopwatchProvider.notifier).resume(),
+                        child: const Text('Resume'),
+                      ),
+                    const SizedBox(width: 14),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: isDark ? AppColors.surfaceDarkHover : const Color(0xFFE4E4E7),
+                        foregroundColor: isDark ? Colors.white : Colors.black87,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () => ref.read(stopwatchProvider.notifier).stop(),
+                      child: const Text('Stop & Save'),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
 // -------------------------------------------------------------
-// StandBy Fullscreen Clock Mode (Calm & Elegant)
+// Screen 3: StandBy Fullscreen Mode
 // -------------------------------------------------------------
 class FullscreenClockModeScreen extends ConsumerStatefulWidget {
   const FullscreenClockModeScreen({super.key});
@@ -540,7 +1183,7 @@ class _FullscreenClockModeScreenState extends ConsumerState<FullscreenClockModeS
     final dateStr = DateFormat('EEEE, MMMM d').format(now);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0C0F0E), // Ambient twilight black
+      backgroundColor: Colors.black,
       body: SafeArea(
         child: Stack(
           children: [
@@ -548,7 +1191,7 @@ class _FullscreenClockModeScreenState extends ConsumerState<FullscreenClockModeS
               top: 16,
               left: 16,
               child: IconButton(
-                icon: const Icon(Icons.close_rounded, color: Colors.white38, size: 28),
+                icon: const Icon(Icons.close, color: Colors.white38, size: 28),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
@@ -575,9 +1218,9 @@ class _FullscreenClockModeScreenState extends ConsumerState<FullscreenClockModeS
                                   Text(
                                     timeStr,
                                     style: const TextStyle(
-                                      color: CalmPalette.accentWarm,
+                                      color: AppColors.accentOrange,
                                       fontSize: 112,
-                                      fontWeight: FontWeight.w200,
+                                      fontWeight: FontWeight.w900,
                                       letterSpacing: -2,
                                       fontFeatures: [FontFeature.tabularFigures()],
                                     ),
@@ -585,23 +1228,11 @@ class _FullscreenClockModeScreenState extends ConsumerState<FullscreenClockModeS
                                   const SizedBox(width: 8),
                                   Text(
                                     amPmStr,
-                                    style: const TextStyle(
-                                      color: Colors.white54,
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w400,
-                                    ),
+                                    style: const TextStyle(color: Colors.white54, fontSize: 24, fontWeight: FontWeight.bold),
                                   ),
                                 ],
                               ),
-                              Text(
-                                dateStr,
-                                style: const TextStyle(
-                                  color: Colors.white60,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w400,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
+                              Text(dateStr, style: const TextStyle(color: Colors.white60, fontSize: 18)),
                             ],
                           ),
                           const VerticalDivider(color: Colors.white12, width: 64),
@@ -621,23 +1252,17 @@ class _FullscreenClockModeScreenState extends ConsumerState<FullscreenClockModeS
                             Text(
                               timeStr,
                               style: const TextStyle(
-                                color: CalmPalette.accentWarm,
+                                color: AppColors.accentOrange,
                                 fontSize: 90,
-                                fontWeight: FontWeight.w200,
+                                fontWeight: FontWeight.w900,
                                 fontFeatures: [FontFeature.tabularFigures()],
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Text(
-                              amPmStr,
-                              style: const TextStyle(color: Colors.white54, fontSize: 22),
-                            ),
+                            Text(amPmStr, style: const TextStyle(color: Colors.white54, fontSize: 22, fontWeight: FontWeight.bold)),
                           ],
                         ),
-                        Text(
-                          dateStr,
-                          style: const TextStyle(color: Colors.white60, fontSize: 16),
-                        ),
+                        Text(dateStr, style: const TextStyle(color: Colors.white60, fontSize: 16)),
                         const SizedBox(height: 52),
                         _buildStandByControls(context, stopwatchState),
                       ],
@@ -658,7 +1283,7 @@ class _FullscreenClockModeScreenState extends ConsumerState<FullscreenClockModeS
       children: [
         const Text(
           'READING TIMER',
-          style: TextStyle(color: Colors.white30, fontSize: 12, letterSpacing: 2, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.white30, fontSize: 11, letterSpacing: 2, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         Text(
@@ -675,33 +1300,27 @@ class _FullscreenClockModeScreenState extends ConsumerState<FullscreenClockModeS
           mainAxisSize: MainAxisSize.min,
           children: [
             if (stopwatchState.status == StopwatchStatus.idle)
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: CalmPalette.accentWarm,
-                  foregroundColor: Colors.black87,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                ),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: AppColors.accentOrange),
                 onPressed: () => ref.read(stopwatchProvider.notifier).start(),
-                icon: const Icon(Icons.play_arrow_rounded),
-                label: const Text('Start Focus', style: TextStyle(fontWeight: FontWeight.w600)),
+                child: const Text('Start Focus', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
               )
             else ...[
               if (stopwatchState.status == StopwatchStatus.running)
                 IconButton.filledTonal(
                   onPressed: () => ref.read(stopwatchProvider.notifier).pause(),
-                  icon: const Icon(Icons.pause_rounded),
+                  icon: const Icon(Icons.pause),
                 )
               else
                 IconButton.filled(
-                  style: IconButton.styleFrom(backgroundColor: CalmPalette.accentWarm, foregroundColor: Colors.black),
+                  style: IconButton.styleFrom(backgroundColor: AppColors.accentOrange),
                   onPressed: () => ref.read(stopwatchProvider.notifier).resume(),
-                  icon: const Icon(Icons.play_arrow_rounded),
+                  icon: const Icon(Icons.play_arrow, color: Colors.black),
                 ),
               const SizedBox(width: 16),
               IconButton.filledTonal(
                 onPressed: () => ref.read(stopwatchProvider.notifier).stop(),
-                icon: const Icon(Icons.stop_rounded),
+                icon: const Icon(Icons.stop),
               ),
             ],
           ],
@@ -712,384 +1331,46 @@ class _FullscreenClockModeScreenState extends ConsumerState<FullscreenClockModeS
 }
 
 // -------------------------------------------------------------
-// Screen 2: Analytics & Insights
-// -------------------------------------------------------------
-class AnalyticsScreen extends ConsumerWidget {
-  const AnalyticsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final sessionsAsync = ref.watch(sessionsStreamProvider);
-    final consistencyThreshold = ref.watch(consistencyThresholdMinutesProvider);
-    final weekStartDay = ref.watch(weekStartDayProvider);
-
-    final sessions = sessionsAsync.value ?? [];
-    if (sessions.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Insights')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.spa_outlined, size: 64, color: Theme.of(context).hintColor.withOpacity(0.5)),
-              const SizedBox(height: 16),
-              const Text('Quiet pages await', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
-              const SizedBox(height: 6),
-              const Text('Log your first focus session to unveil patterns.'),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final now = DateTime.now();
-    final dailyTotals = StatsEngine.calculateDailyTotals(sessions);
-    final consistency30 = StatsEngine.calculateConsistency(
-      dailyTotals: dailyTotals,
-      today: now,
-      windowDays: 30,
-      thresholdMinutes: consistencyThreshold,
-    );
-    final streaks = StatsEngine.calculateStreaks(
-      dailyTotals: dailyTotals,
-      today: now,
-      thresholdMinutes: consistencyThreshold,
-    );
-    final weeklyTrend = StatsEngine.calculateWeeklyTrend(
-      dailyTotals: dailyTotals,
-      today: now,
-      weekStartDay: weekStartDay,
-    );
-    final dailyTrend = StatsEngine.calculateDailyTrend(
-      dailyTotals: dailyTotals,
-      today: now,
-    );
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Insights')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: _MetricCard(
-                      title: 'Consistency (30d)',
-                      value: '${consistency30.percentage.toInt()}%',
-                      subtitle: '${consistency30.activeDays} of 30 days met',
-                      icon: Icons.calendar_month_rounded,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: _MetricCard(
-                      title: 'Streak',
-                      value: '${streaks.currentStreak}d',
-                      subtitle: 'Longest: ${streaks.bestStreak}d',
-                      icon: Icons.local_fire_department_rounded,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: _MetricCard(
-                      title: 'Day Trend',
-                      value: '${dailyTrend.deltaMinutes >= 0 ? '+' : ''}${dailyTrend.deltaMinutes}m',
-                      subtitle: '${dailyTrend.percentageChange.toStringAsFixed(1)}% vs yesterday',
-                      icon: dailyTrend.deltaMinutes >= 0 ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-                      iconColor: dailyTrend.deltaMinutes >= 0 ? Colors.teal : Colors.orangeAccent,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: _MetricCard(
-                      title: 'Weekly Slope',
-                      value: weeklyTrend.direction == TrendDirection.increasing
-                          ? '▲ Ascending'
-                          : (weeklyTrend.direction == TrendDirection.decreasing
-                              ? '▼ Softening'
-                              : '— Constant'),
-                      subtitle: '${weeklyTrend.deltaHours >= 0 ? '+' : ''}${weeklyTrend.deltaHours.toStringAsFixed(1)}h vs last week',
-                      icon: Icons.trending_up_rounded,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 28),
-
-              Text('Past 7 Days (Minutes)', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 14),
-              SizedBox(
-                height: 200,
-                child: BarChart(
-                  BarChartData(
-                    alignment: BarChartAlignment.spaceAround,
-                    barTouchData: BarTouchData(
-                      touchTooltipData: BarTouchTooltipData(
-                        getTooltipColor: (_) => const Color(0xFF2B3A37),
-                        getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                          return BarTooltipItem(
-                            '${rod.toY.toInt()} mins',
-                            const TextStyle(color: Colors.white, fontSize: 12),
-                          );
-                        },
-                      ),
-                    ),
-                    titlesData: FlTitlesData(
-                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          getTitlesWidget: (val, meta) {
-                            final date = now.subtract(Duration(days: 6 - val.toInt()));
-                            return Text(DateFormat('E').format(date), style: const TextStyle(fontSize: 11));
-                          },
-                        ),
-                      ),
-                    ),
-                    borderData: FlBorderData(show: false),
-                    gridData: const FlGridData(show: false),
-                    barGroups: List.generate(7, (idx) {
-                      final date = DateTime(now.year, now.month, now.day).subtract(Duration(days: 6 - idx));
-                      final mins = (dailyTotals[date] ?? 0).toDouble();
-                      return BarChartGroupData(
-                        x: idx,
-                        barRods: [
-                          BarChartRodData(
-                            toY: mins,
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.85),
-                            width: 16,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                        ],
-                      );
-                    }),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              Text('Past 4 Weeks (Hours)', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 14),
-              SizedBox(
-                height: 190,
-                child: BarChart(
-                  BarChartData(
-                    titlesData: FlTitlesData(
-                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          getTitlesWidget: (val, meta) {
-                            final idx = val.toInt();
-                            if (idx == 3) return const Text('This Wk');
-                            return Text('${3 - idx}w ago');
-                          },
-                        ),
-                      ),
-                    ),
-                    borderData: FlBorderData(show: false),
-                    gridData: const FlGridData(show: false),
-                    barGroups: List.generate(4, (idx) {
-                      final offsetWeeks = 3 - idx;
-                      final daysFromStart = (now.weekday - weekStartDay + 7) % 7;
-                      final thisWeekStart = DateTime(now.year, now.month, now.day).subtract(Duration(days: daysFromStart));
-                      final targetWeekStart = thisWeekStart.subtract(Duration(days: 7 * offsetWeeks));
-
-                      int sumMins = 0;
-                      for (int d = 0; d < 7; d++) {
-                        sumMins += dailyTotals[targetWeekStart.add(Duration(days: d))] ?? 0;
-                      }
-                      final hours = sumMins / 60.0;
-
-                      return BarChartGroupData(
-                        x: idx,
-                        barRods: [
-                          BarChartRodData(
-                            toY: hours,
-                            color: CalmPalette.accentSage,
-                            width: 22,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                        ],
-                      );
-                    }),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final String subtitle;
-  final IconData icon;
-  final Color? iconColor;
-
-  const _MetricCard({
-    required this.title,
-    required this.value,
-    required this.subtitle,
-    required this.icon,
-    this.iconColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 18, color: iconColor ?? Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(title, style: Theme.of(context).textTheme.bodySmall, overflow: TextOverflow.ellipsis),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(value, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            Text(subtitle, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Theme.of(context).hintColor)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// -------------------------------------------------------------
-// Screen 3: Sessions History
+// Screen 4: Session Log
 // -------------------------------------------------------------
 class SessionsHistoryScreen extends ConsumerWidget {
   const SessionsHistoryScreen({super.key});
 
-  void _showAddManualDialog(BuildContext context, WidgetRef ref) {
-    int durationMinutes = 30;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Reading Session'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Enter recorded reading minutes:'),
-            const SizedBox(height: 14),
-            TextField(
-              keyboardType: TextInputType.number,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: 'Minutes',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onChanged: (val) {
-                durationMinutes = int.tryParse(val) ?? 30;
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () async {
-              final nowUtc = DateTime.now().toUtc().millisecondsSinceEpoch;
-              final session = ReadingSession(
-                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                startedAtUtc: nowUtc - (durationMinutes * 60000),
-                endedAtUtc: nowUtc,
-                durationMs: durationMinutes * 60000,
-                tzOffsetMin: DateTime.now().timeZoneOffset.inMinutes,
-                source: 'manual',
-                createdAt: nowUtc,
-                updatedAt: nowUtc,
-              );
-              await ref.read(sessionRepositoryProvider).saveSession(session);
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sessionsAsync = ref.watch(sessionsStreamProvider);
     final sessions = sessionsAsync.value ?? [];
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
       appBar: AppBar(
-        title: const Text('Reading Log'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_rounded),
-            tooltip: 'Add manual entry',
-            onPressed: () => _showAddManualDialog(context, ref),
-          ),
-        ],
+        title: const Text('Reading Log', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.5)),
+        backgroundColor: Colors.transparent,
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: sessions.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.history_rounded, size: 56, color: Theme.of(context).hintColor.withOpacity(0.4)),
-                      const SizedBox(height: 12),
-                      const Text('Your reading log is clean and empty.'),
-                    ],
-                  ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  itemCount: sessions.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
-                  itemBuilder: (ctx, idx) {
-                    final s = sessions[idx];
-                    final date = DateTime.fromMillisecondsSinceEpoch(s.startedAtUtc);
-                    final durationMins = (s.durationMs / 60000).round();
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            itemCount: sessions.length,
+            separatorBuilder: (_, __) => Divider(
+              height: 1,
+              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+            ),
+            itemBuilder: (ctx, idx) {
+              final s = sessions[idx];
+              final date = DateTime.fromMillisecondsSinceEpoch(s.startedAtUtc);
+              final durationMins = (s.durationMs / 60000).round();
 
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
-                        child: Icon(
-                          s.source == 'manual' ? Icons.edit_note_rounded : Icons.hourglass_bottom_rounded,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                      title: Text('$durationMins minutes', style: const TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: Text(DateFormat('EEEE, MMM d • h:mm a').format(date)),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, size: 20),
-                        onPressed: () => ref.read(sessionRepositoryProvider).softDeleteSession(s.id),
-                      ),
-                    );
-                  },
-                ),
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                title: Text('$durationMins minutes', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                subtitle: Text(DateFormat('EEEE, MMM d • h:mm a').format(date), style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
+                trailing: Text(s.source.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.accentIndigo)),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -1097,7 +1378,7 @@ class SessionsHistoryScreen extends ConsumerWidget {
 }
 
 // -------------------------------------------------------------
-// Screen 4: Settings
+// Screen 5: Settings (PDF Only + Custom Time Guard)
 // -------------------------------------------------------------
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -1131,17 +1412,11 @@ class SettingsScreen extends ConsumerWidget {
                         controller: controller,
                         keyboardType: TextInputType.number,
                         autofocus: true,
-                        decoration: InputDecoration(
-                          labelText: 'Amount',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
+                        decoration: const InputDecoration(labelText: 'Amount', border: OutlineInputBorder()),
                         onChanged: (val) {
                           final numVal = int.tryParse(val) ?? 0;
-                          // If entered value is 12+ while unit is hr, auto-switch to min
                           if (numVal > 12 && unit == 'hr') {
-                            setDialogState(() {
-                              unit = 'min';
-                            });
+                            setDialogState(() => unit = 'min');
                           }
                         },
                       ),
@@ -1157,20 +1432,11 @@ class SettingsScreen extends ConsumerWidget {
                         setDialogState(() {
                           unit = set.first;
                           final numVal = int.tryParse(controller.text) ?? 0;
-                          if (unit == 'hr' && numVal > 12) {
-                            unit = 'min'; // prevent unreasonable hour targets
-                          }
+                          if (unit == 'hr' && numVal > 12) unit = 'min';
                         });
                       },
                     ),
                   ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  unit == 'hr'
-                      ? 'Note: Values >12 automatically switch to minutes.'
-                      : 'Setting target in minutes.',
-                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(color: Theme.of(ctx).hintColor),
                 ),
               ],
             ),
@@ -1179,15 +1445,8 @@ class SettingsScreen extends ConsumerWidget {
               FilledButton(
                 onPressed: () {
                   final numVal = int.tryParse(controller.text) ?? 30;
-                  int finalMinutes;
-                  if (unit == 'hr') {
-                    finalMinutes = numVal * 60;
-                  } else {
-                    finalMinutes = numVal;
-                  }
-                  if (finalMinutes > 0) {
-                    onSaved(finalMinutes);
-                  }
+                  final finalMins = unit == 'hr' ? numVal * 60 : numVal;
+                  if (finalMins > 0) onSaved(finalMins);
                   Navigator.pop(ctx);
                 },
                 child: const Text('Save'),
@@ -1204,18 +1463,21 @@ class SettingsScreen extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final dailyGoal = ref.watch(dailyGoalMinutesProvider);
     final consistencyThreshold = ref.watch(consistencyThresholdMinutesProvider);
-    final targetMins = ref.watch(targetFocusDurationMinutesProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
+      appBar: AppBar(
+        title: const Text('Settings', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.5)),
+        backgroundColor: Colors.transparent,
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 760),
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             children: [
               ListTile(
-                leading: const Icon(Icons.palette_outlined),
                 title: const Text('Appearance'),
                 subtitle: Text(themeMode.name.toUpperCase()),
                 trailing: DropdownButton<ThemeMode>(
@@ -1225,28 +1487,13 @@ class SettingsScreen extends ConsumerWidget {
                     if (mode != null) ref.read(themeModeProvider.notifier).state = mode;
                   },
                   items: const [
-                    DropdownMenuItem(value: ThemeMode.system, child: Text('System')),
-                    DropdownMenuItem(value: ThemeMode.light, child: Text('Calm Light')),
-                    DropdownMenuItem(value: ThemeMode.dark, child: Text('Twilight Dark')),
+                    DropdownMenuItem(value: ThemeMode.dark, child: Text('Obsidian Dark')),
+                    DropdownMenuItem(value: ThemeMode.light, child: Text('Clean Light')),
                   ],
                 ),
               ),
               const Divider(),
               ListTile(
-                leading: const Icon(Icons.timer_outlined),
-                title: const Text('Focus Target Preset'),
-                subtitle: Text(targetMins == null ? 'Open timer' : '$targetMins minutes per focus block'),
-                trailing: TextButton(
-                  onPressed: () {
-                    // Quick cycle presets
-                    final next = targetMins == null ? 15 : (targetMins == 15 ? 25 : (targetMins == 25 ? 45 : (targetMins == 45 ? 60 : null)));
-                    ref.read(targetFocusDurationMinutesProvider.notifier).state = next;
-                  },
-                  child: Text(targetMins == null ? 'Open' : '${targetMins}m (Cycle)'),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.flag_outlined),
                 title: const Text('Daily Goal'),
                 subtitle: Text(
                   dailyGoal >= 60
@@ -1266,7 +1513,6 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
               ListTile(
-                leading: const Icon(Icons.check_circle_outline),
                 title: const Text('Streak Threshold'),
                 subtitle: Text(
                   consistencyThreshold >= 60
@@ -1287,99 +1533,12 @@ class SettingsScreen extends ConsumerWidget {
               ),
               const Divider(),
               ListTile(
-                leading: const Icon(Icons.auto_fix_high_rounded),
-                title: const Text('Load Demo Reading History'),
-                subtitle: const Text('Populate 28 days of realistic reading records to preview graphs'),
-                onTap: () {
-                  ref.read(sessionRepositoryProvider).seedSampleData();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Sample data populated! Check Insights tab.')),
-                  );
-                },
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.picture_as_pdf_rounded, color: CalmPalette.primaryLight),
+                leading: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.accentIndigo),
                 title: const Text('Export Records (PDF Only)'),
                 subtitle: const Text('Official report • Developed by Koushik (koushikhy.netlify.app)'),
                 onTap: () async {
                   final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
-                  if (sessions.isEmpty) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('No reading records to export.')),
-                      );
-                    }
-                    return;
-                  }
                   await SessionPdfService.printOrSharePdf(sessions);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.file_download_outlined),
-                title: const Text('Export Records (Backup CSV)'),
-                subtitle: const Text('Download raw tabular backup data'),
-                onTap: () async {
-                  final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
-                  final csv = SessionExportService.exportToCsv(sessions);
-                  if (context.mounted) {
-                    showDialog(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('CSV Export Preview'),
-                        content: SingleChildScrollView(child: Text(csv.isEmpty ? 'No data' : csv)),
-                        actions: [
-                          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
-                        ],
-                      ),
-                    );
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.shield_outlined),
-                title: const Text('Privacy & Policy'),
-                subtitle: const Text('100% offline, zero tracking'),
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Zero-Data Policy'),
-                      content: const Text(
-                        'PageClock works 100% offline. No analytics, no ads, and no external tracking. Your reading history is solely stored in your local SQLite database.',
-                      ),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                title: const Text('Clear All Local Data', style: TextStyle(color: Colors.redAccent)),
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Delete all reading data?'),
-                      content: const Text('This will delete all sessions locally on this device.'),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-                        FilledButton(
-                          style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
-                          onPressed: () async {
-                            final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
-                            for (final s in sessions) {
-                              await ref.read(sessionRepositoryProvider).softDeleteSession(s.id);
-                            }
-                            if (ctx.mounted) Navigator.pop(ctx);
-                          },
-                          child: const Text('Confirm Clear'),
-                        ),
-                      ],
-                    ),
-                  );
                 },
               ),
             ],
