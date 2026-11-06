@@ -9,6 +9,7 @@ import '../core/models/reading_session.dart';
 import '../core/repository/session_repository.dart';
 import '../stats/stats_engine.dart';
 import '../core/services/export_service.dart';
+import '../core/services/pdf_service.dart';
 
 // Calm Palette
 class CalmPalette {
@@ -1192,9 +1193,26 @@ class SettingsScreen extends ConsumerWidget {
               ),
               const Divider(),
               ListTile(
+                leading: const Icon(Icons.picture_as_pdf_rounded, color: CalmPalette.primaryLight),
+                title: const Text('Export Records (PDF Only)'),
+                subtitle: const Text('Official report • Developed by Koushik (koushikhy.netlify.app)'),
+                onTap: () async {
+                  final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
+                  if (sessions.isEmpty) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('No reading records to export.')),
+                      );
+                    }
+                    return;
+                  }
+                  await SessionPdfService.printOrSharePdf(sessions);
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.file_download_outlined),
-                title: const Text('Export Records (CSV)'),
-                subtitle: const Text('Download all your reading sessions'),
+                title: const Text('Export Records (Backup CSV)'),
+                subtitle: const Text('Download raw tabular backup data'),
                 onTap: () async {
                   final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
                   final csv = SessionExportService.exportToCsv(sessions);
