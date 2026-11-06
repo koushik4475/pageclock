@@ -1102,6 +1102,103 @@ class SessionsHistoryScreen extends ConsumerWidget {
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
+  void _showTimePickerDialog(
+    BuildContext context, {
+    required String title,
+    required int initialMinutes,
+    required ValueChanged<int> onSaved,
+  }) {
+    String unit = initialMinutes >= 60 && initialMinutes % 60 == 0 ? 'hr' : 'min';
+    final initialVal = unit == 'hr' ? (initialMinutes / 60).round() : initialMinutes;
+    final controller = TextEditingController(text: initialVal.toString());
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return AlertDialog(
+            title: Text(title),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Enter duration and select unit (hr / min):'),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: controller,
+                        keyboardType: TextInputType.number,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          labelText: 'Amount',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onChanged: (val) {
+                          final numVal = int.tryParse(val) ?? 0;
+                          // If entered value is 12+ while unit is hr, auto-switch to min
+                          if (numVal > 12 && unit == 'hr') {
+                            setDialogState(() {
+                              unit = 'min';
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: 'hr', label: Text('hr')),
+                        ButtonSegment(value: 'min', label: Text('min')),
+                      ],
+                      selected: {unit},
+                      onSelectionChanged: (set) {
+                        setDialogState(() {
+                          unit = set.first;
+                          final numVal = int.tryParse(controller.text) ?? 0;
+                          if (unit == 'hr' && numVal > 12) {
+                            unit = 'min'; // prevent unreasonable hour targets
+                          }
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  unit == 'hr'
+                      ? 'Note: Values >12 automatically switch to minutes.'
+                      : 'Setting target in minutes.',
+                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(color: Theme.of(ctx).hintColor),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              FilledButton(
+                onPressed: () {
+                  final numVal = int.tryParse(controller.text) ?? 30;
+                  int finalMinutes;
+                  if (unit == 'hr') {
+                    finalMinutes = numVal * 60;
+                  } else {
+                    finalMinutes = numVal;
+                  }
+                  if (finalMinutes > 0) {
+                    onSaved(finalMinutes);
+                  }
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
@@ -1151,32 +1248,41 @@ class SettingsScreen extends ConsumerWidget {
               ListTile(
                 leading: const Icon(Icons.flag_outlined),
                 title: const Text('Daily Goal'),
-                subtitle: Text('$dailyGoal minutes / day'),
-                trailing: SizedBox(
-                  width: 140,
-                  child: Slider(
-                    min: 5,
-                    max: 180,
-                    divisions: 35,
-                    value: dailyGoal.toDouble(),
-                    onChanged: (val) => ref.read(dailyGoalMinutesProvider.notifier).state = val.toInt(),
-                  ),
+                subtitle: Text(
+                  dailyGoal >= 60
+                      ? '${(dailyGoal / 60).toStringAsFixed(dailyGoal % 60 == 0 ? 0 : 1)} hr (${dailyGoal} mins)'
+                      : '$dailyGoal minutes',
+                ),
+                trailing: OutlinedButton(
+                  onPressed: () {
+                    _showTimePickerDialog(
+                      context,
+                      title: 'Set Daily Goal',
+                      initialMinutes: dailyGoal,
+                      onSaved: (val) => ref.read(dailyGoalMinutesProvider.notifier).state = val,
+                    );
+                  },
+                  child: const Text('Customize'),
                 ),
               ),
               ListTile(
                 leading: const Icon(Icons.check_circle_outline),
                 title: const Text('Streak Threshold'),
-                subtitle: Text('At least $consistencyThreshold mins/day to maintain streaks'),
-                trailing: SizedBox(
-                  width: 140,
-                  child: Slider(
-                    min: 5,
-                    max: 60,
-                    divisions: 11,
-                    value: consistencyThreshold.toDouble(),
-                    onChanged: (val) =>
-                        ref.read(consistencyThresholdMinutesProvider.notifier).state = val.toInt(),
-                  ),
+                subtitle: Text(
+                  consistencyThreshold >= 60
+                      ? '${(consistencyThreshold / 60).toStringAsFixed(consistencyThreshold % 60 == 0 ? 0 : 1)} hr (${consistencyThreshold} mins)'
+                      : '$consistencyThreshold minutes / day',
+                ),
+                trailing: OutlinedButton(
+                  onPressed: () {
+                    _showTimePickerDialog(
+                      context,
+                      title: 'Set Streak Threshold',
+                      initialMinutes: consistencyThreshold,
+                      onSaved: (val) => ref.read(consistencyThresholdMinutesProvider.notifier).state = val,
+                    );
+                  },
+                  child: const Text('Customize'),
                 ),
               ),
               const Divider(),
