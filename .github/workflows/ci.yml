@@ -1,17 +1,25 @@
-name: PageClock CI / Build
+name: PageClock CI / CD & Automated Release
 
 on:
   push:
     branches: [ main, master ]
+    tags:
+      - 'v*'
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  test-and-build:
+  test-build-and-release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -25,30 +33,73 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Recreate clean platform scaffolds
-        run: |
-          flutter create --org com.example --project-name pageclock --platforms android,web .
-          rm -f test/widget_test.dart
-
       - name: Install dependencies
         run: flutter pub get
 
       - name: Run code generation (Drift / build_runner)
         run: dart run build_runner build --delete-conflicting-outputs || true
 
-      - name: Run Unit & Acceptance Tests
+      - name: Run Unit & Regression Tests
         run: flutter test
 
-      - name: Build Web
+      - name: Build Web Application
         run: flutter build web --release --no-web-resources-cdn
 
-      - name: Build Android APK (Release)
-        run: flutter build apk --release
+      - name: Setup Android Keystore (if secrets provided)
+        id: setup_keystore
+        run: |
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "Decoding release keystore from GitHub Secrets..."
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
+            chmod 600 android/app/release.keystore
+            echo "KEYSTORE_EXISTS=true" >> $GITHUB_ENV
+          else
+            echo "ANDROID_KEYSTORE_BASE64 secret not found. Using debug signing."
+            echo "KEYSTORE_EXISTS=false" >> $GITHUB_ENV
+          fi
 
-      - name: Upload APK Artifact
+      - name: Build Android Release APK
+        env:
+          ANDROID_KEYSTORE_PATH: release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          flutter build apk --release --build-number=${{ github.run_number }}
+
+      - name: Secure Keystore Cleanup
+        if: always()
+        run: |
+          rm -f android/app/release.keystore
+          rm -f android/key.properties
+
+      - name: Package Release Assets & Compute Checksum
+        run: |
+          APK_DIR="build/app/outputs/flutter-apk"
+          VERSION_TAG="v1.0.0+${{ github.run_number }}"
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION_TAG="${{ github.ref_name }}"
+          fi
+
+          ASSET_NAME="PageClock-${VERSION_TAG}.apk"
+          SHA_NAME="PageClock-${VERSION_TAG}.apk.sha256"
+
+          cp "$APK_DIR/app-release.apk" "$APK_DIR/$ASSET_NAME"
+          
+          cd "$APK_DIR"
+          sha256sum "$ASSET_NAME" > "$SHA_NAME"
+          
+          echo "SHA256 Checksum:"
+          cat "$SHA_NAME"
+          
+          echo "RELEASE_TAG=$VERSION_TAG" >> $GITHUB_ENV
+          echo "APK_PATH=$APK_DIR/$ASSET_NAME" >> $GITHUB_ENV
+          echo "SHA_PATH=$APK_DIR/$SHA_NAME" >> $GITHUB_ENV
+
+      - name: Upload Local CI Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: pageclock-apk
+          name: pageclock-apk-build
           path: build/app/outputs/flutter-apk/*.apk
 
       - name: Upload Web Build Artifact
@@ -56,3 +107,31 @@ jobs:
         with:
           name: pageclock-web
           path: build/web/
+
+      - name: Publish GitHub Release
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: "PageClock Release ${{ env.RELEASE_TAG }}"
+          body: |
+            ### PageClock Automated Release (${{ env.RELEASE_TAG }})
+            
+            **What's Changed:**
+            - Automated Android In-App Updates with GitHub Releases.
+            - SHA-256 integrity verification.
+            - Drift SQLite offline-first persistence.
+            - Linear-inspired Bento-Grid interface with StandBy mode.
+            
+            **Verification:**
+            Download `PageClock-*.apk.sha256` or run:
+            ```bash
+            sha256sum -c ${{ env.RELEASE_TAG }}.apk.sha256
+            ```
+          draft: false
+          prerelease: false
+          files: |
+            ${{ env.APK_PATH }}
+            ${{ env.SHA_PATH }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

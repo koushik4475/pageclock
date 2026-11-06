@@ -1,0 +1,29 @@
+# Keystore & Signing Secrets (CRITICAL SECURITY)
+*.keystore
+*.jks
+key.properties
+*.key
+*.p12
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+
+# Android
+android/.gradle/
+android/local.properties
+android/**/build/
+android/app/release.keystore
+android/app/key.properties
+
+# Visual Studio Code / IDEs
+.vscode/
+.idea/
+*.iml
+
+# Node / Scratch
+node_modules/
+*.log

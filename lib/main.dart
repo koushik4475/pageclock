@@ -10,6 +10,8 @@ import '../core/repository/session_repository.dart';
 import '../stats/stats_engine.dart';
 import '../core/services/export_service.dart';
 import '../core/services/pdf_service.dart';
+import 'features/app_update/app_update_service.dart';
+import 'features/app_update/update_dialog.dart';
 
 // -------------------------------------------------------------
 // Design Tokens: Linear / Vercel Pro Aesthetic
@@ -111,6 +113,28 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     SessionsHistoryScreen(),
     SettingsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAutoUpdate();
+    });
+  }
+
+  void _checkAutoUpdate() async {
+    try {
+      final active = await ProviderScope.containerOf(context, listen: false)
+          .read(sessionRepositoryProvider)
+          .getActiveSession();
+      if (active != null) return; // Do not interrupt active focus session
+
+      final update = await AppUpdateService().checkForUpdate();
+      if (mounted && update.hasUpdate && update.releaseInfo != null) {
+        UpdateDialog.show(context, update.releaseInfo!);
+      }
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1570,6 +1594,8 @@ class SettingsScreen extends ConsumerWidget {
                 },
               ),
               const Divider(),
+              const _UpdateCheckTile(),
+              const Divider(),
               ListTile(
                 leading: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
                 title: const Text('Clear All Local Data', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600)),
@@ -1615,3 +1641,61 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 }
+
+class _UpdateCheckTile extends StatefulWidget {
+  const _UpdateCheckTile();
+
+  @override
+  State<_UpdateCheckTile> createState() => _UpdateCheckTileState();
+}
+
+class _UpdateCheckTileState extends State<_UpdateCheckTile> {
+  bool _isChecking = false;
+
+  void _manualCheck() async {
+    setState(() => _isChecking = true);
+    final service = AppUpdateService();
+    final result = await service.checkForUpdate(force: true);
+
+    if (!mounted) return;
+    setState(() => _isChecking = false);
+
+    if (result.hasUpdate && result.releaseInfo != null) {
+      UpdateDialog.show(context, result.releaseInfo!);
+    } else if (result.errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.errorMessage!),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Productivity is up to date (${result.currentVersion}).'),
+          backgroundColor: const Color(0xFF10B981),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: const Icon(Icons.system_update_rounded, color: Color(0xFF34D399)),
+      title: const Text('Check for Updates'),
+      subtitle: const Text('GitHub Releases • Automated APK updates'),
+      trailing: _isChecking
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF34D399)),
+            )
+          : OutlinedButton(
+              onPressed: _manualCheck,
+              child: const Text('Check Now'),
+            ),
+    );
+  }
+}
+
