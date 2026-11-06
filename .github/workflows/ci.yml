@@ -28,6 +28,7 @@ jobs:
       - name: Recreate clean platform scaffolds
         run: |
           flutter create --org com.example --project-name pageclock --platforms android,web .
+          rm -f test/widget_test.dart
 
       - name: Install dependencies
         run: flutter pub get

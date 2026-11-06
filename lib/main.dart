@@ -242,7 +242,7 @@ class TimerScreen extends ConsumerWidget {
                       ),
                     const SizedBox(width: 20),
                     FilledButton.tonalIcon(
-                      style: FilledButton.tonalStyleFrom(
+                      style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                       ),
                       onPressed: () async {
@@ -704,7 +704,7 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.download),
             title: const Text('Export Sessions (CSV)'),
-            onPressed: () async {
+            onTap: () async {
               final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
               final csv = SessionExportService.exportToCsv(sessions);
               if (context.mounted) {
