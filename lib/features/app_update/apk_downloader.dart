@@ -55,8 +55,6 @@ class ApkDownloader {
     final sink = targetFile.openWrite();
 
     int receivedBytes = 0;
-    final outputDigestSink = AccumulatorSink<Digest>();
-    final byteSink = sha256.startChunkedConversion(outputDigestSink);
 
     try {
       await for (final chunk in response.stream) {
@@ -69,7 +67,6 @@ class ApkDownloader {
         }
 
         sink.add(chunk);
-        byteSink.add(chunk);
         receivedBytes += chunk.length;
 
         if (onProgress != null && totalBytes > 0) {
@@ -83,9 +80,10 @@ class ApkDownloader {
 
       await sink.flush();
       await sink.close();
-      byteSink.close();
 
-      final actualSha256 = outputDigestSink.events.single.toString().toLowerCase();
+      // Compute SHA-256 using streaming file read
+      final digest = await sha256.bind(targetFile.openRead()).first;
+      final actualSha256 = digest.toString().toLowerCase();
 
       // Verify SHA-256 if expected hash is provided
       if (expectedSha256 != null && expectedSha256.trim().isNotEmpty) {

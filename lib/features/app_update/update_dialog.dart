@@ -169,7 +169,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
               decoration: BoxDecoration(
                 color: const Color(0xFF1A1F24),
                 borderRadius: BorderRadius.circular(10),
-                border: BorderSide(color: Colors.white.withOpacity(0.05)),
+                border: Border.all(color: Colors.white.withOpacity(0.05)),
               ),
               child: SingleChildScrollView(
                 child: Text(
@@ -224,7 +224,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 decoration: BoxDecoration(
                   color: Colors.redAccent.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8),
-                  border: BorderSide(color: Colors.redAccent.withOpacity(0.3)),
+                  border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
                 ),
                 child: Row(
                   children: [
