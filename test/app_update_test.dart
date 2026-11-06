@@ -7,6 +7,8 @@ import 'package:pageclock/features/app_update/update_model.dart';
 import 'package:pageclock/features/app_update/app_update_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('VersionComparator Tests', () {
     test('Standard semver greater', () {
       expect(VersionComparator.isNewer('1.0.1', '1.0.0'), isTrue);
