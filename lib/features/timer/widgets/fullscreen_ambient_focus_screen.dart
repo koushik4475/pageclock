@@ -4,13 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/theme_provider.dart';
 
-/// Mac Retro Flip Clock & Focus Screen (Inspired by Fliqlo / Mac Screensaver)
+/// Apple Mac Retro Flip Clock & Fullscreen Focus Countdown Screen (Fliqlo Screensaver Style)
 /// Matches uploaded_media_2_1794050776776.png:
 /// - True OLED deep pitch black backdrop (#000000 / #0A0A0A)
-/// - Twin realistic matte-black flip plates (#17171A) with soft bevel & center dividing slit
-/// - Bold, high-contrast, perfectly rounded retro typography (9 : 41 / 24 : 56)
-/// - Top-left AM / PM indicator badge
-/// - Minimalist calm controls: Pause, Stop, Toggle Mode, and Exit
+/// - Twin realistic matte-black flip plates (#141416 / #17171A) with soft bevel & center dividing slit
+/// - Bold, high-contrast, rounded retro typography (e.g. 24 : 56 or 09 : 41)
+/// - Top-left AM / PM / FOCUS indicator badge
+/// - Authentic horizontal dividing slit and side hinge notches
+/// - Minimalist calm controls: Pause/Resume, Stop, Toggle Mode (Countdown vs Mac Clock), and Close
 class AppleMacFlipClockScreen extends StatefulWidget {
   final int elapsedMs;
   final int? targetMinutes;
@@ -38,11 +39,13 @@ class AppleMacFlipClockScreen extends StatefulWidget {
 }
 
 class _AppleMacFlipClockScreenState extends State<AppleMacFlipClockScreen> {
-  bool _showWallClock = false; // Toggle between Focus Timer and Mac Standby Clock
+  bool _showWallClock = false; // Toggle between Focus Countdown and Live Mac Standby Clock
+  late bool _usePastelBackdrop;
 
   @override
   void initState() {
     super.initState();
+    _usePastelBackdrop = widget.isSpecial1;
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
 
@@ -54,126 +57,6 @@ class _AppleMacFlipClockScreenState extends State<AppleMacFlipClockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.isSpecial1) {
-      int displayMs = widget.elapsedMs;
-      if (widget.targetMinutes != null && widget.targetMinutes! > 0) {
-        final totalTargetMs = widget.targetMinutes! * 60000;
-        displayMs = (totalTargetMs - widget.elapsedMs).clamp(0, totalTargetMs);
-      }
-      final duration = Duration(milliseconds: displayMs);
-      final minutes = duration.inMinutes;
-      final seconds = duration.inSeconds.remainder(60);
-      final formattedTime = '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-
-      return Scaffold(
-        backgroundColor: Special1Palette.background,
-        body: Stack(
-          children: [
-            // Soft gradient background
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFFFDE8E8),
-                    Special1Palette.background,
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-            ),
-            // Bottom Organic Waves
-            const Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: 220,
-              child: CustomPaint(
-                painter: Special1WavesPainter(),
-              ),
-            ),
-            // Content
-            SafeArea(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      widget.description.isNotEmpty ? widget.description : '+ Add description',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Special1Palette.primaryText,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.circle, size: 8, color: Special1Palette.primaryText),
-                        const SizedBox(width: 6),
-                        Text(
-                          widget.projectName.isNotEmpty ? widget.projectName : 'No Project',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Special1Palette.secondaryText,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 36),
-                    Text(
-                      formattedTime,
-                      style: const TextStyle(
-                        fontSize: 88,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -2.0,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                        color: Special1Palette.primaryText,
-                      ),
-                    ),
-                    const SizedBox(height: 48),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Special1Palette.stopButton,
-                            foregroundColor: Special1Palette.primaryText,
-                            padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            elevation: 0,
-                          ),
-                          onPressed: () {
-                            widget.onStop();
-                            Navigator.pop(context);
-                          },
-                          child: const Text('Stop', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                        ),
-                        const SizedBox(width: 20),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text(
-                            'Exit full-screen',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Special1Palette.primaryText,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     final now = DateTime.now();
 
     // Determine values for left & right plates
@@ -182,13 +65,13 @@ class _AppleMacFlipClockScreenState extends State<AppleMacFlipClockScreen> {
     String subBadge;
 
     if (_showWallClock) {
-      // Wall clock mode (Fliqlo 12-hour)
+      // Wall clock mode (Fliqlo 12-hour live time)
       final hour12 = now.hour % 12 == 0 ? 12 : now.hour % 12;
-      leftVal = hour12.toString();
+      leftVal = hour12.toString().padLeft(2, '0');
       rightVal = now.minute.toString().padLeft(2, '0');
       subBadge = now.hour >= 12 ? 'PM' : 'AM';
     } else {
-      // Focus countdown or stopwatch
+      // Focus countdown mode (e.g. 25:00 countdown) or stopwatch
       int displayMs = widget.elapsedMs;
       if (widget.targetMinutes != null && widget.targetMinutes! > 0) {
         final totalTargetMs = widget.targetMinutes! * 60000;
@@ -203,14 +86,39 @@ class _AppleMacFlipClockScreenState extends State<AppleMacFlipClockScreen> {
       subBadge = widget.targetMinutes != null ? 'FOCUS' : 'ELAPSED';
     }
 
-    final isWide = MediaQuery.of(context).size.width > 600;
+    final isDark = !_usePastelBackdrop;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF000000), // Pure OLED True Black
+      backgroundColor: isDark ? const Color(0xFF000000) : Special1Palette.background,
       body: SafeArea(
         child: Stack(
           children: [
-            // Top Bar: Exit button & Clock/Timer mode switch
+            // Optional Pastel Waves for special1 theme
+            if (!isDark) ...[
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFFFDE8E8),
+                      Special1Palette.background,
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+              ),
+              const Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: 200,
+                child: CustomPaint(
+                  painter: Special1WavesPainter(),
+                ),
+              ),
+            ],
+
+            // Top Bar: Exit button & Mode toggles
             Positioned(
               top: 16,
               left: 20,
@@ -219,105 +127,163 @@ class _AppleMacFlipClockScreenState extends State<AppleMacFlipClockScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, color: Colors.white38, size: 28),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: isDark ? Colors.white38 : Special1Palette.primaryText,
+                      size: 28,
+                    ),
+                    tooltip: 'Exit fullscreen',
                     onPressed: () => Navigator.pop(context),
                   ),
-                  InkWell(
-                    onTap: () => setState(() => _showWallClock = !_showWallClock),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF18181B),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFF27272A), width: 1),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _showWallClock ? Icons.hourglass_empty_rounded : Icons.access_time_rounded,
-                            size: 14,
-                            color: const Color(0xFFA1A1AA),
+
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Backdrop theme switcher if in special1
+                      if (widget.isSpecial1)
+                        IconButton(
+                          icon: Icon(
+                            _usePastelBackdrop ? Icons.dark_mode_outlined : Icons.palette_outlined,
+                            color: isDark ? Colors.white60 : Special1Palette.primaryText,
+                            size: 20,
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            _showWallClock ? 'Focus Timer' : 'Mac Wall Clock',
-                            style: const TextStyle(
-                              color: Color(0xFFEDEDED),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                          tooltip: _usePastelBackdrop ? 'Switch to OLED Black' : 'Switch to Pastel',
+                          onPressed: () => setState(() => _usePastelBackdrop = !_usePastelBackdrop),
+                        ),
+
+                      const SizedBox(width: 8),
+
+                      // Mode Switcher: Focus Countdown ⇄ Mac Wall Clock
+                      InkWell(
+                        onTap: () => setState(() => _showWallClock = !_showWallClock),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF18181B) : Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF27272A) : Special1Palette.inputBorder,
+                              width: 1,
                             ),
                           ),
-                        ],
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _showWallClock ? Icons.hourglass_empty_rounded : Icons.access_time_rounded,
+                                size: 14,
+                                color: isDark ? const Color(0xFFA1A1AA) : Special1Palette.accentRoseDark,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _showWallClock ? 'Focus Countdown' : 'Mac Wall Clock',
+                                style: TextStyle(
+                                  color: isDark ? const Color(0xFFEDEDED) : Special1Palette.primaryText,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),
             ),
 
-            // Center: Twin Flip Cards
+            // Center: Responsive Apple Mac Twin Flip Plates
             Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // The Two Flip Plates Side by Side
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+              child: LayoutBuilder(
+                builder: (ctx, constraints) {
+                  final isLandscape = constraints.maxWidth > constraints.maxHeight;
+                  // Dynamic plate width fitting portrait phones, tablets, and wide screens
+                  final double plateWidth = isLandscape
+                      ? (constraints.maxWidth * 0.30).clamp(160.0, 320.0)
+                      : ((constraints.maxWidth - 56) / 2).clamp(130.0, 220.0);
+                  final double plateHeight = plateWidth * 1.25;
+                  final double fontSize = plateWidth * 0.72;
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildFlipPlate(
-                          value: leftVal,
-                          badge: subBadge,
-                          isLeft: true,
-                          isWide: isWide,
+                        // Twin Flip Plates
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildFlipPlate(
+                              value: leftVal,
+                              badge: subBadge,
+                              isLeft: true,
+                              isDark: isDark,
+                              plateWidth: plateWidth,
+                              plateHeight: plateHeight,
+                              fontSize: fontSize,
+                            ),
+                            SizedBox(width: plateWidth * 0.08),
+                            _buildFlipPlate(
+                              value: rightVal,
+                              badge: null,
+                              isLeft: false,
+                              isDark: isDark,
+                              plateWidth: plateWidth,
+                              plateHeight: plateHeight,
+                              fontSize: fontSize,
+                            ),
+                          ],
                         ),
-                        SizedBox(width: isWide ? 20 : 12),
-                        _buildFlipPlate(
-                          value: rightVal,
-                          badge: null,
-                          isLeft: false,
-                          isWide: isWide,
-                        ),
+                        const SizedBox(height: 28),
+
+                        // Task Description & Project Badge
+                        if (widget.description.isNotEmpty || widget.projectName.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF141416) : Colors.white.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF26262B) : Special1Palette.inputBorder,
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF10B981) : Special1Palette.accentRose,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  widget.description.isNotEmpty
+                                      ? widget.description
+                                      : widget.projectName,
+                                  style: TextStyle(
+                                    color: isDark ? const Color(0xFFA1A1AA) : Special1Palette.primaryText,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
-                    const SizedBox(height: 28),
-
-                    // Task & Project Info
-                    if (widget.description.isNotEmpty || widget.projectName.isNotEmpty)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF10B981), // Calm emerald dot
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            widget.description.isNotEmpty
-                                ? widget.description
-                                : widget.projectName,
-                            style: const TextStyle(
-                              color: Color(0xFFA1A1AA),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
+                  );
+                },
               ),
             ),
 
-            // Bottom Calm Controls
+            // Bottom Calm Controls: Pause / Resume and Stop
             Positioned(
               bottom: 32,
               left: 0,
@@ -333,24 +299,34 @@ class _AppleMacFlipClockScreenState extends State<AppleMacFlipClockScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF18181B),
+                          color: isDark ? const Color(0xFF18181B) : Colors.white,
                           borderRadius: BorderRadius.circular(30),
-                          border: Border.all(color: const Color(0xFF27272A), width: 1),
+                          border: Border.all(
+                            color: isDark ? const Color(0xFF27272A) : Special1Palette.inputBorder,
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.12),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: Row(
                           children: [
                             Icon(
                               widget.isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
                               size: 18,
-                              color: Colors.white,
+                              color: isDark ? Colors.white : Special1Palette.primaryText,
                             ),
                             const SizedBox(width: 8),
                             Text(
                               widget.isRunning ? 'Pause' : 'Resume',
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: isDark ? Colors.white : Special1Palette.primaryText,
                                 fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ],
@@ -369,19 +345,30 @@ class _AppleMacFlipClockScreenState extends State<AppleMacFlipClockScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF27272A),
+                          color: isDark ? const Color(0xFF27272A) : Special1Palette.stopButton,
                           borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.12),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
-                            Icon(Icons.stop_rounded, size: 18, color: Color(0xFFF87171)),
-                            SizedBox(width: 8),
+                            Icon(
+                              Icons.stop_rounded,
+                              size: 18,
+                              color: isDark ? const Color(0xFFF87171) : Special1Palette.primaryText,
+                            ),
+                            const SizedBox(width: 8),
                             Text(
                               'Stop',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: isDark ? Colors.white : Special1Palette.primaryText,
                                 fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ],
@@ -398,36 +385,38 @@ class _AppleMacFlipClockScreenState extends State<AppleMacFlipClockScreen> {
     );
   }
 
+  /// Apple Mac Flip Plate with matte bevel, horizontal slit, side hinges, and bold retro digits
   Widget _buildFlipPlate({
     required String value,
     required String? badge,
     required bool isLeft,
-    required bool isWide,
+    required bool isDark,
+    required double plateWidth,
+    required double plateHeight,
+    required double fontSize,
   }) {
-    // Dynamic dimensions matching iPad / Mac proportions
-    final plateWidth = isWide ? 220.0 : 155.0;
-    final plateHeight = isWide ? 260.0 : 190.0;
-    final fontSize = isWide ? 150.0 : 110.0;
+    final plateBg = isDark ? const Color(0xFF141416) : const Color(0xFF221F28);
+    final borderColor = isDark ? const Color(0xFF26262B) : const Color(0xFF332F3D);
 
     return Container(
       width: plateWidth,
       height: plateHeight,
       decoration: BoxDecoration(
-        color: const Color(0xFF141416), // Deep matte titanium plate
+        color: plateBg,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: const Color(0xFF26262B),
+          color: borderColor,
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.9),
-            blurRadius: 30,
+            color: Colors.black.withOpacity(isDark ? 0.9 : 0.25),
+            blurRadius: 28,
             spreadRadius: 2,
-            offset: const Offset(0, 16),
+            offset: const Offset(0, 14),
           ),
           BoxShadow(
-            color: Colors.white.withOpacity(0.04),
+            color: Colors.white.withOpacity(0.05),
             blurRadius: 1,
             spreadRadius: 0,
             offset: const Offset(0, 1),
@@ -444,21 +433,21 @@ class _AppleMacFlipClockScreenState extends State<AppleMacFlipClockScreen> {
               child: Text(
                 badge,
                 style: const TextStyle(
-                  color: Color(0xFF71717A),
-                  fontSize: 13,
+                  color: Color(0xFF8E8E93),
+                  fontSize: 12,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.5,
                 ),
               ),
             ),
 
-          // Central High-Contrast Typography
+          // Central High-Contrast Bold Retro Typography
           Center(
             child: Text(
               value,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: const Color(0xFFE4E4E7), // Warm Platinum Grey
+                color: const Color(0xFFEDEDED), // Authentic Fliqlo Warm White/Platinum
                 fontSize: fontSize,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -4,
