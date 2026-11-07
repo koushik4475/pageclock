@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/models/reading_session.dart';
+import '../../main.dart';
 
 /// 24-Hour Calendar Timeline Screen matching Toggl Track UI
 /// Features:
@@ -9,7 +11,7 @@ import '../../core/models/reading_session.dart';
 /// 3. Vertical 24-hour timeline (12 am ... 11 pm)
 /// 4. Current time glowing horizontal needle with live pulse indicator
 /// 5. Colored time-slot session cards positioned at their exact start/end hours
-class CalendarScreen extends StatefulWidget {
+class CalendarScreen extends ConsumerStatefulWidget {
   final List<ReadingSession> sessions;
   final VoidCallback? onStartFocus;
 
@@ -20,10 +22,10 @@ class CalendarScreen extends StatefulWidget {
   });
 
   @override
-  State<CalendarScreen> createState() => _CalendarScreenState();
+  ConsumerState<CalendarScreen> createState() => _CalendarScreenState();
 }
 
-class _CalendarScreenState extends State<CalendarScreen> {
+class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   late DateTime _selectedDay;
   final ScrollController _scrollController = ScrollController();
 
@@ -96,7 +98,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
               Icons.settings_outlined,
               color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
             ),
-            onPressed: () {},
+            tooltip: 'Settings',
+            onPressed: () {
+              ref.read(mainTabNavigationIndexProvider.notifier).state = 3;
+            },
           ),
         ],
       ),

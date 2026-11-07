@@ -96,7 +96,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               Icons.settings_outlined,
               color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
             ),
-            onPressed: () {},
+            tooltip: 'Settings',
+            onPressed: () {
+              ref.read(mainTabNavigationIndexProvider.notifier).state = 3;
+            },
           ),
         ],
       ),

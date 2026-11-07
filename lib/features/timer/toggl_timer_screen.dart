@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../core/engine/stopwatch_engine.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/repository/session_repository.dart';
+import '../../main.dart';
+import '../settings/toggl_settings_screen.dart';
 import 'widgets/fullscreen_ambient_focus_screen.dart';
 
 final focusTaskDescriptionProvider = StateProvider<String>((ref) => '');
@@ -50,6 +52,111 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     super.dispose();
   }
 
+  void _showAddEntryModal(BuildContext context) {
+    final descCtrl = TextEditingController();
+    final minsCtrl = TextEditingController(text: '30');
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? const Color(0xFF140E20) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Add Time Entry',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: descCtrl,
+              autofocus: true,
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+              decoration: InputDecoration(
+                labelText: 'Description',
+                labelStyle: TextStyle(color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
+                filled: true,
+                fillColor: isDark ? const Color(0xFF1B1426) : const Color(0xFFF3F4F6),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: minsCtrl,
+              keyboardType: TextInputType.number,
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+              decoration: InputDecoration(
+                labelText: 'Duration (minutes)',
+                labelStyle: TextStyle(color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
+                filled: true,
+                fillColor: isDark ? const Color(0xFF1B1426) : const Color(0xFFF3F4F6),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE040FB),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () async {
+                  final mins = int.tryParse(minsCtrl.text) ?? 30;
+                  final desc = descCtrl.text.trim();
+                  final now = DateTime.now();
+                  final durationMs = mins * 60 * 1000;
+                  final session = ReadingSession(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    startedAtUtc: now.subtract(Duration(milliseconds: durationMs)).millisecondsSinceEpoch,
+                    endedAtUtc: now.millisecondsSinceEpoch,
+                    durationMs: durationMs,
+                    tzOffsetMin: now.timeZoneOffset.inMinutes,
+                    subjectId: 'General Focus',
+                    note: desc.isNotEmpty ? desc : 'Manual Time Log',
+                    source: 'manual',
+                    createdAt: now.millisecondsSinceEpoch,
+                    updatedAt: now.millisecondsSinceEpoch,
+                  );
+                  await ref.read(sessionRepositoryProvider).insertSession(session);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                child: const Text('Save Entry', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   String _formatElapsed(int ms) {
     final d = Duration(milliseconds: ms);
     final hours = d.inHours;
@@ -86,7 +193,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           IconButton(
             icon: Icon(Icons.add_circle_outline_rounded,
                 color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
-            onPressed: () {},
+            tooltip: 'Add Manual Time Entry',
+            onPressed: () => _showAddEntryModal(context),
           ),
           IconButton(
             icon: Icon(Icons.fullscreen_rounded,
@@ -118,7 +226,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           IconButton(
             icon: Icon(Icons.settings_outlined,
                 color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
-            onPressed: () {},
+            tooltip: 'Settings',
+            onPressed: () {
+              ref.read(mainTabNavigationIndexProvider.notifier).state = 3;
+            },
           ),
         ],
       ),

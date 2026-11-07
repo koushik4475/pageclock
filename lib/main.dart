@@ -48,6 +48,7 @@ class AppColors {
 }
 
 // State Providers
+final mainTabNavigationIndexProvider = StateProvider<int>((ref) => 0);
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.dark);
 final dailyGoalMinutesProvider = StateProvider<int>((ref) => 30);
 final targetFocusDurationMinutesProvider = StateProvider<int?>((ref) => 25);
@@ -408,6 +409,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isWide = MediaQuery.of(context).size.width >= 800;
+    final currentIndex = ref.watch(mainTabNavigationIndexProvider);
     final sessionsAsync = ref.watch(sessionsStreamProvider);
     final sessions = sessionsAsync.value ?? [];
 
@@ -488,10 +490,10 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
                   ),
                   const SizedBox(height: 12),
 
-                  _buildSidebarItem(0, 'Timer', Icons.schedule_rounded, isDark),
-                  _buildSidebarItem(1, 'Calendar', Icons.calendar_today_rounded, isDark),
-                  _buildSidebarItem(2, 'Reports', Icons.bar_chart_rounded, isDark),
-                  _buildSidebarItem(3, 'Settings', Icons.settings_outlined, isDark),
+                  _buildSidebarItem(0, 'Timer', Icons.schedule_rounded, isDark, currentIndex),
+                  _buildSidebarItem(1, 'Calendar', Icons.calendar_today_rounded, isDark, currentIndex),
+                  _buildSidebarItem(2, 'Reports', Icons.bar_chart_rounded, isDark, currentIndex),
+                  _buildSidebarItem(3, 'Settings', Icons.settings_outlined, isDark, currentIndex),
 
                   const Spacer(),
 
@@ -532,7 +534,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
             // Content Area
             Expanded(
               child: IndexedStack(
-                index: _currentIndex,
+                index: currentIndex,
                 children: screens,
               ),
             ),
@@ -545,7 +547,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F0B15) : AppColors.bgLight,
       body: IndexedStack(
-        index: _currentIndex,
+        index: currentIndex,
         children: screens,
       ),
       bottomNavigationBar: Container(
@@ -559,8 +561,8 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
           ),
         ),
         child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (idx) => setState(() => _currentIndex = idx),
+          currentIndex: currentIndex,
+          onTap: (idx) => ref.read(mainTabNavigationIndexProvider.notifier).state = idx,
           backgroundColor: Colors.transparent,
           elevation: 0,
           type: BottomNavigationBarType.fixed,
@@ -595,12 +597,12 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
     );
   }
 
-  Widget _buildSidebarItem(int idx, String title, IconData icon, bool isDark) {
-    final isSelected = _currentIndex == idx;
+  Widget _buildSidebarItem(int idx, String title, IconData icon, bool isDark, int currentIndex) {
+    final isSelected = currentIndex == idx;
     return Padding(
       padding: const EdgeInsets.only(bottom: 4.0),
       child: InkWell(
-        onTap: () => setState(() => _currentIndex = idx),
+        onTap: () => ref.read(mainTabNavigationIndexProvider.notifier).state = idx,
         borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
