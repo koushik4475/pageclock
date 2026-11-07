@@ -61,10 +61,10 @@ void main() {
       expect(find.byType(AppleMacFlipClockScreen), findsOneWidget);
       expect(find.text('Mac Wall Clock'), findsOneWidget);
 
-      // Exit flip clock
-      final backOrExit = find.byIcon(Icons.fullscreen_exit_rounded);
-      if (backOrExit.evaluate().isNotEmpty) {
-        await tester.tap(backOrExit);
+      // Exit flip clock back to timer
+      final closeFlip = find.byIcon(Icons.close_rounded);
+      if (closeFlip.evaluate().isNotEmpty) {
+        await tester.tap(closeFlip);
         await tester.pumpAndSettle();
       }
 
