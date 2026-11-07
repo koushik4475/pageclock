@@ -1021,6 +1021,7 @@ class AnalyticsScreen extends ConsumerWidget {
   }) {
     return Container(
       padding: const EdgeInsets.all(22),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
         borderRadius: BorderRadius.circular(12),
@@ -1050,17 +1051,28 @@ class AnalyticsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 22),
-          SizedBox(height: 220, child: child),
+          SizedBox(height: 220, child: ClipRect(child: child)),
         ],
       ),
     );
   }
 
   Widget _buildPrecision7DayChart(Map<DateTime, int> dailyTotals, DateTime now, bool isDark, int goalMins) {
+    // Dynamically calculate maxY to prevent bar overflow
+    double maxMins = goalMins.toDouble();
+    for (int i = 0; i < 7; i++) {
+      final date = DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
+      final m = (dailyTotals[date] ?? 0).toDouble();
+      if (m > maxMins) maxMins = m;
+    }
+    // Add headroom and round up to next 30m interval
+    final maxY = ((maxMins * 1.25) / 30).ceil() * 30.0;
+    final interval = (maxY / 4).clamp(15.0, 60.0);
+
     return BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
-        maxY: (goalMins * 1.5).clamp(90, 300).toDouble(),
+        maxY: maxY > 0 ? maxY : 90.0,
         extraLinesData: ExtraLinesData(
           horizontalLines: [
             HorizontalLine(
@@ -1081,7 +1093,7 @@ class AnalyticsScreen extends ConsumerWidget {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: 30,
+          horizontalInterval: interval,
           getDrawingHorizontalLine: (val) {
             return FlLine(
               color: (isDark ? AppColors.borderDark : AppColors.borderLight).withOpacity(0.5),
@@ -1096,8 +1108,8 @@ class AnalyticsScreen extends ConsumerWidget {
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 32,
-              interval: 30,
+              reservedSize: 36,
+              interval: interval,
               getTitlesWidget: (val, meta) {
                 return Text(
                   '${val.toInt()}m',
@@ -1169,14 +1181,32 @@ class AnalyticsScreen extends ConsumerWidget {
     int weekStartDay,
     bool isDark,
   ) {
+    // Dynamically calculate maxY for weekly volume
+    double maxHours = 12.0;
+    for (int idx = 0; idx < 4; idx++) {
+      final offsetWeeks = 3 - idx;
+      final daysFromStart = (now.weekday - weekStartDay + 7) % 7;
+      final thisWeekStart = DateTime(now.year, now.month, now.day).subtract(Duration(days: daysFromStart));
+      final targetWeekStart = thisWeekStart.subtract(Duration(days: 7 * offsetWeeks));
+
+      int sumMins = 0;
+      for (int d = 0; d < 7; d++) {
+        sumMins += dailyTotals[targetWeekStart.add(Duration(days: d))] ?? 0;
+      }
+      final h = sumMins / 60.0;
+      if (h > maxHours) maxHours = h;
+    }
+    final maxY = ((maxHours * 1.25) / 4).ceil() * 4.0;
+    final interval = (maxY / 4).clamp(2.0, 8.0);
+
     return BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
-        maxY: 16,
+        maxY: maxY > 0 ? maxY : 16.0,
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: 4,
+          horizontalInterval: interval,
           getDrawingHorizontalLine: (val) {
             return FlLine(
               color: (isDark ? AppColors.borderDark : AppColors.borderLight).withOpacity(0.5),
@@ -1192,7 +1222,7 @@ class AnalyticsScreen extends ConsumerWidget {
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 28,
-              interval: 4,
+              interval: interval,
               getTitlesWidget: (val, meta) {
                 return Text(
                   '${val.toInt()}h',
