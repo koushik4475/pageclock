@@ -629,9 +629,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     Text(
                       isSpecial1
                           ? 'Focus'
-                          : (stopwatchState.status == StopwatchStatus.running
-                              ? 'FOCUS INTERVAL'
-                              : 'READY TO FOCUS'),
+                          : 'FOCUS INTERVAL',
                       style: TextStyle(
                         fontSize: isSpecial1 ? 16 : 11,
                         fontWeight: FontWeight.w700,
@@ -661,7 +659,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                               ? 'Focusing...'
                               : 'Ready?')
                           : (stopwatchState.status == StopwatchStatus.running
-                              ? 'FOCUS INTERVAL'
+                              ? 'SESSION ACTIVE'
                               : 'READY TO FOCUS'),
                       style: TextStyle(
                         fontSize: isSpecial1 ? 16 : 11,

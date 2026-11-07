@@ -110,6 +110,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify Pomodoro Elements
+      expect(find.text('FOCUS INTERVAL'), findsOneWidget);
       expect(find.text('READY TO FOCUS'), findsOneWidget);
       expect(find.text('Start session'), findsOneWidget);
       expect(find.text('Pomodoro settings'), findsOneWidget);
@@ -132,7 +133,7 @@ void main() {
           ],
           child: const MaterialApp(
             home: MediaQuery(
-              data: MediaQueryData(size: Size(800, 1200)),
+              data: MediaQueryData(size: Size(800, 1600)),
               child: TogglSettingsScreen(),
             ),
           ),
@@ -140,8 +141,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Tap on App theme tile
+      // Find App theme tile (in general section)
       final themeTile = find.text('App theme');
+      await tester.scrollUntilVisible(themeTile, 300);
       expect(themeTile, findsOneWidget);
       await tester.tap(themeTile);
       await tester.pumpAndSettle();
