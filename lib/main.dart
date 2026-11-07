@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -389,6 +390,9 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
   }
 
   void _checkAutoUpdate() async {
+    // Only check and show APK updates when running on native Android mobile
+    if (kIsWeb) return;
+
     try {
       final active = await ref.read(sessionRepositoryProvider).getActiveSession();
       if (active != null) return; // Do not interrupt active focus session
