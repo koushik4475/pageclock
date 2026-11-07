@@ -37,6 +37,15 @@ class TogglTimerScreen extends ConsumerStatefulWidget {
 class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   int _selectedMode = 0; // 0: List view, 1: Pomodoro
   late TextEditingController _taskController;
+  bool _soundEnabled = true;
+
+  final List<String> _availableProjects = const [
+    'General Focus',
+    'Coding',
+    'Reading',
+    'Deep Work',
+    'Study',
+  ];
 
   @override
   void initState() {
@@ -56,6 +65,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     final descCtrl = TextEditingController();
     final minsCtrl = TextEditingController(text: '30');
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    String selectedProj = ref.read(focusSelectedProjectProvider);
 
     showModalBottomSheet(
       context: context,
@@ -64,95 +74,235 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Add Time Entry',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: descCtrl,
+                    autofocus: true,
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                    decoration: InputDecoration(
+                      labelText: 'Description',
+                      hintText: 'What did you work on?',
+                      labelStyle: TextStyle(color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF1B1426) : const Color(0xFFF3F4F6),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: minsCtrl,
+                    keyboardType: TextInputType.number,
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                    decoration: InputDecoration(
+                      labelText: 'Duration (minutes)',
+                      labelStyle: TextStyle(color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF1B1426) : const Color(0xFFF3F4F6),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'PROJECT',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.0,
+                      color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _availableProjects.map((proj) {
+                      final isSel = selectedProj == proj;
+                      return ChoiceChip(
+                        label: Text(proj),
+                        selected: isSel,
+                        onSelected: (val) {
+                          if (val) {
+                            setModalState(() => selectedProj = proj);
+                          }
+                        },
+                        selectedColor: const Color(0xFFE040FB),
+                        backgroundColor: isDark ? const Color(0xFF1F182C) : const Color(0xFFE5E7EB),
+                        labelStyle: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isSel ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE040FB),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () async {
+                        final mins = int.tryParse(minsCtrl.text) ?? 30;
+                        final desc = descCtrl.text.trim();
+                        final now = DateTime.now();
+                        final durationMs = mins * 60 * 1000;
+                        final session = ReadingSession(
+                          id: DateTime.now().millisecondsSinceEpoch.toString(),
+                          startedAtUtc: now.subtract(Duration(milliseconds: durationMs)).millisecondsSinceEpoch,
+                          endedAtUtc: now.millisecondsSinceEpoch,
+                          durationMs: durationMs,
+                          tzOffsetMin: now.timeZoneOffset.inMinutes,
+                          subjectId: selectedProj,
+                          note: desc.isNotEmpty ? desc : 'Manual Time Log',
+                          source: 'manual',
+                          createdAt: now.millisecondsSinceEpoch,
+                          updatedAt: now.millisecondsSinceEpoch,
+                        );
+                        await ref.read(sessionRepositoryProvider).saveSession(session);
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Logged $mins mins for $selectedProj'),
+                              backgroundColor: const Color(0xFF10B981),
+                              duration: const Duration(seconds: 2),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text('Save Entry', style: TextStyle(fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      ),
+    );
+  }
+
+  void _showProjectPicker(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF140E20) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Add Time Entry',
+                  'Select Project',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                     color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () => Navigator.pop(ctx),
-                ),
+                const SizedBox(height: 16),
+                ..._availableProjects.map((p) {
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.circle, color: Color(0xFFE040FB), size: 14),
+                    title: Text(
+                      p,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    trailing: ref.read(focusSelectedProjectProvider) == p
+                        ? const Icon(Icons.check_rounded, color: Color(0xFFE040FB))
+                        : null,
+                    onTap: () {
+                      ref.read(focusSelectedProjectProvider.notifier).state = p;
+                      Navigator.pop(ctx);
+                    },
+                  );
+                }),
               ],
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: descCtrl,
-              autofocus: true,
-              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-              decoration: InputDecoration(
-                labelText: 'Description',
-                labelStyle: TextStyle(color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
-                filled: true,
-                fillColor: isDark ? const Color(0xFF1B1426) : const Color(0xFFF3F4F6),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: minsCtrl,
-              keyboardType: TextInputType.number,
-              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-              decoration: InputDecoration(
-                labelText: 'Duration (minutes)',
-                labelStyle: TextStyle(color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
-                filled: true,
-                fillColor: isDark ? const Color(0xFF1B1426) : const Color(0xFFF3F4F6),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE040FB),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                onPressed: () async {
-                  final mins = int.tryParse(minsCtrl.text) ?? 30;
-                  final desc = descCtrl.text.trim();
-                  final now = DateTime.now();
-                  final durationMs = mins * 60 * 1000;
-                  final session = ReadingSession(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    startedAtUtc: now.subtract(Duration(milliseconds: durationMs)).millisecondsSinceEpoch,
-                    endedAtUtc: now.millisecondsSinceEpoch,
-                    durationMs: durationMs,
-                    tzOffsetMin: now.timeZoneOffset.inMinutes,
-                    subjectId: 'General Focus',
-                    note: desc.isNotEmpty ? desc : 'Manual Time Log',
-                    source: 'manual',
-                    createdAt: now.millisecondsSinceEpoch,
-                    updatedAt: now.millisecondsSinceEpoch,
-                  );
-                  await ref.read(sessionRepositoryProvider).saveSession(session);
-                  if (ctx.mounted) Navigator.pop(ctx);
-                },
-                child: const Text('Save Entry', style: TextStyle(fontWeight: FontWeight.w700)),
-              ),
-            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showWhatsIncludedDialog(BuildContext context, bool isDark) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF161122) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          "What's Included in Productivity",
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            _FeatureRow(icon: Icons.timer_outlined, text: 'Precision Stopwatch & 25m Pomodoro Ring'),
+            _FeatureRow(icon: Icons.crop_square_rounded, text: 'Apple Mac Fliqlo Retro Flip Clock'),
+            _FeatureRow(icon: Icons.grid_view_rounded, text: 'GitHub-Style Contribution Activity Heatmap'),
+            _FeatureRow(icon: Icons.view_timeline_rounded, text: '24-Hour Calendar Timeline with Needle Bar'),
+            _FeatureRow(icon: Icons.storage_rounded, text: 'Offline-First SQLite Drift Engine'),
           ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Got it', style: TextStyle(color: Color(0xFFE040FB), fontWeight: FontWeight.w700)),
+          ),
+        ],
       ),
     );
   }
@@ -228,7 +378,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
             tooltip: 'Settings',
             onPressed: () {
-              ref.read(mainTabNavigationIndexProvider.notifier).state = 3;
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const TogglSettingsScreen()),
+              );
             },
           ),
         ],
@@ -364,65 +517,94 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     ),
                   ),
                 ),
-                Icon(
-                  Icons.local_offer_outlined,
-                  size: 18,
-                  color: const Color(0xFFE040FB),
+                IconButton(
+                  icon: const Icon(
+                    Icons.local_offer_outlined,
+                    size: 20,
+                    color: Color(0xFFE040FB),
+                  ),
+                  tooltip: 'Choose Project',
+                  onPressed: () => _showProjectPicker(context),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 48),
 
-          // Circular Ring Progress Timer
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              SizedBox(
-                width: 240,
-                height: 240,
-                child: CircularProgressIndicator(
-                  value: progress,
-                  strokeWidth: 4,
-                  backgroundColor: isDark ? const Color(0xFF281F3B) : const Color(0xFFE5E7EB),
-                  color: const Color(0xFFE040FB),
+          // Circular Ring Progress Timer (Tap to toggle play/pause)
+          GestureDetector(
+            onTap: () {
+              if (stopwatchState.status == StopwatchStatus.running) {
+                ref.read(stopwatchProvider.notifier).pause();
+              } else if (stopwatchState.status == StopwatchStatus.paused) {
+                ref.read(stopwatchProvider.notifier).resume();
+              } else {
+                ref.read(stopwatchProvider.notifier).start();
+              }
+            },
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 240,
+                  height: 240,
+                  child: CircularProgressIndicator(
+                    value: progress,
+                    strokeWidth: 4,
+                    backgroundColor: isDark ? const Color(0xFF281F3B) : const Color(0xFFE5E7EB),
+                    color: const Color(0xFFE040FB),
+                  ),
                 ),
-              ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _formatElapsed(remainingMs),
-                    style: TextStyle(
-                      fontSize: 54,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -1.5,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                      color: isDark ? Colors.white : const Color(0xFF111827),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _formatElapsed(remainingMs),
+                      style: TextStyle(
+                        fontSize: 54,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -1.5,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                        color: isDark ? Colors.white : const Color(0xFF111827),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    stopwatchState.status == StopwatchStatus.running
-                        ? 'FOCUS INTERVAL'
-                        : 'READY TO FOCUS',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.5,
-                      color: Color(0xFFE040FB),
+                    const SizedBox(height: 8),
+                    Text(
+                      stopwatchState.status == StopwatchStatus.running
+                          ? 'FOCUS INTERVAL'
+                          : 'READY TO FOCUS',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.5,
+                        color: Color(0xFFE040FB),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 36),
 
           // Sound Toggle Button
           IconButton(
-            icon: const Icon(Icons.volume_up_outlined, color: Colors.white60, size: 26),
-            onPressed: () {},
+            icon: Icon(
+              _soundEnabled ? Icons.volume_up_outlined : Icons.volume_off_outlined,
+              color: _soundEnabled ? const Color(0xFFE040FB) : Colors.white38,
+              size: 26,
+            ),
+            tooltip: _soundEnabled ? 'Mute Pomodoro Sound' : 'Enable Pomodoro Sound',
+            onPressed: () {
+              setState(() => _soundEnabled = !_soundEnabled);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(_soundEnabled ? 'Pomodoro chime active' : 'Pomodoro muted'),
+                  duration: const Duration(seconds: 1),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
           ),
           const SizedBox(height: 20),
 
@@ -456,7 +638,12 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
 
           // "Pomodoro settings" Link
           TextButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const TogglSettingsScreen()),
+              );
+            },
             child: const Text(
               'Pomodoro settings',
               style: TextStyle(
@@ -589,7 +776,26 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        const Icon(Icons.play_arrow_rounded, color: Color(0xFFE040FB), size: 22),
+                        InkWell(
+                          onTap: () {
+                            ref.read(focusTaskDescriptionProvider.notifier).state = 'Deep Work & Focus';
+                            ref.read(focusSelectedProjectProvider.notifier).state = 'General Focus';
+                            ref.read(stopwatchProvider.notifier).start();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Started focus session: Deep Work & Focus'),
+                                backgroundColor: Color(0xFFE040FB),
+                                duration: Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: const Padding(
+                            padding: EdgeInsets.all(4.0),
+                            child: Icon(Icons.play_arrow_rounded, color: Color(0xFFE040FB), size: 24),
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -636,7 +842,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 ),
                 const SizedBox(height: 16),
                 TextButton(
-                  onPressed: () {},
+                  onPressed: () => _showWhatsIncludedDialog(context, isDark),
                   child: const Text(
                     "What's included?",
                     style: TextStyle(
@@ -756,6 +962,37 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _FeatureRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _FeatureRow({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: const Color(0xFFE040FB)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: isDark ? const Color(0xFFE4E4E7) : const Color(0xFF374151),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
