@@ -13,6 +13,11 @@ import '../core/services/export_service.dart';
 import '../core/services/pdf_service.dart';
 import 'features/app_update/app_update_service.dart';
 import 'features/app_update/update_dialog.dart';
+import 'features/reports/reports_screen.dart';
+import 'features/reports/widgets/contribution_heatmap.dart';
+import 'features/calendar/calendar_screen.dart';
+import 'features/timer/toggl_timer_screen.dart';
+import 'features/settings/toggl_settings_screen.dart';
 
 // -------------------------------------------------------------
 // Design Tokens: Linear / Vercel Pro Aesthetic
@@ -402,22 +407,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 // -------------------------------------------------------------
 // Main Navigation Shell (Ultra-Minimalist Sidebar & Dock)
 // -------------------------------------------------------------
-class MainNavigationShell extends StatefulWidget {
+class MainNavigationShell extends ConsumerStatefulWidget {
   const MainNavigationShell({super.key});
 
   @override
-  State<MainNavigationShell> createState() => _MainNavigationShellState();
+  ConsumerState<MainNavigationShell> createState() => _MainNavigationShellState();
 }
 
-class _MainNavigationShellState extends State<MainNavigationShell> {
-  int _currentIndex = 1; // Default to Insights
-
-  final _screens = const [
-    TimerScreen(),
-    AnalyticsScreen(),
-    SessionsHistoryScreen(),
-    SettingsScreen(),
-  ];
+class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
+  int _currentIndex = 0; // Default to Timer
 
   @override
   void initState() {
@@ -429,9 +427,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
 
   void _checkAutoUpdate() async {
     try {
-      final active = await ProviderScope.containerOf(context, listen: false)
-          .read(sessionRepositoryProvider)
-          .getActiveSession();
+      final active = await ref.read(sessionRepositoryProvider).getActiveSession();
       if (active != null) return; // Do not interrupt active focus session
 
       final update = await AppUpdateService().checkForUpdate();
@@ -445,20 +441,29 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isWide = MediaQuery.of(context).size.width >= 800;
+    final sessionsAsync = ref.watch(sessionsStreamProvider);
+    final sessions = sessionsAsync.value ?? [];
+
+    final screens = [
+      const TogglTimerScreen(),
+      CalendarScreen(sessions: sessions),
+      ReportsScreen(sessions: sessions),
+      const TogglSettingsScreen(),
+    ];
 
     if (isWide) {
       return Scaffold(
-        backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
+        backgroundColor: isDark ? const Color(0xFF0F0B15) : AppColors.bgLight,
         body: Row(
           children: [
-            // Linear-Style Desktop Sidebar
+            // Desktop Sidebar
             Container(
-              width: 220,
+              width: 230,
               decoration: BoxDecoration(
-                color: isDark ? AppColors.bgDark : AppColors.surfaceLight,
+                color: isDark ? const Color(0xFF140E20) : AppColors.surfaceLight,
                 border: Border(
                   right: BorderSide(
-                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                    color: isDark ? const Color(0xFF261A3D) : AppColors.borderLight,
                     width: 1,
                   ),
                 ),
@@ -471,33 +476,33 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                   Row(
                     children: [
                       Container(
-                        width: 30,
-                        height: 30,
+                        width: 32,
+                        height: 32,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                            colors: [Color(0xFFE040FB), Color(0xFF7C3AED)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF6366F1).withOpacity(0.35),
+                              color: const Color(0xFFE040FB).withOpacity(0.35),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.bolt_rounded, size: 18, color: Colors.white),
+                        child: const Icon(Icons.bolt_rounded, size: 20, color: Colors.white),
                       ),
                       const SizedBox(width: 10),
                       Text(
                         'Productivity',
                         style: TextStyle(
-                          fontSize: 17,
+                          fontSize: 18,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.5,
-                          color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                          color: isDark ? Colors.white : AppColors.textPrimaryLight,
                         ),
                       ),
                     ],
@@ -509,28 +514,28 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                     'WORKSPACE',
                     style: TextStyle(
                       fontSize: 10,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       letterSpacing: 1.2,
-                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                      color: isDark ? const Color(0xFFA1A1AA) : AppColors.textMutedLight,
                     ),
                   ),
                   const SizedBox(height: 12),
 
-                  _buildSidebarItem(0, 'Focus Timer', Icons.schedule_rounded, isDark),
-                  _buildSidebarItem(1, 'Insights', Icons.analytics_outlined, isDark),
-                  _buildSidebarItem(2, 'Session Log', Icons.history_rounded, isDark),
-                  _buildSidebarItem(3, 'Settings', Icons.tune_rounded, isDark),
+                  _buildSidebarItem(0, 'Timer', Icons.schedule_rounded, isDark),
+                  _buildSidebarItem(1, 'Calendar', Icons.calendar_today_rounded, isDark),
+                  _buildSidebarItem(2, 'Reports', Icons.bar_chart_rounded, isDark),
+                  _buildSidebarItem(3, 'Settings', Icons.settings_outlined, isDark),
 
                   const Spacer(),
 
-                  // Bottom Developer Badge
+                  // Bottom Profile Indicator
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.surfaceDark : AppColors.bgLight,
-                      borderRadius: BorderRadius.circular(8),
+                      color: isDark ? const Color(0xFF1D142E) : AppColors.bgLight,
+                      borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                        color: isDark ? const Color(0xFF2E204A) : AppColors.borderLight,
                         width: 1,
                       ),
                     ),
@@ -538,17 +543,17 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Koushik',
+                          'Koushik HY',
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? Colors.white : AppColors.textPrimaryLight,
                           ),
                         ),
                         const SizedBox(height: 2),
                         const Text(
-                          'koushikhy.netlify.app',
-                          style: TextStyle(fontSize: 10, color: AppColors.accentIndigo),
+                          'koushik4475@gmail.com',
+                          style: TextStyle(fontSize: 11, color: Color(0xFFE040FB)),
                         ),
                       ],
                     ),
@@ -561,7 +566,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
             Expanded(
               child: IndexedStack(
                 index: _currentIndex,
-                children: _screens,
+                children: screens,
               ),
             ),
           ],
@@ -569,19 +574,19 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       );
     }
 
-    // Mobile Bottom Navigation Bar
+    // Mobile 3-Tab Bottom Navigation Bar matching Toggl Track UI
     return Scaffold(
-      backgroundColor: isDark ? AppColors.bgDark : AppColors.bgLight,
+      backgroundColor: isDark ? const Color(0xFF0F0B15) : AppColors.bgLight,
       body: IndexedStack(
         index: _currentIndex,
-        children: _screens,
+        children: screens,
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: isDark ? AppColors.bgDark : AppColors.surfaceLight,
+          color: isDark ? const Color(0xFF140E20) : AppColors.surfaceLight,
           border: Border(
             top: BorderSide(
-              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              color: isDark ? const Color(0xFF241838) : AppColors.borderLight,
               width: 1,
             ),
           ),
@@ -592,15 +597,31 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           type: BottomNavigationBarType.fixed,
-          selectedItemColor: AppColors.accentIndigo,
-          unselectedItemColor: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
-          selectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-          unselectedLabelStyle: const TextStyle(fontSize: 11),
+          selectedItemColor: const Color(0xFFE040FB),
+          unselectedItemColor: isDark ? const Color(0xFFA1A1AA) : AppColors.textMutedLight,
+          selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
           items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.schedule_rounded), label: 'Focus'),
-            BottomNavigationBarItem(icon: Icon(Icons.analytics_outlined), label: 'Insights'),
-            BottomNavigationBarItem(icon: Icon(Icons.history_rounded), label: 'Log'),
-            BottomNavigationBarItem(icon: Icon(Icons.tune_rounded), label: 'Settings'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.access_time_rounded),
+              activeIcon: Icon(Icons.access_time_filled_rounded),
+              label: 'Timer',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.calendar_today_outlined),
+              activeIcon: Icon(Icons.calendar_today_rounded),
+              label: 'Calendar',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.bar_chart_outlined),
+              activeIcon: Icon(Icons.bar_chart_rounded),
+              label: 'Reports',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.settings_outlined),
+              activeIcon: Icon(Icons.settings_rounded),
+              label: 'Settings',
+            ),
           ],
         ),
       ),
@@ -613,33 +634,33 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       padding: const EdgeInsets.only(bottom: 4.0),
       child: InkWell(
         onTap: () => setState(() => _currentIndex = idx),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: isSelected
-                ? (isDark ? AppColors.surfaceDarkHover : const Color(0xFFF4F4F5))
+                ? (isDark ? const Color(0xFF2E1B46) : const Color(0xFFFCE7F3))
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
             children: [
               Icon(
                 icon,
-                size: 16,
+                size: 18,
                 color: isSelected
-                    ? AppColors.accentIndigo
-                    : (isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                    ? const Color(0xFFE040FB)
+                    : (isDark ? const Color(0xFFA1A1AA) : AppColors.textMutedLight),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Text(
                 title,
                 style: TextStyle(
                   fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   color: isSelected
-                      ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
-                      : (isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                      ? (isDark ? Colors.white : Colors.black87)
+                      : (isDark ? const Color(0xFFA1A1AA) : AppColors.textSecondaryLight),
                 ),
               ),
             ],
