@@ -31,6 +31,11 @@ class ReadingSession {
 
   bool get isRunning => endedAtUtc == null;
 
+  DateTime get startTime => DateTime.fromMillisecondsSinceEpoch(startedAtUtc);
+  DateTime? get endTime => endedAtUtc != null ? DateTime.fromMillisecondsSinceEpoch(endedAtUtc!) : null;
+  String get subjectName => subjectId ?? 'General Focus';
+  String? get bookTitle => note;
+
   int calculateCurrentDurationMs(int nowUtc) {
     if (endedAtUtc != null) {
       return durationMs;

@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/engine/stopwatch_engine.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/repository/session_repository.dart';
-import 'fullscreen_ambient_focus_screen.dart';
+import 'widgets/fullscreen_ambient_focus_screen.dart';
 
 final focusTaskDescriptionProvider = StateProvider<String>((ref) => '');
 final focusSelectedProjectProvider = StateProvider<String>((ref) => 'General Focus');
