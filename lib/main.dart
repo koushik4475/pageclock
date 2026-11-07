@@ -170,32 +170,32 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    // Vercel / Apple Luxury Dark Tokens:
-    // Canvas: #090A0D (Deepest Titanium Obsidian)
-    // Card/Container: #121318 with 1px #22232B hairline stroke
-    // Accent: #0091FF / Electric Cobalt + Platinum #EDEDED
+    // Apple Mac Calm Minimalist Dark Tokens:
+    // Pure calm matte backdrop: #0A0A0C
+    // Warm neutral off-white emblem & accents (#E4E4E7 / #A1A1AA)
+    // No garish neon blues or flashy gradients
     return Scaffold(
-      backgroundColor: const Color(0xFF090A0D),
+      backgroundColor: const Color(0xFF0A0A0C),
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Ultra-subtle Apple/Vercel ambient radial glow
+          // Gentle, warm ambient breath glow
           AnimatedBuilder(
             animation: _animController,
             builder: (context, _) {
               return Center(
                 child: Container(
-                  width: 340,
-                  height: 340,
+                  width: 320,
+                  height: 320,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        const Color(0xFF0091FF).withOpacity(0.14 * _glowPulse.value),
-                        const Color(0xFF6366F1).withOpacity(0.06 * _glowPulse.value),
+                        Colors.white.withOpacity(0.04 * _glowPulse.value),
+                        const Color(0xFFE4E4E7).withOpacity(0.015 * _glowPulse.value),
                         Colors.transparent,
                       ],
-                      stops: const [0.0, 0.55, 1.0],
+                      stops: const [0.0, 0.6, 1.0],
                     ),
                   ),
                 ),
@@ -215,79 +215,55 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Titanium Chiseled Emblem Container
+                        // Calm Matte Dark Titanium Emblem
                         Container(
-                          width: 80,
-                          height: 80,
+                          width: 76,
+                          height: 76,
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFF1E2028),
-                                Color(0xFF111217),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(22),
+                            color: const Color(0xFF141417),
+                            borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: const Color(0xFF2E313C),
+                              color: const Color(0xFF27272A),
                               width: 1.2,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.65),
-                                blurRadius: 24,
-                                spreadRadius: -2,
-                                offset: const Offset(0, 10),
+                                color: Colors.black.withOpacity(0.6),
+                                blurRadius: 28,
+                                offset: const Offset(0, 12),
                               ),
                               BoxShadow(
-                                color: const Color(0xFF0091FF).withOpacity(0.18 * _glowPulse.value),
-                                blurRadius: 32,
-                                spreadRadius: -4,
-                                offset: const Offset(0, 4),
+                                color: Colors.white.withOpacity(0.03),
+                                blurRadius: 1,
+                                offset: const Offset(0, 1),
                               ),
                             ],
                           ),
-                          child: Center(
-                            child: Container(
-                              width: 44,
-                              height: 44,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Color(0xFF0091FF),
-                                    Color(0xFF6366F1),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                              ),
-                              child: const Icon(
-                                Icons.bolt_rounded,
-                                size: 28,
-                                color: Colors.white,
-                              ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.hourglass_empty_rounded,
+                              size: 30,
+                              color: Color(0xFFE4E4E7),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 26),
 
-                        // Title: Pure Platinum Off-White (#EDEDED)
+                        // Title: Warm Serene Off-White
                         const Text(
                           'Productivity',
                           style: TextStyle(
-                            color: Color(0xFFEDEDED),
-                            fontSize: 27,
+                            color: Color(0xFFFAFAFA),
+                            fontSize: 26,
                             fontWeight: FontWeight.w700,
-                            letterSpacing: -0.6,
+                            letterSpacing: -0.5,
                           ),
                         ),
                         const SizedBox(height: 8),
 
-                        // Subtitle: Muted Titanium Zinc (#71717A)
+                        // Subtitle: Quiet Neutral Zinc
                         const Text(
-                          'PRECISION FOCUS & HABIT ENGINE',
+                          'MINDFUL FOCUS & TIME',
                           style: TextStyle(
                             color: Color(0xFF71717A),
                             fontSize: 9.5,
@@ -295,49 +271,36 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                             letterSpacing: 2.2,
                           ),
                         ),
-                        const SizedBox(height: 34),
+                        const SizedBox(height: 32),
 
-                        // Signature Linear Hairline Progress Line (fades to transparent at both ends)
+                        // Calm Hairline Pulse Line
                         SizedBox(
-                          width: 140,
+                          width: 120,
                           height: 2,
                           child: Stack(
                             children: [
                               // Track line
                               Container(
-                                width: 140,
+                                width: 120,
                                 height: 1.5,
                                 decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.transparent,
-                                      Colors.white.withOpacity(0.08),
-                                      Colors.transparent,
-                                    ],
-                                    stops: const [0.0, 0.5, 1.0],
-                                  ),
+                                  color: const Color(0xFF1E1E22),
+                                  borderRadius: BorderRadius.circular(1),
                                 ),
                               ),
-                              // Active glowing pulse line
+                              // Active warm calm bar
                               Align(
                                 alignment: Alignment.centerLeft,
                                 child: Container(
-                                  width: 140 * _progressLine.value,
+                                  width: 120 * _progressLine.value,
                                   height: 2,
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(2),
-                                    gradient: const LinearGradient(
-                                      colors: [
-                                        Colors.transparent,
-                                        Color(0xFF0091FF),
-                                        Color(0xFF60A5FA),
-                                      ],
-                                      stops: const [0.0, 0.7, 1.0],
-                                    ),
+                                    color: const Color(0xFFE4E4E7),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: const Color(0xFF0091FF).withOpacity(0.55),
-                                        blurRadius: 6,
+                                        color: Colors.white.withOpacity(0.3),
+                                        blurRadius: 4,
                                         offset: const Offset(0, 0),
                                       ),
                                     ],
@@ -357,7 +320,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                               width: 5,
                               height: 5,
                               decoration: const BoxDecoration(
-                                color: Color(0xFF10B981), // Emerald online pulse
+                                color: Color(0xFF10B981), // Emerald calm dot
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -365,7 +328,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                             const Text(
                               'Offline-First • Realtime',
                               style: TextStyle(
-                                color: Color(0xFF52525B),
+                                color: Color(0xFF71717A),
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w500,
                                 letterSpacing: 0.4,

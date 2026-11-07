@@ -91,12 +91,12 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           IconButton(
             icon: Icon(Icons.fullscreen_rounded,
                 color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
-            tooltip: 'Fullscreen Ambient Focus',
+            tooltip: 'Mac Retro Flip Clock Mode',
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => FullscreenAmbientFocusScreen(
+                  builder: (_) => AppleMacFlipClockScreen(
                     elapsedMs: stopwatchState.elapsedMs,
                     targetMinutes: _selectedMode == 1 ? 25 : null,
                     description: taskDescription,
