@@ -97,7 +97,7 @@ class PageClockApp extends ConsumerWidget {
 }
 
 // -------------------------------------------------------------
-// Crazy 3-Second Cyber-Obsidian Loading Screen
+// Luxury Minimalist Dark Splash Screen (Apple & Vercel Inspired)
 // -------------------------------------------------------------
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -108,10 +108,10 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   late AnimationController _animController;
-  late Animation<double> _glowAnimation;
-  late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
-  String _statusText = 'INITIALIZING SYSTEM ENGINE...';
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _glowPulse;
+  late Animation<double> _progressLine;
 
   @override
   void initState() {
@@ -121,34 +121,27 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       duration: const Duration(milliseconds: 3000),
     );
 
-    _scaleAnimation = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween<double>(begin: 0.8, end: 1.15).chain(CurveTween(curve: Curves.easeOutBack)), weight: 40),
-      TweenSequenceItem(tween: Tween<double>(begin: 1.15, end: 1.0).chain(CurveTween(curve: Curves.easeInOut)), weight: 60),
-    ]).animate(_animController);
-
-    _glowAnimation = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween<double>(begin: 0.2, end: 1.0).chain(CurveTween(curve: Curves.easeIn)), weight: 50),
-      TweenSequenceItem(tween: Tween<double>(begin: 1.0, end: 0.8).chain(CurveTween(curve: Curves.easeInOut)), weight: 50),
-    ]).animate(_animController);
-
+    // Subtle, elegant micro-animations
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animController, curve: const Interval(0.0, 0.35, curve: Curves.easeOut)),
+      CurvedAnimation(parent: _animController, curve: const Interval(0.0, 0.4, curve: Curves.easeOutCubic)),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.94, end: 1.0).animate(
+      CurvedAnimation(parent: _animController, curve: const Interval(0.0, 0.6, curve: Curves.easeOutCubic)),
+    );
+
+    _glowPulse = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween<double>(begin: 0.15, end: 0.45).chain(CurveTween(curve: Curves.easeInOut)), weight: 50),
+      TweenSequenceItem(tween: Tween<double>(begin: 0.45, end: 0.25).chain(CurveTween(curve: Curves.easeInOut)), weight: 50),
+    ]).animate(_animController);
+
+    _progressLine = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animController, curve: const Interval(0.2, 0.95, curve: Curves.easeInOutCubic)),
     );
 
     _animController.forward();
 
-    // Sequence dynamic cyber text
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (mounted) setState(() => _statusText = 'MOUNTING OFFLINE PERSISTENCE (SQLITE)...');
-    });
-    Future.delayed(const Duration(milliseconds: 1700), () {
-      if (mounted) setState(() => _statusText = 'COMPUTING DIURNAL TREND MATRIX...');
-    });
-    Future.delayed(const Duration(milliseconds: 2500), () {
-      if (mounted) setState(() => _statusText = 'PRODUCTIVITY WORKSPACE READY.');
-    });
-
-    // Exactly 3 seconds transition to main navigation
+    // Clean, fluid 3-second handoff into main app
     Future.delayed(const Duration(milliseconds: 3100), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
@@ -157,7 +150,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             transitionsBuilder: (_, animation, __, child) {
               return FadeTransition(opacity: animation, child: child);
             },
-            transitionDuration: const Duration(milliseconds: 400),
+            transitionDuration: const Duration(milliseconds: 500),
           ),
         );
       }
@@ -172,30 +165,32 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
+    // Vercel / Apple Luxury Dark Tokens:
+    // Canvas: #090A0D (Deepest Titanium Obsidian)
+    // Card/Container: #121318 with 1px #22232B hairline stroke
+    // Accent: #0091FF / Electric Cobalt + Platinum #EDEDED
     return Scaffold(
-      backgroundColor: isDark ? AppColors.bgDark : const Color(0xFF060608),
+      backgroundColor: const Color(0xFF090A0D),
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Cyber Radial Backdrop Glow
+          // Ultra-subtle Apple/Vercel ambient radial glow
           AnimatedBuilder(
             animation: _animController,
             builder: (context, _) {
               return Center(
                 child: Container(
-                  width: 380,
-                  height: 380,
+                  width: 340,
+                  height: 340,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        AppColors.accentIndigo.withOpacity(0.22 * _glowAnimation.value),
-                        AppColors.accentEmerald.withOpacity(0.08 * _glowAnimation.value),
+                        const Color(0xFF0091FF).withOpacity(0.14 * _glowPulse.value),
+                        const Color(0xFF6366F1).withOpacity(0.06 * _glowPulse.value),
                         Colors.transparent,
                       ],
-                      stops: const [0.0, 0.5, 1.0],
+                      stops: const [0.0, 0.55, 1.0],
                     ),
                   ),
                 ),
@@ -203,7 +198,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             },
           ),
 
-          // Central Logo and Kinetic Typography
+          // Central Minimalist Monogram & Title
           Center(
             child: AnimatedBuilder(
               animation: _animController,
@@ -215,93 +210,163 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Holographic Glowing App Logo
+                        // Titanium Chiseled Emblem Container
                         Container(
-                          width: 84,
-                          height: 84,
+                          width: 80,
+                          height: 80,
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [
-                                Color(0xFF6366F1), // Indigo
-                                Color(0xFF8B5CF6), // Purple
-                                Color(0xFF10B981), // Emerald
+                                Color(0xFF1E2028),
+                                Color(0xFF111217),
                               ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
-                            borderRadius: BorderRadius.circular(24),
+                            borderRadius: BorderRadius.circular(22),
+                            border: Border.all(
+                              color: const Color(0xFF2E313C),
+                              width: 1.2,
+                            ),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.accentIndigo.withOpacity(0.55 * _glowAnimation.value),
-                                blurRadius: 36,
-                                spreadRadius: 4,
-                                offset: const Offset(0, 8),
+                                color: Colors.black.withOpacity(0.65),
+                                blurRadius: 24,
+                                spreadRadius: -2,
+                                offset: const Offset(0, 10),
                               ),
                               BoxShadow(
-                                color: AppColors.accentEmerald.withOpacity(0.35 * _glowAnimation.value),
-                                blurRadius: 28,
-                                spreadRadius: -2,
-                                offset: const Offset(0, -4),
+                                color: const Color(0xFF0091FF).withOpacity(0.18 * _glowPulse.value),
+                                blurRadius: 32,
+                                spreadRadius: -4,
+                                offset: const Offset(0, 4),
                               ),
                             ],
                           ),
-                          child: const Icon(
-                            Icons.bolt_rounded,
-                            size: 46,
-                            color: Colors.white,
+                          child: Center(
+                            child: Container(
+                              width: 44,
+                              height: 44,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(0xFF0091FF),
+                                    Color(0xFF6366F1),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.bolt_rounded,
+                                size: 28,
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 28),
 
-                        // Title Typography
+                        // Title: Pure Platinum Off-White (#EDEDED)
                         const Text(
                           'Productivity',
                           style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -1.2,
+                            color: Color(0xFFEDEDED),
+                            fontSize: 27,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.6,
                           ),
                         ),
                         const SizedBox(height: 8),
 
-                        // Subtitle
-                        Text(
+                        // Subtitle: Muted Titanium Zinc (#71717A)
+                        const Text(
                           'PRECISION FOCUS & HABIT ENGINE',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.5),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 2.5,
-                          ),
-                        ),
-                        const SizedBox(height: 38),
-
-                        // Progress Indicator Bar
-                        SizedBox(
-                          width: 180,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: LinearProgressIndicator(
-                              value: _animController.value,
-                              minHeight: 3,
-                              backgroundColor: Colors.white.withOpacity(0.08),
-                              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accentEmerald),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Dynamic Console Status Text
-                        Text(
-                          _statusText,
-                          style: const TextStyle(
-                            color: AppColors.accentEmerald,
-                            fontSize: 10,
-                            fontFamily: 'monospace',
+                            color: Color(0xFF71717A),
+                            fontSize: 9.5,
                             fontWeight: FontWeight.w600,
-                            letterSpacing: 0.8,
+                            letterSpacing: 2.2,
                           ),
+                        ),
+                        const SizedBox(height: 34),
+
+                        // Signature Linear Hairline Progress Line (fades to transparent at both ends)
+                        SizedBox(
+                          width: 140,
+                          height: 2,
+                          child: Stack(
+                            children: [
+                              // Track line
+                              Container(
+                                width: 140,
+                                height: 1.5,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.transparent,
+                                      Colors.white.withOpacity(0.08),
+                                      Colors.transparent,
+                                    ],
+                                    stops: const [0.0, 0.5, 1.0],
+                                  ),
+                                ),
+                              ),
+                              // Active glowing pulse line
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Container(
+                                  width: 140 * _progressLine.value,
+                                  height: 2,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(2),
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Colors.transparent,
+                                        Color(0xFF0091FF),
+                                        Color(0xFF60A5FA),
+                                      ],
+                                      stops: const [0.0, 0.7, 1.0],
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF0091FF).withOpacity(0.55),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 0),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+
+                        // Clean Minimalist Status Indicator
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 5,
+                              height: 5,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF10B981), // Emerald online pulse
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Offline-First • Realtime',
+                              style: TextStyle(
+                                color: Color(0xFF52525B),
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -311,19 +376,19 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             ),
           ),
 
-          // Bottom Signature
+          // Bottom Signature: Subtle Hardware Branding
           Positioned(
-            bottom: 32,
+            bottom: 28,
             left: 0,
             right: 0,
             child: Center(
               child: Text(
                 'DESIGNED BY KOUSHIK • V1.0.0',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.25),
-                  fontSize: 10,
+                  color: const Color(0xFF3F3F46).withOpacity(0.6),
+                  fontSize: 9,
                   fontWeight: FontWeight.w600,
-                  letterSpacing: 1.5,
+                  letterSpacing: 1.8,
                 ),
               ),
             ),
