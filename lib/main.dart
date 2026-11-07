@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 import '../core/engine/stopwatch_engine.dart';
 import '../core/models/reading_session.dart';
 import '../core/repository/session_repository.dart';
@@ -46,6 +47,7 @@ final dailyGoalMinutesProvider = StateProvider<int>((ref) => 30);
 final targetFocusDurationMinutesProvider = StateProvider<int?>((ref) => 25);
 final consistencyThresholdMinutesProvider = StateProvider<int>((ref) => 10);
 final weekStartDayProvider = StateProvider<int>((ref) => DateTime.monday);
+final consistencyWindowDaysProvider = StateProvider<int>((ref) => 30);
 
 final sessionsStreamProvider = StreamProvider<List<ReadingSession>>((ref) {
   final repo = ref.watch(sessionRepositoryProvider);
@@ -356,16 +358,17 @@ class AnalyticsScreen extends ConsumerWidget {
     final sessionsAsync = ref.watch(sessionsStreamProvider);
     final consistencyThreshold = ref.watch(consistencyThresholdMinutesProvider);
     final weekStartDay = ref.watch(weekStartDayProvider);
+    final consistencyWindow = ref.watch(consistencyWindowDaysProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final sessions = sessionsAsync.value ?? [];
     final now = DateTime.now();
     final dailyTotals = StatsEngine.calculateDailyTotals(sessions);
 
-    final consistency30 = StatsEngine.calculateConsistency(
+    final consistency = StatsEngine.calculateConsistency(
       dailyTotals: dailyTotals,
       today: now,
-      windowDays: 30,
+      windowDays: consistencyWindow,
       thresholdMinutes: consistencyThreshold,
     );
     final streaks = StatsEngine.calculateStreaks(
@@ -464,20 +467,29 @@ class AnalyticsScreen extends ConsumerWidget {
                   // Row 1: 4 Linear Metric Bento Tiles
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      final tileWidth = (constraints.maxWidth - 36) / 4;
                       final isStacked = constraints.maxWidth < 640;
+
+                      final consistencyTile = InkWell(
+                        onTap: () {
+                          // Cycle between 7, 30, 90 days (PRD §5.2)
+                          final next = consistencyWindow == 7 ? 30 : (consistencyWindow == 30 ? 90 : 7);
+                          ref.read(consistencyWindowDaysProvider.notifier).state = next;
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: _buildBentoTile(
+                          title: '${consistencyWindow}D CONSISTENCY',
+                          value: '${consistency.percentage.toInt()}%',
+                          subtext: '${consistency.activeDays} of $consistencyWindow days met (tap 7/30/90d)',
+                          badgeText: consistency.percentage >= 80 ? 'EXCELLENT' : 'ON TRACK',
+                          badgeColor: AppColors.accentEmerald,
+                          isDark: isDark,
+                        ),
+                      );
 
                       if (isStacked) {
                         return Column(
                           children: [
-                            _buildBentoTile(
-                              title: '30D CONSISTENCY',
-                              value: '${consistency30.percentage.toInt()}%',
-                              subtext: '${consistency30.activeDays} of 30 days completed',
-                              badgeText: consistency30.percentage >= 80 ? 'EXCELLENT' : 'ON TRACK',
-                              badgeColor: AppColors.accentEmerald,
-                              isDark: isDark,
-                            ),
+                            consistencyTile,
                             const SizedBox(height: 12),
                             _buildBentoTile(
                               title: 'STREAK',
@@ -513,16 +525,7 @@ class AnalyticsScreen extends ConsumerWidget {
 
                       return Row(
                         children: [
-                          Expanded(
-                            child: _buildBentoTile(
-                              title: '30D CONSISTENCY',
-                              value: '${consistency30.percentage.toInt()}%',
-                              subtext: '${consistency30.activeDays} of 30 days met',
-                              badgeText: consistency30.percentage >= 80 ? 'EXCELLENT' : 'ON TRACK',
-                              badgeColor: AppColors.accentEmerald,
-                              isDark: isDark,
-                            ),
-                          ),
+                          Expanded(child: consistencyTile),
                           const SizedBox(width: 12),
                           Expanded(
                             child: _buildBentoTile(
@@ -604,7 +607,19 @@ class AnalyticsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  // Row 3: Total Summary Banner
+                  // Row 3: 24-Hour Diurnal Distribution (PRD §4 US-4, §5.3)
+                  _buildChartCard(
+                    title: '24-Hour Diurnal Distribution (Today)',
+                    subtitle: 'Reading intensity by hour of day (0h – 23h)',
+                    isDark: isDark,
+                    child: _buildPrecisionHourlyChart(
+                      StatsEngine.calculateHourlyDistribution(sessions, now),
+                      isDark,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Row 4: Total Summary Banner
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
                     decoration: BoxDecoration(
@@ -963,6 +978,99 @@ class AnalyticsScreen extends ConsumerWidget {
                 color: isCurrent ? AppColors.accentEmerald : (isDark ? const Color(0xFF3F3F46) : const Color(0xFFA1A1AA)),
                 width: 18,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+              ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildPrecisionHourlyChart(
+    Map<int, int> hourlyDistribution,
+    bool isDark,
+  ) {
+    int maxMins = 0;
+    for (final m in hourlyDistribution.values) {
+      if (m > maxMins) maxMins = m;
+    }
+    final maxY = maxMins > 60 ? (maxMins + 15).toDouble() : 60.0;
+
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: maxY,
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: 20,
+          getDrawingHorizontalLine: (val) {
+            return FlLine(
+              color: (isDark ? AppColors.borderDark : AppColors.borderLight).withOpacity(0.5),
+              strokeWidth: 1,
+              dashArray: [4, 4],
+            );
+          },
+        ),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 28,
+              interval: 20,
+              getTitlesWidget: (val, meta) {
+                return Text(
+                  '${val.toInt()}m',
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                  ),
+                );
+              },
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: 1,
+              getTitlesWidget: (val, meta) {
+                final h = val.toInt();
+                if (h % 4 != 0 && h != 23) {
+                  return const SizedBox.shrink();
+                }
+                final label = h == 0 ? '12a' : (h == 12 ? '12p' : (h < 12 ? '${h}a' : '${h - 12}p'));
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        barGroups: List.generate(24, (h) {
+          final mins = (hourlyDistribution[h] ?? 0).toDouble();
+          final hasActivity = mins > 0;
+
+          return BarChartGroupData(
+            x: h,
+            barRods: [
+              BarChartRodData(
+                toY: mins,
+                color: hasActivity
+                    ? AppColors.accentEmerald
+                    : (isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7)),
+                width: 7,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
               ),
             ],
           );
@@ -1383,15 +1491,225 @@ class _FullscreenClockModeScreenState extends ConsumerState<FullscreenClockModeS
 }
 
 // -------------------------------------------------------------
-// Screen 4: Session Log
+// Screen 4: Session Log (CRUD, Manual Entry & Subject Tagging)
 // -------------------------------------------------------------
 class SessionsHistoryScreen extends ConsumerWidget {
   const SessionsHistoryScreen({super.key});
 
+  void _showAddOrEditSessionDialog(
+    BuildContext context,
+    WidgetRef ref, {
+    ReadingSession? existing,
+  }) {
+    final isEditing = existing != null;
+    final initialMinutes = isEditing ? (existing.durationMs / 60000).round() : 30;
+    final initialDate = isEditing
+        ? DateTime.fromMillisecondsSinceEpoch(existing.startedAtUtc)
+        : DateTime.now();
+
+    final minutesController = TextEditingController(text: initialMinutes.toString());
+    final noteController = TextEditingController(text: existing?.note ?? '');
+    String selectedSubject = existing?.subjectId ?? 'General';
+    DateTime selectedDate = initialDate;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          return AlertDialog(
+            backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+            title: Text(
+              isEditing ? 'Edit Session' : 'Add Past Reading Session',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Duration (minutes):', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: minutesController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      hintText: 'e.g. 45',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Subject / Category:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<String>(
+                    value: selectedSubject,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'General', child: Text('General Reading')),
+                      DropdownMenuItem(value: 'Fiction', child: Text('Fiction / Novels')),
+                      DropdownMenuItem(value: 'Non-Fiction', child: Text('Non-Fiction / Philosophy')),
+                      DropdownMenuItem(value: 'Study', child: Text('Study / Academics')),
+                      DropdownMenuItem(value: 'Research', child: Text('Research / Tech')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setDialogState(() => selectedSubject = val);
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Date & Time:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final pickedDate = await showDatePicker(
+                              context: context,
+                              initialDate: selectedDate,
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime.now().add(const Duration(days: 1)),
+                            );
+                            if (pickedDate != null) {
+                              setDialogState(() {
+                                selectedDate = DateTime(
+                                  pickedDate.year,
+                                  pickedDate.month,
+                                  pickedDate.day,
+                                  selectedDate.hour,
+                                  selectedDate.minute,
+                                );
+                              });
+                            }
+                          },
+                          icon: const Icon(Icons.calendar_today, size: 16),
+                          label: Text(DateFormat('yyyy-MM-dd').format(selectedDate)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final pickedTime = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.fromDateTime(selectedDate),
+                            );
+                            if (pickedTime != null) {
+                              setDialogState(() {
+                                selectedDate = DateTime(
+                                  selectedDate.year,
+                                  selectedDate.month,
+                                  selectedDate.day,
+                                  pickedTime.hour,
+                                  pickedTime.minute,
+                                );
+                              });
+                            }
+                          },
+                          icon: const Icon(Icons.access_time, size: 16),
+                          label: Text(DateFormat('HH:mm').format(selectedDate)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Note (Optional):', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: noteController,
+                    decoration: const InputDecoration(
+                      hintText: 'e.g. Chapter 4 & 5',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  final mins = int.tryParse(minutesController.text) ?? 0;
+                  if (mins <= 0) return;
+
+                  final durationMs = mins * 60000;
+                  final startEpoch = selectedDate.millisecondsSinceEpoch;
+                  final endEpoch = startEpoch + durationMs;
+                  final tz = DateTime.now().timeZoneOffset.inMinutes;
+
+                  if (isEditing) {
+                    final updated = existing.copyWith(
+                      startedAtUtc: startEpoch,
+                      endedAtUtc: endEpoch,
+                      durationMs: durationMs,
+                      subjectId: selectedSubject,
+                      note: noteController.text.trim().isEmpty ? null : noteController.text.trim(),
+                      updatedAt: DateTime.now().millisecondsSinceEpoch,
+                    );
+                    await ref.read(sessionRepositoryProvider).updateSession(updated);
+                  } else {
+                    final newSession = ReadingSession(
+                      id: const Uuid().v4(),
+                      startedAtUtc: startEpoch,
+                      endedAtUtc: endEpoch,
+                      durationMs: durationMs,
+                      tzOffsetMin: tz,
+                      subjectId: selectedSubject,
+                      note: noteController.text.trim().isEmpty ? null : noteController.text.trim(),
+                      source: 'manual',
+                      createdAt: DateTime.now().millisecondsSinceEpoch,
+                      updatedAt: DateTime.now().millisecondsSinceEpoch,
+                    );
+                    await ref.read(sessionRepositoryProvider).saveSession(newSession);
+                  }
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                child: Text(isEditing ? 'Save Changes' : 'Add Session'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _confirmDeleteSession(BuildContext context, WidgetRef ref, ReadingSession session) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete this session?'),
+        content: Text(
+          'Delete ${(session.durationMs / 60000).round()}m session from ${DateFormat('MMM d, h:mm a').format(DateTime.fromMillisecondsSinceEpoch(session.startedAtUtc))}?',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () async {
+              await ref.read(sessionRepositoryProvider).softDeleteSession(session.id);
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sessionsAsync = ref.watch(sessionsStreamProvider);
-    final sessions = sessionsAsync.value ?? [];
+    final sessions = (sessionsAsync.value ?? [])
+        .where((s) => s.deletedAt == null)
+        .toList()
+      ..sort((a, b) => b.startedAtUtc.compareTo(a.startedAtUtc));
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -1399,30 +1717,121 @@ class SessionsHistoryScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Reading Log', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.5)),
         backgroundColor: Colors.transparent,
+        actions: [
+          FilledButton.tonalIcon(
+            onPressed: () => _showAddOrEditSessionDialog(context, ref),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Manual Entry'),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            ),
+          ),
+          const SizedBox(width: 16),
+        ],
       ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            itemCount: sessions.length,
-            separatorBuilder: (_, __) => Divider(
-              height: 1,
-              color: isDark ? AppColors.borderDark : AppColors.borderLight,
-            ),
-            itemBuilder: (ctx, idx) {
-              final s = sessions[idx];
-              final date = DateTime.fromMillisecondsSinceEpoch(s.startedAtUtc);
-              final durationMins = (s.durationMs / 60000).round();
+          child: sessions.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.history_edu, size: 48, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                      const SizedBox(height: 12),
+                      Text(
+                        'No reading sessions recorded yet',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Start a focus timer or add a manual session using the button above.',
+                        style: TextStyle(fontSize: 13, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  itemCount: sessions.length,
+                  separatorBuilder: (_, __) => Divider(
+                    height: 1,
+                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                  ),
+                  itemBuilder: (ctx, idx) {
+                    final s = sessions[idx];
+                    final date = DateTime.fromMillisecondsSinceEpoch(s.startedAtUtc);
+                    final durationMins = (s.durationMs / 60000).round();
+                    final subject = s.subjectId ?? 'General';
+                    final note = s.note;
 
-              return ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                title: Text('$durationMins minutes', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                subtitle: Text(DateFormat('EEEE, MMM d • h:mm a').format(date), style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight)),
-                trailing: Text(s.source.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.accentIndigo)),
-              );
-            },
-          ),
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      title: Row(
+                        children: [
+                          Text('$durationMins minutes', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.accentIndigo.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              subject,
+                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.accentIndigo),
+                            ),
+                          ),
+                        ],
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 3),
+                          Text(
+                            DateFormat('EEEE, MMM d, yyyy • h:mm a').format(date),
+                            style: TextStyle(fontSize: 12, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                          ),
+                          if (note != null && note.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              '“$note”',
+                              style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight),
+                            ),
+                          ],
+                        ],
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            s.source.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: s.source == 'manual' ? AppColors.accentOrange : AppColors.accentEmerald,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined, size: 18),
+                            onPressed: () => _showAddOrEditSessionDialog(context, ref, existing: s),
+                            tooltip: 'Edit Session',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                            onPressed: () => _confirmDeleteSession(context, ref, s),
+                            tooltip: 'Delete Session',
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
         ),
       ),
     );
@@ -1430,10 +1839,133 @@ class SessionsHistoryScreen extends ConsumerWidget {
 }
 
 // -------------------------------------------------------------
-// Screen 5: Settings (PDF Only + Custom Time Guard)
+// Screen 5: Settings (PDF, CSV/JSON Backup & Restore, Custom Time Guard)
 // -------------------------------------------------------------
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
+
+  void _showExportDialog(BuildContext context, List<ReadingSession> sessions) {
+    final csvStr = SessionExportService.exportToCsv(sessions);
+    final jsonStr = SessionExportService.exportToJson(sessions);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Export Sessions Data'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Found ${sessions.where((s) => s.deletedAt == null).length} active reading sessions.'),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.table_chart, color: AppColors.accentEmerald),
+              title: const Text('Copy as CSV'),
+              subtitle: const Text('Tabular format (Excel, Sheets)'),
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: csvStr));
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('CSV copied to clipboard!')),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.code, color: AppColors.accentIndigo),
+              title: const Text('Copy as JSON'),
+              subtitle: const Text('Raw machine-readable backup'),
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: jsonStr));
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('JSON copied to clipboard!')),
+                );
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+        ],
+      ),
+    );
+  }
+
+  void _showImportDialog(BuildContext context, WidgetRef ref) {
+    final controller = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Import Sessions Data'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Paste CSV or JSON export content below:'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                maxLines: 6,
+                decoration: const InputDecoration(
+                  hintText: 'Paste CSV or JSON text here...',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () async {
+              final raw = controller.text.trim();
+              if (raw.isEmpty) return;
+
+              List<ReadingSession> imported = [];
+              try {
+                if (raw.startsWith('[') || raw.startsWith('{')) {
+                  imported = SessionExportService.importFromJson(raw);
+                } else {
+                  imported = SessionExportService.importFromCsv(raw);
+                }
+              } catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to parse: $e')),
+                  );
+                }
+                return;
+              }
+
+              if (imported.isEmpty) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('No valid sessions found in input.')),
+                  );
+                }
+                return;
+              }
+
+              final repo = ref.read(sessionRepositoryProvider);
+              for (final s in imported) {
+                await repo.saveSession(s);
+              }
+
+              if (ctx.mounted) {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Successfully imported ${imported.length} sessions!')),
+                );
+              }
+            },
+            child: const Text('Import'),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _showTimePickerDialog(
     BuildContext context, {
@@ -1586,11 +2118,29 @@ class SettingsScreen extends ConsumerWidget {
               const Divider(),
               ListTile(
                 leading: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.accentIndigo),
-                title: const Text('Export Records (PDF Only)'),
-                subtitle: const Text('Official report • Developed by Koushik (koushikhy.netlify.app)'),
+                title: const Text('Export Records (PDF Report)'),
+                subtitle: const Text('Print or share PDF summary • Developed by Koushik'),
                 onTap: () async {
                   final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
                   await SessionPdfService.printOrSharePdf(sessions);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.file_download_outlined, color: AppColors.accentEmerald),
+                title: const Text('Export Data (CSV & JSON)'),
+                subtitle: const Text('Download raw backup of all reading sessions'),
+                onTap: () async {
+                  final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
+                  if (!context.mounted) return;
+                  _showExportDialog(context, sessions);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.file_upload_outlined, color: AppColors.accentOrange),
+                title: const Text('Import Data (CSV & JSON)'),
+                subtitle: const Text('Restore or migrate sessions from file/text'),
+                onTap: () {
+                  _showImportDialog(context, ref);
                 },
               ),
               const Divider(),

@@ -70,6 +70,14 @@ class DriftSessionRepository implements SessionRepository {
   }
 
   @override
+  Future<void> hardDeleteAll() async {
+    await db.delete(db.readingSessions).go();
+  }
+
+  @override
+  void seedSampleData() {}
+
+  @override
   Future<ReadingSession?> getActiveSession() async {
     final query = db.select(db.readingSessions)
       ..where((t) => t.endedAtUtc.isNull() & t.deletedAt.isNull());

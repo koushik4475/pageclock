@@ -12,6 +12,7 @@ abstract class SessionRepository {
   Stream<List<ReadingSession>> watchAllSessions();
   Stream<ReadingSession?> watchActiveSession();
   void seedSampleData();
+  Future<void> hardDeleteAll();
 }
 
 class InMemorySessionRepository implements SessionRepository {
@@ -78,9 +79,9 @@ class InMemorySessionRepository implements SessionRepository {
       ..sort((a, b) => b.startedAtUtc.compareTo(a.startedAtUtc));
     _controller.add(list);
 
-    final active = _storage.values.firstWhere(
-      (s) => s.endedAtUtc == null && s.deletedAt == null,
-      orElse: () => null as dynamic,
+    final active = _storage.values.cast<ReadingSession?>().firstWhere(
+      (s) => s != null && s.endedAtUtc == null && s.deletedAt == null,
+      orElse: () => null,
     );
     _activeController.add(active);
   }
@@ -107,6 +108,12 @@ class InMemorySessionRepository implements SessionRepository {
       );
       _notify();
     }
+  }
+
+  @override
+  Future<void> hardDeleteAll() async {
+    _storage.clear();
+    _notify();
   }
 
   @override

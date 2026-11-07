@@ -293,6 +293,51 @@ class StatsEngine {
     return sqrt(varianceSum / windowDays);
   }
 
+  /// Calculates reading minutes distribution across each hour of the day (0..23) for [targetDay].
+  /// Correctly splits sessions that span across hour boundaries.
+  static Map<int, int> calculateHourlyDistribution(
+    List<ReadingSession> sessions,
+    DateTime targetDay,
+  ) {
+    final hourly = <int, int>{for (int h = 0; h < 24; h++) h: 0};
+    final dayStart = DateTime(targetDay.year, targetDay.month, targetDay.day);
+    final dayEnd = dayStart.add(const Duration(days: 1));
+
+    for (final session in sessions) {
+      if (session.deletedAt != null) continue;
+
+      final startUtc = session.startedAtUtc;
+      final endUtc = session.endedAtUtc ?? startUtc + session.durationMs;
+      if (endUtc <= startUtc) continue;
+
+      final tzOffset = Duration(minutes: session.tzOffsetMin);
+      final localStart = DateTime.fromMillisecondsSinceEpoch(startUtc, isUtc: true).add(tzOffset);
+      final localEnd = DateTime.fromMillisecondsSinceEpoch(endUtc, isUtc: true).add(tzOffset);
+
+      // Skip sessions entirely outside target day
+      if (localEnd.isBefore(dayStart) || localStart.isAfter(dayEnd)) continue;
+
+      final boundedStart = localStart.isBefore(dayStart) ? dayStart : localStart;
+      final boundedEnd = localEnd.isAfter(dayEnd) ? dayEnd : localEnd;
+
+      var cur = boundedStart;
+      while (cur.isBefore(boundedEnd)) {
+        final nextHour = DateTime(cur.year, cur.month, cur.day, cur.hour).add(const Duration(hours: 1));
+        final sliceEnd = boundedEnd.isBefore(nextHour) ? boundedEnd : nextHour;
+
+        final sliceMs = sliceEnd.difference(cur).inMilliseconds;
+        final mins = (sliceMs / 60000.0).round();
+        if (mins > 0) {
+          hourly[cur.hour] = (hourly[cur.hour] ?? 0) + mins;
+        }
+
+        cur = sliceEnd;
+      }
+    }
+
+    return hourly;
+  }
+
   static int _sumWeek(
     Map<DateTime, int> dailyTotals,
     DateTime today,
