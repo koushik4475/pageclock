@@ -91,7 +91,245 @@ class PageClockApp extends ConsumerWidget {
         ),
         fontFamily: 'Inter',
       ),
-      home: const MainNavigationShell(),
+      home: const SplashScreen(),
+    );
+  }
+}
+
+// -------------------------------------------------------------
+// Crazy 3-Second Cyber-Obsidian Loading Screen
+// -------------------------------------------------------------
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _glowAnimation;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+  String _statusText = 'INITIALIZING SYSTEM ENGINE...';
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3000),
+    );
+
+    _scaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween<double>(begin: 0.8, end: 1.15).chain(CurveTween(curve: Curves.easeOutBack)), weight: 40),
+      TweenSequenceItem(tween: Tween<double>(begin: 1.15, end: 1.0).chain(CurveTween(curve: Curves.easeInOut)), weight: 60),
+    ]).animate(_animController);
+
+    _glowAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween<double>(begin: 0.2, end: 1.0).chain(CurveTween(curve: Curves.easeIn)), weight: 50),
+      TweenSequenceItem(tween: Tween<double>(begin: 1.0, end: 0.8).chain(CurveTween(curve: Curves.easeInOut)), weight: 50),
+    ]).animate(_animController);
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animController, curve: const Interval(0.0, 0.35, curve: Curves.easeOut)),
+    );
+
+    _animController.forward();
+
+    // Sequence dynamic cyber text
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) setState(() => _statusText = 'MOUNTING OFFLINE PERSISTENCE (SQLITE)...');
+    });
+    Future.delayed(const Duration(milliseconds: 1700), () {
+      if (mounted) setState(() => _statusText = 'COMPUTING DIURNAL TREND MATRIX...');
+    });
+    Future.delayed(const Duration(milliseconds: 2500), () {
+      if (mounted) setState(() => _statusText = 'PRODUCTIVITY WORKSPACE READY.');
+    });
+
+    // Exactly 3 seconds transition to main navigation
+    Future.delayed(const Duration(milliseconds: 3100), () {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            pageBuilder: (_, __, ___) => const MainNavigationShell(),
+            transitionsBuilder: (_, animation, __, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 400),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor: isDark ? AppColors.bgDark : const Color(0xFF060608),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Cyber Radial Backdrop Glow
+          AnimatedBuilder(
+            animation: _animController,
+            builder: (context, _) {
+              return Center(
+                child: Container(
+                  width: 380,
+                  height: 380,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        AppColors.accentIndigo.withOpacity(0.22 * _glowAnimation.value),
+                        AppColors.accentEmerald.withOpacity(0.08 * _glowAnimation.value),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.5, 1.0],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // Central Logo and Kinetic Typography
+          Center(
+            child: AnimatedBuilder(
+              animation: _animController,
+              builder: (context, child) {
+                return FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Transform.scale(
+                    scale: _scaleAnimation.value,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Holographic Glowing App Logo
+                        Container(
+                          width: 84,
+                          height: 84,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFF6366F1), // Indigo
+                                Color(0xFF8B5CF6), // Purple
+                                Color(0xFF10B981), // Emerald
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.accentIndigo.withOpacity(0.55 * _glowAnimation.value),
+                                blurRadius: 36,
+                                spreadRadius: 4,
+                                offset: const Offset(0, 8),
+                              ),
+                              BoxShadow(
+                                color: AppColors.accentEmerald.withOpacity(0.35 * _glowAnimation.value),
+                                blurRadius: 28,
+                                spreadRadius: -2,
+                                offset: const Offset(0, -4),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.bolt_rounded,
+                            size: 46,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+
+                        // Title Typography
+                        const Text(
+                          'Productivity',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Subtitle
+                        Text(
+                          'PRECISION FOCUS & HABIT ENGINE',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.5),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 2.5,
+                          ),
+                        ),
+                        const SizedBox(height: 38),
+
+                        // Progress Indicator Bar
+                        SizedBox(
+                          width: 180,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: LinearProgressIndicator(
+                              value: _animController.value,
+                              minHeight: 3,
+                              backgroundColor: Colors.white.withOpacity(0.08),
+                              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accentEmerald),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Dynamic Console Status Text
+                        Text(
+                          _statusText,
+                          style: const TextStyle(
+                            color: AppColors.accentEmerald,
+                            fontSize: 10,
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // Bottom Signature
+          Positioned(
+            bottom: 32,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Text(
+                'DESIGNED BY KOUSHIK • V1.0.0',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.25),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

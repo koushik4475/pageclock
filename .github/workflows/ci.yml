@@ -54,16 +54,29 @@ jobs:
             chmod 600 android/app/release.keystore
             echo "KEYSTORE_EXISTS=true" >> $GITHUB_ENV
           else
-            echo "ANDROID_KEYSTORE_BASE64 secret not found. Using debug signing."
-            echo "KEYSTORE_EXISTS=false" >> $GITHUB_ENV
+            echo "ANDROID_KEYSTORE_BASE64 not found in secrets. Generating deterministic CI release keystore..."
+            keytool -genkeypair \
+              -alias pageclock_key \
+              -keypass pageclock123 \
+              -keystore android/app/release.keystore \
+              -storepass pageclock123 \
+              -dname "CN=PageClock, OU=Productivity, O=Koushik, L=Hyderabad, ST=Telangana, C=IN" \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000
+            chmod 600 android/app/release.keystore
+            echo "KEYSTORE_EXISTS=true" >> $GITHUB_ENV
+            echo "ANDROID_KEYSTORE_PASSWORD=pageclock123" >> $GITHUB_ENV
+            echo "ANDROID_KEY_ALIAS=pageclock_key" >> $GITHUB_ENV
+            echo "ANDROID_KEY_PASSWORD=pageclock123" >> $GITHUB_ENV
           fi
 
       - name: Build Android Release APK
         env:
           ANDROID_KEYSTORE_PATH: release.keystore
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ env.ANDROID_KEYSTORE_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ env.ANDROID_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ env.ANDROID_KEY_PASSWORD || secrets.ANDROID_KEY_PASSWORD }}
         run: |
           flutter build apk --release --build-number=${{ github.run_number }} --android-skip-build-dependency-validation
 
