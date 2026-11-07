@@ -145,7 +145,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     createdAt: now.millisecondsSinceEpoch,
                     updatedAt: now.millisecondsSinceEpoch,
                   );
-                  await ref.read(sessionRepositoryProvider).insertSession(session);
+                  await ref.read(sessionRepositoryProvider).saveSession(session);
                   if (ctx.mounted) Navigator.pop(ctx);
                 },
                 child: const Text('Save Entry', style: TextStyle(fontWeight: FontWeight.w700)),

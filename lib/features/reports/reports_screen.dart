@@ -5,6 +5,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../../core/models/reading_session.dart';
 import '../../stats/stats_engine.dart';
+import '../../main.dart';
 import 'widgets/contribution_heatmap.dart';
 
 /// Reports Screen matching Toggl Track UI
