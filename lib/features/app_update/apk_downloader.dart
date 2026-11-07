@@ -34,15 +34,33 @@ class ApkDownloader {
   ApkDownloader({http.Client? client}) : _client = client ?? http.Client();
 
   /// Downloads an APK from [url], verifies [expectedSha256] if provided,
-  /// and emits progress on [onProgress].
+  /// and emits progress on [onProgress]. Supports HTTP redirects (e.g. 302/301).
   Future<File> downloadAndVerifyApk({
     required String url,
     String? expectedSha256,
     void Function(DownloadProgress)? onProgress,
     CancellationToken? cancelToken,
   }) async {
-    final request = http.Request('GET', Uri.parse(url));
-    final response = await _client.send(request);
+    Uri currentUri = Uri.parse(url);
+    http.StreamedResponse response;
+    int redirects = 0;
+
+    while (true) {
+      final request = http.Request('GET', currentUri);
+      request.followRedirects = false; // Manually handle redirect loop safely
+      response = await _client.send(request);
+
+      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.containsKey('location')) {
+        final location = response.headers['location']!;
+        currentUri = Uri.parse(location);
+        redirects++;
+        if (redirects > 8) {
+          throw HttpException('Too many HTTP redirects when downloading APK.');
+        }
+        continue;
+      }
+      break;
+    }
 
     if (response.statusCode != 200) {
       throw HttpException('Failed to download APK. HTTP status: ${response.statusCode}');
