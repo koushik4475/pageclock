@@ -125,5 +125,41 @@ void main() {
       expect(find.text('TODAY'), findsOneWidget);
       expect(find.text('Deep Work & Focus'), findsOneWidget);
     });
+
+    testWidgets('Theme Switcher: special1 activates Pastel Waves & Cream palette', (tester) async {
+      final inMemoryRepo = InMemorySessionRepository([]);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionRepositoryProvider.overrideWithValue(inMemoryRepo),
+          ],
+          child: const MaterialApp(
+            home: MediaQuery(
+              data: MediaQueryData(size: Size(800, 1200)),
+              child: TogglSettingsScreen(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap on App theme tile
+      final themeTile = find.text('App theme');
+      expect(themeTile, findsOneWidget);
+      await tester.tap(themeTile);
+      await tester.pumpAndSettle();
+
+      // Verify bottom sheet has special1
+      expect(find.text('Choose Theme'), findsOneWidget);
+      expect(find.text('special1'), findsOneWidget);
+
+      // Tap on special1
+      await tester.tap(find.text('special1'));
+      await tester.pumpAndSettle();
+
+      // Verify bottom sheet dismissed
+      expect(find.text('Choose Theme'), findsNothing);
+    });
   });
 }

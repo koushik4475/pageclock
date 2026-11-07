@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/theme/theme_provider.dart';
 import '../../main.dart';
 
 /// Full Production Settings Screen matching Toggl Track UI
@@ -214,13 +215,9 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
               [
                 _buildTile(
                   title: 'App theme',
-                  subtitle: isDark ? 'Dark mode' : 'Light mode',
+                  subtitle: ref.watch(appThemeIdProvider).displayName,
                   isDark: isDark,
-                  onTap: () {
-                    final current = ref.read(themeModeProvider);
-                    ref.read(themeModeProvider.notifier).state =
-                        current == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
-                  },
+                  onTap: () => _showThemeSelector(context),
                 ),
                 _buildDivider(isDark),
                 _buildSwitchTile(
@@ -458,6 +455,172 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showThemeSelector(BuildContext context) {
+    final currentTheme = ref.read(appThemeIdProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF140E20) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Choose Theme',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildThemeOption(
+                  ctx: ctx,
+                  themeId: AppThemeId.defaultDark,
+                  title: 'Default Dark',
+                  subtitle: 'Obsidian & Vercel titanium aesthetic',
+                  colorPreview: const [Color(0xFF0F0B15), Color(0xFFE040FB), Color(0xFF2E1B46)],
+                  isSelected: currentTheme == AppThemeId.defaultDark,
+                ),
+                _buildThemeOption(
+                  ctx: ctx,
+                  themeId: AppThemeId.defaultLight,
+                  title: 'Default Light',
+                  subtitle: 'Minimalist clean white layout',
+                  colorPreview: const [Color(0xFFF9FAFB), Color(0xFFE040FB), Color(0xFFE5E7EB)],
+                  isSelected: currentTheme == AppThemeId.defaultLight,
+                ),
+                _buildThemeOption(
+                  ctx: ctx,
+                  themeId: AppThemeId.special1,
+                  title: 'special1',
+                  subtitle: 'Pastel Waves (Cream, Soft Rose, Butter Yellow & Sky Blue)',
+                  colorPreview: const [
+                    Special1Palette.background,
+                    Special1Palette.accentRose,
+                    Special1Palette.waveYellow,
+                    Special1Palette.waveBlue,
+                  ],
+                  isSelected: currentTheme == AppThemeId.special1,
+                ),
+                const SizedBox(height: 10),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThemeOption({
+    required BuildContext ctx,
+    required AppThemeId themeId,
+    required String title,
+    required String subtitle,
+    required List<Color> colorPreview,
+    required bool isSelected,
+  }) {
+    final isDark = Theme.of(ctx).brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: InkWell(
+        onTap: () {
+          ref.read(appThemeIdProvider.notifier).state = themeId;
+          if (themeId == AppThemeId.defaultDark) {
+            ref.read(themeModeProvider.notifier).state = ThemeMode.dark;
+          } else {
+            ref.read(themeModeProvider.notifier).state = ThemeMode.light;
+          }
+          Navigator.pop(ctx);
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? (isDark ? const Color(0xFF281F3B) : const Color(0xFFFDF2F8))
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected
+                  ? const Color(0xFFE040FB)
+                  : (isDark ? const Color(0xFF221832) : const Color(0xFFE5E7EB)),
+              width: isSelected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              // Palette preview dots
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: colorPreview.map((c) {
+                  return Container(
+                    width: 14,
+                    height: 14,
+                    margin: const EdgeInsets.only(right: 4),
+                    decoration: BoxDecoration(
+                      color: c,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.black12,
+                        width: 1,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                const Icon(Icons.check_circle_rounded, color: Color(0xFFE040FB), size: 20),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

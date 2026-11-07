@@ -1,6 +1,8 @@
 import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/theme/theme_provider.dart';
 
 /// Mac Retro Flip Clock & Focus Screen (Inspired by Fliqlo / Mac Screensaver)
 /// Matches uploaded_media_2_1794050776776.png:
@@ -15,6 +17,7 @@ class AppleMacFlipClockScreen extends StatefulWidget {
   final String description;
   final String projectName;
   final bool isRunning;
+  final bool isSpecial1;
   final VoidCallback onStop;
   final VoidCallback onTogglePlay;
 
@@ -25,6 +28,7 @@ class AppleMacFlipClockScreen extends StatefulWidget {
     required this.description,
     required this.projectName,
     required this.isRunning,
+    this.isSpecial1 = false,
     required this.onStop,
     required this.onTogglePlay,
   });
@@ -50,6 +54,126 @@ class _AppleMacFlipClockScreenState extends State<AppleMacFlipClockScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.isSpecial1) {
+      int displayMs = widget.elapsedMs;
+      if (widget.targetMinutes != null && widget.targetMinutes! > 0) {
+        final totalTargetMs = widget.targetMinutes! * 60000;
+        displayMs = (totalTargetMs - widget.elapsedMs).clamp(0, totalTargetMs);
+      }
+      final duration = Duration(milliseconds: displayMs);
+      final minutes = duration.inMinutes;
+      final seconds = duration.inSeconds.remainder(60);
+      final formattedTime = '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+
+      return Scaffold(
+        backgroundColor: Special1Palette.background,
+        body: Stack(
+          children: [
+            // Soft gradient background
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Color(0xFFFDE8E8),
+                    Special1Palette.background,
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
+            // Bottom Organic Waves
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 220,
+              child: CustomPaint(
+                painter: Special1WavesPainter(),
+              ),
+            ),
+            // Content
+            SafeArea(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      widget.description.isNotEmpty ? widget.description : '+ Add description',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Special1Palette.primaryText,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.circle, size: 8, color: Special1Palette.primaryText),
+                        const SizedBox(width: 6),
+                        Text(
+                          widget.projectName.isNotEmpty ? widget.projectName : 'No Project',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Special1Palette.secondaryText,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 36),
+                    Text(
+                      formattedTime,
+                      style: const TextStyle(
+                        fontSize: 88,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -2.0,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                        color: Special1Palette.primaryText,
+                      ),
+                    ),
+                    const SizedBox(height: 48),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Special1Palette.stopButton,
+                            foregroundColor: Special1Palette.primaryText,
+                            padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            elevation: 0,
+                          ),
+                          onPressed: () {
+                            widget.onStop();
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Stop', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                        ),
+                        const SizedBox(width: 20),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text(
+                            'Exit full-screen',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Special1Palette.primaryText,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final now = DateTime.now();
 
     // Determine values for left & right plates

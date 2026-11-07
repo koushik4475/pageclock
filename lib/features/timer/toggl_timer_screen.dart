@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/engine/stopwatch_engine.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/repository/session_repository.dart';
+import '../../core/theme/theme_provider.dart';
 import '../../main.dart';
 import '../settings/toggl_settings_screen.dart';
 import 'widgets/fullscreen_ambient_focus_screen.dart';
@@ -324,11 +325,21 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     final stopwatchState = ref.watch(stopwatchProvider);
     final taskDescription = ref.watch(focusTaskDescriptionProvider);
     final selectedProject = ref.watch(focusSelectedProjectProvider);
+    final appThemeId = ref.watch(appThemeIdProvider);
+    final isSpecial1 = appThemeId == AppThemeId.special1;
+
+    final bgColor = isSpecial1
+        ? Special1Palette.background
+        : (isDark ? const Color(0xFF0F0B15) : const Color(0xFFF9FAFB));
+
+    final headerIconColor = isSpecial1
+        ? Special1Palette.primaryText
+        : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A));
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0F0B15) : const Color(0xFFF9FAFB),
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: isDark ? const Color(0xFF0F0B15) : const Color(0xFFF9FAFB),
+        backgroundColor: bgColor,
         elevation: 0,
         title: Text(
           'Timer',
@@ -336,19 +347,19 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
             fontSize: 24,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.5,
-            color: isDark ? Colors.white : const Color(0xFF111827),
+            color: isSpecial1
+                ? Special1Palette.primaryText
+                : (isDark ? Colors.white : const Color(0xFF111827)),
           ),
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.add_circle_outline_rounded,
-                color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
+            icon: Icon(Icons.add_circle_outline_rounded, color: headerIconColor),
             tooltip: 'Add Manual Time Entry',
             onPressed: () => _showAddEntryModal(context),
           ),
           IconButton(
-            icon: Icon(Icons.fullscreen_rounded,
-                color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
+            icon: Icon(Icons.fullscreen_rounded, color: headerIconColor),
             tooltip: 'Mac Retro Flip Clock Mode',
             onPressed: () {
               Navigator.push(
@@ -360,6 +371,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     description: taskDescription,
                     projectName: selectedProject,
                     isRunning: stopwatchState.status == StopwatchStatus.running,
+                    isSpecial1: isSpecial1,
                     onStop: () => ref.read(stopwatchProvider.notifier).stop(),
                     onTogglePlay: () {
                       if (stopwatchState.status == StopwatchStatus.running) {
@@ -374,8 +386,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
             },
           ),
           IconButton(
-            icon: Icon(Icons.settings_outlined,
-                color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
+            icon: Icon(Icons.settings_outlined, color: headerIconColor),
             tooltip: 'Settings',
             onPressed: () {
               Navigator.push(
@@ -386,97 +397,130 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // Segmented Tabs: List view | Pomodoro
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            child: Container(
-              height: 42,
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1B1426) : const Color(0xFFE5E7EB),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => setState(() => _selectedMode = 0),
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        alignment: Alignment.center,
-                        decoration: _selectedMode == 0
-                            ? BoxDecoration(
-                                color: isDark ? const Color(0xFF2C1B42) : Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: const Color(0xFFE040FB).withOpacity(0.4),
-                                ),
-                              )
-                            : null,
-                        child: Text(
-                          'List view',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: _selectedMode == 0
-                                ? const Color(0xFFE040FB)
-                                : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => setState(() => _selectedMode = 1),
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        alignment: Alignment.center,
-                        decoration: _selectedMode == 1
-                            ? BoxDecoration(
-                                color: isDark ? const Color(0xFF2C1B42) : Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: const Color(0xFFE040FB).withOpacity(0.4),
-                                ),
-                              )
-                            : null,
-                        child: Text(
-                          'Pomodoro',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: _selectedMode == 1
-                                ? const Color(0xFFE040FB)
-                                : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+          // Bottom Organic Pastel Waves for special1
+          if (isSpecial1)
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 180,
+              child: CustomPaint(
+                painter: Special1WavesPainter(),
               ),
             ),
-          ),
+          Column(
+            children: [
+              // Segmented Tabs: List view | Pomodoro
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Container(
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: isSpecial1
+                        ? Colors.transparent
+                        : (isDark ? const Color(0xFF1B1426) : const Color(0xFFE5E7EB)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setState(() => _selectedMode = 0),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            alignment: Alignment.center,
+                            decoration: _selectedMode == 0
+                                ? BoxDecoration(
+                                    color: isSpecial1
+                                        ? Special1Palette.activePill
+                                        : (isDark ? const Color(0xFF2C1B42) : Colors.white),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: isSpecial1
+                                        ? null
+                                        : Border.all(
+                                            color: const Color(0xFFE040FB).withOpacity(0.4),
+                                          ),
+                                  )
+                                : null,
+                            child: Text(
+                              'List view',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: _selectedMode == 0
+                                    ? (isSpecial1
+                                        ? Special1Palette.primaryText
+                                        : const Color(0xFFE040FB))
+                                    : (isSpecial1
+                                        ? Special1Palette.secondaryText
+                                        : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A))),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => setState(() => _selectedMode = 1),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            alignment: Alignment.center,
+                            decoration: _selectedMode == 1
+                                ? BoxDecoration(
+                                    color: isSpecial1
+                                        ? Special1Palette.activePill
+                                        : (isDark ? const Color(0xFF2C1B42) : Colors.white),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: isSpecial1
+                                        ? null
+                                        : Border.all(
+                                            color: const Color(0xFFE040FB).withOpacity(0.4),
+                                          ),
+                                  )
+                                : null,
+                            child: Text(
+                              'Pomodoro',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: _selectedMode == 1
+                                    ? (isSpecial1
+                                        ? Special1Palette.primaryText
+                                        : const Color(0xFFE040FB))
+                                    : (isSpecial1
+                                        ? Special1Palette.secondaryText
+                                        : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A))),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
 
-          // Main View Body
-          Expanded(
-            child: _selectedMode == 1
-                ? _buildPomodoroView(isDark, stopwatchState)
-                : _buildListView(isDark, stopwatchState),
-          ),
+              // Main View Body
+              Expanded(
+                child: _selectedMode == 1
+                    ? _buildPomodoroView(isDark, stopwatchState, isSpecial1)
+                    : _buildListView(isDark, stopwatchState, isSpecial1),
+              ),
 
-          // Persistent Running Mini-Player Bottom Bar (like Toggl Track)
-          if (stopwatchState.status == StopwatchStatus.running ||
-              stopwatchState.status == StopwatchStatus.paused)
-            _buildRunningBottomBar(isDark, stopwatchState, taskDescription, selectedProject),
+              // Persistent Running Mini-Player Bottom Bar (like Toggl Track)
+              if (stopwatchState.status == StopwatchStatus.running ||
+                  stopwatchState.status == StopwatchStatus.paused)
+                _buildRunningBottomBar(isDark, stopwatchState, taskDescription, selectedProject, isSpecial1),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildPomodoroView(bool isDark, StopwatchState stopwatchState) {
+  Widget _buildPomodoroView(bool isDark, StopwatchState stopwatchState, bool isSpecial1) {
     const targetMs = 25 * 60 * 1000;
     final remainingMs = (targetMs - stopwatchState.elapsedMs).clamp(0, targetMs);
     final progress = (stopwatchState.elapsedMs / targetMs).clamp(0.0, 1.0);
@@ -489,11 +533,24 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF161122) : Colors.white,
+              color: isSpecial1
+                  ? Colors.white
+                  : (isDark ? const Color(0xFF161122) : Colors.white),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: isDark ? const Color(0xFF281F3B) : const Color(0xFFE5E7EB),
+                color: isSpecial1
+                    ? Special1Palette.inputBorder
+                    : (isDark ? const Color(0xFF281F3B) : const Color(0xFFE5E7EB)),
               ),
+              boxShadow: isSpecial1
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.02),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
             ),
             child: Row(
               children: [
@@ -503,13 +560,18 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     onChanged: (val) =>
                         ref.read(focusTaskDescriptionProvider.notifier).state = val,
                     style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black87,
+                      color: isSpecial1
+                          ? Special1Palette.primaryText
+                          : (isDark ? Colors.white : Colors.black87),
                       fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
                     decoration: InputDecoration(
                       hintText: "I'm focusing on...",
                       hintStyle: TextStyle(
-                        color: isDark ? const Color(0xFF71717A) : const Color(0xFFA1A1AA),
+                        color: isSpecial1
+                            ? Special1Palette.secondaryText
+                            : (isDark ? const Color(0xFF71717A) : const Color(0xFFA1A1AA)),
                       ),
                       border: InputBorder.none,
                       isDense: true,
@@ -518,10 +580,12 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.local_offer_outlined,
                     size: 20,
-                    color: Color(0xFFE040FB),
+                    color: isSpecial1
+                        ? Special1Palette.accentRose
+                        : const Color(0xFFE040FB),
                   ),
                   tooltip: 'Choose Project',
                   onPressed: () => _showProjectPicker(context),
@@ -529,7 +593,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 48),
+          const SizedBox(height: 44),
 
           // Circular Ring Progress Timer (Tap to toggle play/pause)
           GestureDetector(
@@ -546,18 +610,38 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
               alignment: Alignment.center,
               children: [
                 SizedBox(
-                  width: 240,
-                  height: 240,
+                  width: 250,
+                  height: 250,
                   child: CircularProgressIndicator(
                     value: progress,
-                    strokeWidth: 4,
-                    backgroundColor: isDark ? const Color(0xFF281F3B) : const Color(0xFFE5E7EB),
-                    color: const Color(0xFFE040FB),
+                    strokeWidth: isSpecial1 ? 8 : 4,
+                    backgroundColor: isSpecial1
+                        ? Special1Palette.ringTrack
+                        : (isDark ? const Color(0xFF281F3B) : const Color(0xFFE5E7EB)),
+                    color: isSpecial1
+                        ? Special1Palette.accentRose
+                        : const Color(0xFFE040FB),
                   ),
                 ),
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    Text(
+                      isSpecial1
+                          ? 'Focus'
+                          : (stopwatchState.status == StopwatchStatus.running
+                              ? 'FOCUS INTERVAL'
+                              : 'READY TO FOCUS'),
+                      style: TextStyle(
+                        fontSize: isSpecial1 ? 16 : 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: isSpecial1 ? 0.2 : 1.5,
+                        color: isSpecial1
+                            ? Special1Palette.primaryText
+                            : const Color(0xFFE040FB),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
                     Text(
                       _formatElapsed(remainingMs),
                       style: TextStyle(
@@ -565,19 +649,27 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         fontWeight: FontWeight.w800,
                         letterSpacing: -1.5,
                         fontFeatures: const [FontFeature.tabularFigures()],
-                        color: isDark ? Colors.white : const Color(0xFF111827),
+                        color: isSpecial1
+                            ? Special1Palette.primaryText
+                            : (isDark ? Colors.white : const Color(0xFF111827)),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Text(
-                      stopwatchState.status == StopwatchStatus.running
-                          ? 'FOCUS INTERVAL'
-                          : 'READY TO FOCUS',
-                      style: const TextStyle(
-                        fontSize: 11,
+                      isSpecial1
+                          ? (stopwatchState.status == StopwatchStatus.running
+                              ? 'Focusing...'
+                              : 'Ready?')
+                          : (stopwatchState.status == StopwatchStatus.running
+                              ? 'FOCUS INTERVAL'
+                              : 'READY TO FOCUS'),
+                      style: TextStyle(
+                        fontSize: isSpecial1 ? 16 : 11,
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 1.5,
-                        color: Color(0xFFE040FB),
+                        letterSpacing: isSpecial1 ? 0.2 : 1.5,
+                        color: isSpecial1
+                            ? Special1Palette.secondaryText
+                            : const Color(0xFFE040FB),
                       ),
                     ),
                   ],
@@ -585,27 +677,56 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 36),
+          const SizedBox(height: 32),
 
-          // Sound Toggle Button
-          IconButton(
-            icon: Icon(
-              _soundEnabled ? Icons.volume_up_outlined : Icons.volume_off_outlined,
-              color: _soundEnabled ? const Color(0xFFE040FB) : Colors.white38,
-              size: 26,
-            ),
-            tooltip: _soundEnabled ? 'Mute Pomodoro Sound' : 'Enable Pomodoro Sound',
-            onPressed: () {
-              setState(() => _soundEnabled = !_soundEnabled);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(_soundEnabled ? 'Pomodoro chime active' : 'Pomodoro muted'),
-                  duration: const Duration(seconds: 1),
-                  behavior: SnackBarBehavior.floating,
+          // Sound Toggle Button (Matching uploaded image light blue circle)
+          if (isSpecial1)
+            Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                color: Special1Palette.soundButton,
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                icon: Icon(
+                  _soundEnabled ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+                  color: Special1Palette.primaryText,
+                  size: 20,
                 ),
-              );
-            },
-          ),
+                tooltip: _soundEnabled ? 'Mute Pomodoro Sound' : 'Enable Pomodoro Sound',
+                onPressed: () {
+                  setState(() => _soundEnabled = !_soundEnabled);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(_soundEnabled ? 'Pomodoro chime active' : 'Pomodoro muted'),
+                      duration: const Duration(seconds: 1),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+              ),
+            )
+          else
+            IconButton(
+              icon: Icon(
+                _soundEnabled ? Icons.volume_up_outlined : Icons.volume_off_outlined,
+                color: _soundEnabled ? const Color(0xFFE040FB) : Colors.white38,
+                size: 26,
+              ),
+              tooltip: _soundEnabled ? 'Mute Pomodoro Sound' : 'Enable Pomodoro Sound',
+              onPressed: () {
+                setState(() => _soundEnabled = !_soundEnabled);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(_soundEnabled ? 'Pomodoro chime active' : 'Pomodoro muted'),
+                    duration: const Duration(seconds: 1),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+            ),
           const SizedBox(height: 20),
 
           // Big "Start session" Button
@@ -614,10 +735,14 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
             height: 52,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE040FB),
-                foregroundColor: Colors.white,
+                backgroundColor: isSpecial1
+                    ? Special1Palette.accentRose
+                    : const Color(0xFFE040FB),
+                foregroundColor: isSpecial1
+                    ? Special1Palette.primaryText
+                    : Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                elevation: 4,
+                elevation: isSpecial1 ? 0 : 4,
               ),
               onPressed: () {
                 if (stopwatchState.status == StopwatchStatus.running) {
@@ -630,13 +755,17 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
               },
               child: Text(
                 stopwatchState.status == StopwatchStatus.running ? 'Pause session' : 'Start session',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: isSpecial1 ? Special1Palette.primaryText : Colors.white,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 16),
 
-          // "Pomodoro settings" Link
+          // "Pomodoro settings ▶" Link
           TextButton(
             onPressed: () {
               Navigator.push(
@@ -644,13 +773,24 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 MaterialPageRoute(builder: (_) => const TogglSettingsScreen()),
               );
             },
-            child: const Text(
-              'Pomodoro settings',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFFE040FB),
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Pomodoro settings',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: isSpecial1
+                        ? Special1Palette.primaryText
+                        : const Color(0xFFE040FB),
+                  ),
+                ),
+                if (isSpecial1) ...[
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_right_rounded, size: 20, color: Special1Palette.primaryText),
+                ],
+              ],
             ),
           ),
         ],
@@ -658,7 +798,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     );
   }
 
-  Widget _buildListView(bool isDark, StopwatchState stopwatchState) {
+  Widget _buildListView(bool isDark, StopwatchState stopwatchState, bool isSpecial1) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Column(
@@ -866,19 +1006,24 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     StopwatchState stopwatchState,
     String description,
     String project,
+    bool isSpecial1,
   ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF181126) : Colors.white,
+        color: isSpecial1
+            ? Special1Palette.background
+            : (isDark ? const Color(0xFF181126) : Colors.white),
         border: Border(
           top: BorderSide(
-            color: isDark ? const Color(0xFF2E2242) : const Color(0xFFE5E7EB),
+            color: isSpecial1
+                ? Special1Palette.inputBorder
+                : (isDark ? const Color(0xFF2E2242) : const Color(0xFFE5E7EB)),
           ),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withOpacity(0.08),
             blurRadius: 10,
             offset: const Offset(0, -3),
           ),
@@ -900,7 +1045,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.5,
                       fontFeatures: const [FontFeature.tabularFigures()],
-                      color: isDark ? Colors.white : const Color(0xFF111827),
+                      color: isSpecial1
+                          ? Special1Palette.primaryText
+                          : (isDark ? Colors.white : const Color(0xFF111827)),
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -909,7 +1056,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: isDark ? Colors.white70 : Colors.black87,
+                      color: isSpecial1
+                          ? Special1Palette.primaryText
+                          : (isDark ? Colors.white70 : Colors.black87),
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -918,8 +1067,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                       Container(
                         width: 5,
                         height: 5,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFE040FB),
+                        decoration: BoxDecoration(
+                          color: isSpecial1
+                              ? Special1Palette.accentRose
+                              : const Color(0xFFE040FB),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -928,7 +1079,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         project,
                         style: TextStyle(
                           fontSize: 11,
-                          color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+                          color: isSpecial1
+                              ? Special1Palette.secondaryText
+                              : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
                         ),
                       ),
                     ],
@@ -937,15 +1090,17 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
               ),
             ),
 
-            // Red Square Stop Button matching Toggl Track UI
+            // Stop Button (matching uploaded image pastel rose button)
             InkWell(
               onTap: () => ref.read(stopwatchProvider.notifier).stop(),
               borderRadius: BorderRadius.circular(24),
               child: Container(
                 width: 48,
                 height: 48,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF87171), // Salmon red Toggl stop button
+                decoration: BoxDecoration(
+                  color: isSpecial1
+                      ? Special1Palette.stopButton
+                      : const Color(0xFFF87171),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
@@ -953,7 +1108,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     width: 14,
                     height: 14,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isSpecial1
+                          ? Special1Palette.primaryText
+                          : Colors.white,
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),

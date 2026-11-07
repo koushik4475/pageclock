@@ -19,6 +19,7 @@ import 'features/reports/widgets/contribution_heatmap.dart';
 import 'features/calendar/calendar_screen.dart';
 import 'features/timer/toggl_timer_screen.dart';
 import 'features/settings/toggl_settings_screen.dart';
+import 'core/theme/theme_provider.dart';
 
 // -------------------------------------------------------------
 // Design Tokens: Linear / Vercel Pro Aesthetic
@@ -71,12 +72,23 @@ class PageClockApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    final appThemeId = ref.watch(appThemeIdProvider);
 
-    return MaterialApp(
-      title: 'Productivity',
-      debugShowCheckedModeBanner: false,
-      themeMode: themeMode,
-      theme: ThemeData(
+    ThemeData lightTheme;
+    if (appThemeId == AppThemeId.special1) {
+      lightTheme = ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: Special1Palette.background,
+        colorScheme: const ColorScheme.light(
+          primary: Special1Palette.accentRose,
+          surface: Special1Palette.cardBackground,
+          outline: Special1Palette.inputBorder,
+        ),
+        fontFamily: 'Inter',
+      );
+    } else {
+      lightTheme = ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
         scaffoldBackgroundColor: AppColors.bgLight,
@@ -86,7 +98,14 @@ class PageClockApp extends ConsumerWidget {
           outline: AppColors.borderLight,
         ),
         fontFamily: 'Inter',
-      ),
+      );
+    }
+
+    return MaterialApp(
+      title: 'Productivity',
+      debugShowCheckedModeBanner: false,
+      themeMode: themeMode,
+      theme: lightTheme,
       darkTheme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
@@ -412,6 +431,8 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
     final currentIndex = ref.watch(mainTabNavigationIndexProvider);
     final sessionsAsync = ref.watch(sessionsStreamProvider);
     final sessions = sessionsAsync.value ?? [];
+    final appThemeId = ref.watch(appThemeIdProvider);
+    final isSpecial1 = appThemeId == AppThemeId.special1;
 
     final screens = [
       const TogglTimerScreen(),
@@ -422,17 +443,23 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
 
     if (isWide) {
       return Scaffold(
-        backgroundColor: isDark ? const Color(0xFF0F0B15) : AppColors.bgLight,
+        backgroundColor: isSpecial1
+            ? Special1Palette.background
+            : (isDark ? const Color(0xFF0F0B15) : AppColors.bgLight),
         body: Row(
           children: [
             // Desktop Sidebar
             Container(
               width: 230,
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF140E20) : AppColors.surfaceLight,
+                color: isSpecial1
+                    ? Special1Palette.background
+                    : (isDark ? const Color(0xFF140E20) : AppColors.surfaceLight),
                 border: Border(
                   right: BorderSide(
-                    color: isDark ? const Color(0xFF261A3D) : AppColors.borderLight,
+                    color: isSpecial1
+                        ? Special1Palette.inputBorder
+                        : (isDark ? const Color(0xFF261A3D) : AppColors.borderLight),
                     width: 1,
                   ),
                 ),
@@ -545,17 +572,23 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
 
     // Mobile 3-Tab Bottom Navigation Bar matching Toggl Track UI
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0F0B15) : AppColors.bgLight,
+      backgroundColor: isSpecial1
+          ? Special1Palette.background
+          : (isDark ? const Color(0xFF0F0B15) : AppColors.bgLight),
       body: IndexedStack(
         index: currentIndex,
         children: screens,
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF140E20) : AppColors.surfaceLight,
+          color: isSpecial1
+              ? Special1Palette.background
+              : (isDark ? const Color(0xFF140E20) : AppColors.surfaceLight),
           border: Border(
             top: BorderSide(
-              color: isDark ? const Color(0xFF241838) : AppColors.borderLight,
+              color: isSpecial1
+                  ? const Color(0xFFF7EBE1)
+                  : (isDark ? const Color(0xFF241838) : AppColors.borderLight),
               width: 1,
             ),
           ),
@@ -566,8 +599,12 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           type: BottomNavigationBarType.fixed,
-          selectedItemColor: const Color(0xFFE040FB),
-          unselectedItemColor: isDark ? const Color(0xFFA1A1AA) : AppColors.textMutedLight,
+          selectedItemColor: isSpecial1
+              ? Special1Palette.primaryText
+              : const Color(0xFFE040FB),
+          unselectedItemColor: isSpecial1
+              ? Special1Palette.secondaryText
+              : (isDark ? const Color(0xFFA1A1AA) : AppColors.textMutedLight),
           selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
           unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
           items: const [
