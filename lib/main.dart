@@ -607,15 +607,46 @@ class AnalyticsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  // Row 3: 24-Hour Diurnal Distribution (PRD §4 US-4, §5.3)
-                  _buildChartCard(
-                    title: '24-Hour Diurnal Distribution (Today)',
-                    subtitle: 'Reading intensity by hour of day (0h – 23h)',
-                    isDark: isDark,
-                    child: _buildPrecisionHourlyChart(
-                      StatsEngine.calculateHourlyDistribution(sessions, now),
-                      isDark,
-                    ),
+                  // Row 3: 24-Hour Diurnal Distribution & Category Breakdown (PRD §4 US-4, §5.3, §8)
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isStacked = constraints.maxWidth < 750;
+
+                      final hourlyChart = _buildChartCard(
+                        title: '24-Hour Diurnal Distribution (Today)',
+                        subtitle: 'Reading intensity by hour of day (0h – 23h)',
+                        isDark: isDark,
+                        child: _buildPrecisionHourlyChart(
+                          StatsEngine.calculateHourlyDistribution(sessions, now),
+                          isDark,
+                        ),
+                      );
+
+                      final subjectPieChart = _buildChartCard(
+                        title: 'Subject & Book Allocation',
+                        subtitle: 'Distribution of reading time by category',
+                        isDark: isDark,
+                        child: _buildSubjectAllocationPieChart(sessions, isDark),
+                      );
+
+                      if (isStacked) {
+                        return Column(
+                          children: [
+                            hourlyChart,
+                            const SizedBox(height: 16),
+                            subjectPieChart,
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        children: [
+                          Expanded(flex: 3, child: hourlyChart),
+                          const SizedBox(width: 16),
+                          Expanded(flex: 2, child: subjectPieChart),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
 
@@ -1076,6 +1107,120 @@ class AnalyticsScreen extends ConsumerWidget {
           );
         }),
       ),
+    );
+  }
+
+  Widget _buildSubjectAllocationPieChart(
+    List<ReadingSession> sessions,
+    bool isDark,
+  ) {
+    final Map<String, int> subjectMins = {};
+    for (final s in sessions) {
+      if (s.deletedAt != null) continue;
+      final sub = (s.subjectId != null && s.subjectId!.isNotEmpty) ? s.subjectId! : 'General';
+      final mins = (s.durationMs / 60000).round();
+      subjectMins[sub] = (subjectMins[sub] ?? 0) + mins;
+    }
+
+    if (subjectMins.isEmpty) {
+      return Center(
+        child: Text(
+          'No reading sessions recorded yet',
+          style: TextStyle(
+            fontSize: 12,
+            color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+          ),
+        ),
+      );
+    }
+
+    final totalMins = subjectMins.values.fold<int>(0, (sum, m) => sum + m);
+
+    final palette = [
+      AppColors.accentIndigo,
+      AppColors.accentEmerald,
+      AppColors.accentOrange,
+      const Color(0xFFEC4899), // Pink
+      const Color(0xFF8B5CF6), // Purple
+      const Color(0xFF06B6D4), // Cyan
+    ];
+
+    int colorIdx = 0;
+    final entries = subjectMins.entries.toList();
+
+    return Row(
+      children: [
+        Expanded(
+          flex: 3,
+          child: PieChart(
+            PieChartData(
+              sectionsSpace: 3,
+              centerSpaceRadius: 28,
+              sections: entries.map((entry) {
+                final color = palette[colorIdx % palette.length];
+                colorIdx++;
+                final pct = totalMins > 0 ? (entry.value / totalMins * 100) : 0.0;
+                return PieChartSectionData(
+                  color: color,
+                  value: entry.value.toDouble(),
+                  title: '${pct.toInt()}%',
+                  radius: 36,
+                  titleStyle: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 2,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: List.generate(entries.length, (i) {
+              final entry = entries[i];
+              final color = palette[i % palette.length];
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2.5),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        entry.key,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${entry.value}m',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ),
+        ),
+      ],
     );
   }
 }
