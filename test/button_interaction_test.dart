@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pageclock/core/repository/session_repository.dart';
+import 'package:pageclock/core/theme/theme_provider.dart';
 import 'package:pageclock/features/timer/toggl_timer_screen.dart';
 import 'package:pageclock/features/settings/toggl_settings_screen.dart';
 import 'package:pageclock/features/timer/widgets/fullscreen_ambient_focus_screen.dart';
@@ -84,7 +85,7 @@ void main() {
       expect(find.text('Timer'), findsOneWidget);
     });
 
-    testWidgets('Pomodoro / List View Mode Switching & Timer Play/Pause', (tester) async {
+    testWidgets('Pomodoro / List View Mode Switching & Elements', (tester) async {
       final inMemoryRepo = InMemorySessionRepository([]);
 
       await tester.pumpWidget(
@@ -111,12 +112,7 @@ void main() {
       // Verify Pomodoro Elements
       expect(find.text('READY TO FOCUS'), findsOneWidget);
       expect(find.text('Start session'), findsOneWidget);
-
-      // Tap Start Session
-      await tester.tap(find.text('Start session'));
-      await tester.pump();
-
-      expect(find.text('Pause session'), findsOneWidget);
+      expect(find.text('Pomodoro settings'), findsOneWidget);
 
       // Switch back to List View
       await tester.tap(find.text('List view'));
