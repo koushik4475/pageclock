@@ -9,7 +9,7 @@ import '../repository/session_repository.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [ReadingSessions, Subjects, Settings])
+@DriftDatabase(tables: [ReadingSessions, Subjects])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
@@ -39,6 +39,7 @@ class DriftSessionRepository implements SessionRepository {
             id: Value(session.id),
             startedAtUtc: Value(session.startedAtUtc),
             endedAtUtc: Value(session.endedAtUtc),
+            pausedAtUtc: Value(session.pausedAtUtc),
             pausedTotalMs: Value(session.pausedTotalMs),
             durationMs: Value(session.durationMs),
             tzOffsetMin: Value(session.tzOffsetMin),
@@ -80,9 +81,30 @@ class DriftSessionRepository implements SessionRepository {
   @override
   Future<ReadingSession?> getActiveSession() async {
     final query = db.select(db.readingSessions)
-      ..where((t) => t.endedAtUtc.isNull() & t.deletedAt.isNull());
-    final entry = await query.getSingleOrNull();
-    return entry != null ? _mapEntryToDomain(entry) : null;
+      ..where((t) => t.endedAtUtc.isNull() & t.deletedAt.isNull())
+      ..orderBy([(t) => OrderingTerm.desc(t.startedAtUtc)]);
+    final openRows = await query.get();
+    if (openRows.isEmpty) return null;
+
+    // Self-heal: If multiple open sessions exist, keep newest and auto-close older ones
+    if (openRows.length > 1) {
+      final now = DateTime.now().toUtc().millisecondsSinceEpoch;
+      for (int i = 1; i < openRows.length; i++) {
+        final orphaned = openRows[i];
+        final effectiveDuration = orphaned.durationMs > 0
+            ? orphaned.durationMs
+            : (now - orphaned.startedAtUtc - orphaned.pausedTotalMs).clamp(0, 86400000);
+        await (db.update(db.readingSessions)..where((t) => t.id.equals(orphaned.id))).write(
+          ReadingSessionsCompanion(
+            endedAtUtc: Value(now),
+            durationMs: Value(effectiveDuration),
+            updatedAt: Value(now),
+          ),
+        );
+      }
+    }
+
+    return _mapEntryToDomain(openRows.first);
   }
 
   @override
@@ -117,8 +139,9 @@ class DriftSessionRepository implements SessionRepository {
   @override
   Stream<ReadingSession?> watchActiveSession() {
     final query = db.select(db.readingSessions)
-      ..where((t) => t.endedAtUtc.isNull() & t.deletedAt.isNull());
-    return query.watchSingleOrNull().map((entry) => entry != null ? _mapEntryToDomain(entry) : null);
+      ..where((t) => t.endedAtUtc.isNull() & t.deletedAt.isNull())
+      ..orderBy([(t) => OrderingTerm.desc(t.startedAtUtc)]);
+    return query.watch().map((rows) => rows.isNotEmpty ? _mapEntryToDomain(rows.first) : null);
   }
 
   ReadingSession _mapEntryToDomain(ReadingSessionEntry entry) {
@@ -126,6 +149,7 @@ class DriftSessionRepository implements SessionRepository {
       id: entry.id,
       startedAtUtc: entry.startedAtUtc,
       endedAtUtc: entry.endedAtUtc,
+      pausedAtUtc: entry.pausedAtUtc,
       pausedTotalMs: entry.pausedTotalMs,
       durationMs: entry.durationMs,
       tzOffsetMin: entry.tzOffsetMin,

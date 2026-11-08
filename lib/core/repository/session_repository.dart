@@ -1,6 +1,10 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/reading_session.dart';
+import '../db/app_database.dart';
+import '../settings/app_settings.dart';
+import 'web_session_repository.dart';
 
 abstract class SessionRepository {
   Future<void> saveSession(ReadingSession session);
@@ -25,8 +29,6 @@ class InMemorySessionRepository implements SessionRepository {
       for (final s in initial) {
         _storage[s.id] = s;
       }
-    } else {
-      seedSampleData();
     }
   }
 
@@ -164,6 +166,16 @@ extension StreamConcatExtension<T> on Stream<T> {
   }
 }
 
+final appDatabaseProvider = Provider<AppDatabase>((ref) {
+  return AppDatabase();
+});
+
 final sessionRepositoryProvider = Provider<SessionRepository>((ref) {
-  return InMemorySessionRepository();
+  if (kIsWeb) {
+    final prefs = ref.watch(sharedPreferencesProvider);
+    return WebSessionRepository(prefs);
+  } else {
+    final db = ref.watch(appDatabaseProvider);
+    return DriftSessionRepository(db);
+  }
 });

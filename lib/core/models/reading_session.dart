@@ -2,6 +2,7 @@ class ReadingSession {
   final String id;
   final int startedAtUtc; // epoch ms
   final int? endedAtUtc; // null if running
+  final int? pausedAtUtc; // null if running, timestamp ms if currently paused
   final int pausedTotalMs;
   final int durationMs; // denormalized on stop
   final int tzOffsetMin; // user's timezone offset in minutes at start
@@ -17,6 +18,7 @@ class ReadingSession {
     required this.id,
     required this.startedAtUtc,
     this.endedAtUtc,
+    this.pausedAtUtc,
     this.pausedTotalMs = 0,
     this.durationMs = 0,
     required this.tzOffsetMin,
@@ -29,7 +31,8 @@ class ReadingSession {
     this.deletedAt,
   });
 
-  bool get isRunning => endedAtUtc == null;
+  bool get isRunning => endedAtUtc == null && pausedAtUtc == null;
+  bool get isPaused => endedAtUtc == null && pausedAtUtc != null;
 
   DateTime get startTime => DateTime.fromMillisecondsSinceEpoch(startedAtUtc);
   DateTime? get endTime => endedAtUtc != null ? DateTime.fromMillisecondsSinceEpoch(endedAtUtc!) : null;
@@ -40,7 +43,8 @@ class ReadingSession {
     if (endedAtUtc != null) {
       return durationMs;
     }
-    final rawElapsed = nowUtc - startedAtUtc;
+    final effectiveNow = pausedAtUtc ?? nowUtc;
+    final rawElapsed = effectiveNow - startedAtUtc;
     final net = rawElapsed - pausedTotalMs;
     return net > 0 ? net : 0;
   }
@@ -49,6 +53,8 @@ class ReadingSession {
     String? id,
     int? startedAtUtc,
     int? endedAtUtc,
+    int? pausedAtUtc,
+    bool clearPausedAtUtc = false,
     int? pausedTotalMs,
     int? durationMs,
     int? tzOffsetMin,
@@ -64,6 +70,7 @@ class ReadingSession {
       id: id ?? this.id,
       startedAtUtc: startedAtUtc ?? this.startedAtUtc,
       endedAtUtc: endedAtUtc ?? this.endedAtUtc,
+      pausedAtUtc: clearPausedAtUtc ? null : (pausedAtUtc ?? this.pausedAtUtc),
       pausedTotalMs: pausedTotalMs ?? this.pausedTotalMs,
       durationMs: durationMs ?? this.durationMs,
       tzOffsetMin: tzOffsetMin ?? this.tzOffsetMin,
@@ -82,6 +89,7 @@ class ReadingSession {
       'id': id,
       'started_at_utc': startedAtUtc,
       'ended_at_utc': endedAtUtc,
+      'paused_at_utc': pausedAtUtc,
       'paused_total_ms': pausedTotalMs,
       'duration_ms': durationMs,
       'tz_offset_min': tzOffsetMin,
@@ -100,6 +108,7 @@ class ReadingSession {
       id: map['id'] as String,
       startedAtUtc: map['started_at_utc'] as int,
       endedAtUtc: map['ended_at_utc'] as int?,
+      pausedAtUtc: map['paused_at_utc'] as int?,
       pausedTotalMs: map['paused_total_ms'] as int? ?? 0,
       durationMs: map['duration_ms'] as int? ?? 0,
       tzOffsetMin: map['tz_offset_min'] as int? ?? 0,

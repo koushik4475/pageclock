@@ -52,12 +52,16 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
     if (active != null) {
       final nowUtc = DateTime.now().toUtc().millisecondsSinceEpoch;
       final elapsed = active.calculateCurrentDurationMs(nowUtc);
+      final isPaused = active.pausedAtUtc != null;
       state = StopwatchState(
-        status: StopwatchStatus.running,
+        status: isPaused ? StopwatchStatus.paused : StopwatchStatus.running,
         currentSession: active,
+        pauseTimestampUtc: active.pausedAtUtc,
         elapsedMs: elapsed,
       );
-      _startTicker();
+      if (!isPaused) {
+        _startTicker();
+      }
     }
   }
 
@@ -73,7 +77,14 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
   }
 
   Future<void> start({String? subjectId, String? note}) async {
+    // If already running, ignore
     if (state.status == StopwatchStatus.running) return;
+
+    // If currently paused, resume existing session instead of orphaning it
+    if (state.status == StopwatchStatus.paused && state.currentSession != null) {
+      await resume();
+      return;
+    }
 
     final nowUtc = DateTime.now().toUtc().millisecondsSinceEpoch;
     final tzOffset = DateTime.now().timeZoneOffset.inMinutes;
@@ -82,6 +93,7 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
       id: _uuid.v4(),
       startedAtUtc: nowUtc,
       endedAtUtc: null,
+      pausedAtUtc: null,
       pausedTotalMs: 0,
       durationMs: 0,
       tzOffsetMin: tzOffset,
@@ -110,20 +122,28 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
     _ticker?.cancel();
     final nowUtc = DateTime.now().toUtc().millisecondsSinceEpoch;
 
+    final updated = state.currentSession!.copyWith(
+      pausedAtUtc: nowUtc,
+      updatedAt: nowUtc,
+    );
+    await _repository.updateSession(updated);
+
     state = state.copyWith(
       status: StopwatchStatus.paused,
+      currentSession: updated,
       pauseTimestampUtc: nowUtc,
     );
   }
 
   Future<void> resume() async {
-    if (state.status != StopwatchStatus.paused ||
-        state.currentSession == null ||
-        state.pauseTimestampUtc == null) return;
+    if (state.status != StopwatchStatus.paused || state.currentSession == null) return;
 
     final nowUtc = DateTime.now().toUtc().millisecondsSinceEpoch;
-    final pauseDuration = nowUtc - state.pauseTimestampUtc!;
+    final pauseStart = state.currentSession!.pausedAtUtc ?? state.pauseTimestampUtc ?? nowUtc;
+    final pauseDuration = (nowUtc - pauseStart).clamp(0, double.maxFinite.toInt());
+
     final updatedSession = state.currentSession!.copyWith(
+      clearPausedAtUtc: true,
       pausedTotalMs: state.currentSession!.pausedTotalMs + pauseDuration,
       updatedAt: nowUtc,
     );
@@ -140,16 +160,18 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
     _startTicker();
   }
 
-  Future<ReadingSession?> stop({int minSessionDurationMs = 60000}) async {
+  Future<ReadingSession?> stop({int minSessionDurationMs = 10000, bool forceSave = false}) async {
     if (state.currentSession == null) return null;
 
     _ticker?.cancel();
     final nowUtc = DateTime.now().toUtc().millisecondsSinceEpoch;
 
     var session = state.currentSession!;
-    if (state.status == StopwatchStatus.paused && state.pauseTimestampUtc != null) {
-      final additionalPause = nowUtc - state.pauseTimestampUtc!;
+    if (state.status == StopwatchStatus.paused) {
+      final pauseStart = session.pausedAtUtc ?? state.pauseTimestampUtc ?? nowUtc;
+      final additionalPause = (nowUtc - pauseStart).clamp(0, double.maxFinite.toInt());
       session = session.copyWith(
+        clearPausedAtUtc: true,
         pausedTotalMs: session.pausedTotalMs + additionalPause,
       );
     }
@@ -157,13 +179,14 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
     final finalDuration = session.calculateCurrentDurationMs(nowUtc);
 
     // If shorter than threshold and user or system discards
-    if (finalDuration < minSessionDurationMs && minSessionDurationMs > 0) {
+    if (finalDuration < minSessionDurationMs && minSessionDurationMs > 0 && !forceSave) {
       await _repository.softDeleteSession(session.id);
       state = const StopwatchState(status: StopwatchStatus.idle);
       return null;
     }
 
     final finishedSession = session.copyWith(
+      clearPausedAtUtc: true,
       endedAtUtc: nowUtc,
       durationMs: finalDuration,
       updatedAt: nowUtc,

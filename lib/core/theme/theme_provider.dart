@@ -31,8 +31,33 @@ extension AppThemeIdExtension on AppThemeId {
   }
 }
 
-/// Global theme selection provider
-final appThemeIdProvider = StateProvider<AppThemeId>((ref) => AppThemeId.defaultDark);
+import '../settings/app_settings.dart';
+
+/// Global theme selection provider backed directly by persisted settings
+final appThemeIdProvider = Provider<AppThemeId>((ref) {
+  final settings = ref.watch(settingsProvider);
+  switch (settings.themeId) {
+    case 'default_light':
+      return AppThemeId.defaultLight;
+    case 'special1':
+      return AppThemeId.special1;
+    case 'default_dark':
+    default:
+      return AppThemeId.defaultDark;
+  }
+});
+
+/// Derived ThemeMode from the selected theme
+final themeModeProvider = Provider<ThemeMode>((ref) {
+  final themeId = ref.watch(appThemeIdProvider);
+  switch (themeId) {
+    case AppThemeId.defaultLight:
+    case AppThemeId.special1:
+      return ThemeMode.light;
+    case AppThemeId.defaultDark:
+      return ThemeMode.dark;
+  }
+});
 
 /// Palette for the special1 theme as shown in the reference image
 class Special1Palette {

@@ -58,7 +58,7 @@ class SessionPdfService {
                     ),
                     pw.SizedBox(width: 8),
                     pw.Text(
-                      'Productivity',
+                      'PageClock',
                       style: pw.TextStyle(
                         fontSize: 20,
                         fontWeight: pw.FontWeight.bold,
@@ -75,7 +75,7 @@ class SessionPdfService {
                     borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
                   ),
                   child: pw.Text(
-                    'FOCUS SUMMARY REPORT',
+                    'READING FOCUS REPORT',
                     style: pw.TextStyle(
                       fontSize: 8,
                       fontWeight: pw.FontWeight.bold,
@@ -88,8 +88,8 @@ class SessionPdfService {
             ),
             pw.SizedBox(height: 4),
             pw.Text(
-              'Developed by Koushik  |  Portfolio: koushikhy.netlify.app',
-              style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#6B7280'), fontWeight: pw.FontWeight.bold),
+              'Offline-First Reading Focus Tracker  |  Generated ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())} (${DateTime.now().timeZoneName})',
+              style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#6B7280'), fontWeight: pw.FontWeight.bold),
             ),
             pw.SizedBox(height: 8),
             pw.Divider(thickness: 0.75, color: PdfColor.fromHex('#E5E7EB')),
@@ -104,7 +104,7 @@ class SessionPdfService {
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text(
-                  'Productivity  •  Designed & Developed by Koushik (koushikhy.netlify.app)',
+                  'PageClock  •  100% Offline-First & Private',
                   style: pw.TextStyle(fontSize: 8, color: PdfColor.fromHex('#9CA3AF')),
                 ),
                 pw.Text(
@@ -285,7 +285,7 @@ class SessionPdfService {
     final pdfBytes = await generatePdf(sessions);
     await Printing.sharePdf(
       bytes: pdfBytes,
-      filename: 'Productivity_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf',
+      filename: 'pageclock-export-${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf',
     );
   }
 }

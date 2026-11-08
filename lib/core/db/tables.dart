@@ -5,6 +5,7 @@ class ReadingSessions extends Table {
   TextColumn get id => text()();
   IntColumn get startedAtUtc => integer()();
   IntColumn get endedAtUtc => integer().nullable()();
+  IntColumn get pausedAtUtc => integer().nullable()();
   IntColumn get pausedTotalMs => integer().withDefault(const Constant(0))();
   IntColumn get durationMs => integer().withDefault(const Constant(0))();
   IntColumn get tzOffsetMin => integer().withDefault(const Constant(0))();
@@ -29,13 +30,4 @@ class Subjects extends Table {
 
   @override
   Set<Column> get primaryKey => {id};
-}
-
-@DataClassName('SettingEntry')
-class Settings extends Table {
-  TextColumn get key => text()();
-  TextColumn get value => text()();
-
-  @override
-  Set<Column> get primaryKey => {key};
 }
