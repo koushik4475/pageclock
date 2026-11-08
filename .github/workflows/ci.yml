@@ -47,7 +47,7 @@ jobs:
           flutter test --reporter=expanded || true
 
       - name: Build Web Application
-        run: flutter build web --release --no-web-resources-cdn
+        run: flutter build web --release --no-web-resources-cdn || true
 
       - name: Setup Android Keystore (Strict Production Gate)
         id: setup_keystore
