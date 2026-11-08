@@ -1,9 +1,12 @@
 import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../../core/models/reading_session.dart';
+import '../../core/services/pdf_service.dart';
+import '../../core/settings/app_settings.dart';
 import '../../stats/stats_engine.dart';
 import '../../main.dart';
 import 'widgets/contribution_heatmap.dart';
@@ -11,10 +14,12 @@ import 'widgets/contribution_heatmap.dart';
 /// Reports Screen matching Toggl Track UI
 /// Features:
 /// 1. GitHub-style daily contribution square heatmap (weeks x 7 days)
-/// 2. Filter Pills: "This week", "Projects", "Books"
+/// 2. Filter Pills: "This week", "This month", "All time"
 /// 3. Tracked Hours Big Counter (00:00:00) with "DETAILS" action
 /// 4. GROUP BY: Projects / Categories Donut / Semi-Circle Chart
 /// 5. Breakdown list with color swatches & hours
+/// 6. Empty state support for every chart
+/// 7. Working PDF export button
 class ReportsScreen extends ConsumerStatefulWidget {
   final List<ReadingSession> sessions;
 
@@ -28,15 +33,30 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   int _groupByIndex = 0; // 0: Projects, 1: Books
   String _selectedFilter = 'This week';
 
+  List<ReadingSession> _filterSessions(List<ReadingSession> all) {
+    final active = all.where((s) => s.deletedAt == null).toList();
+    final now = DateTime.now();
+
+    if (_selectedFilter == 'This week') {
+      final startOfWeek = now.subtract(Duration(days: (now.weekday - DateTime.monday + 7) % 7));
+      final midnightStart = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+      return active.where((s) => s.startedAtUtc >= midnightStart.millisecondsSinceEpoch).toList();
+    } else if (_selectedFilter == 'This month') {
+      final startOfMonth = DateTime(now.year, now.month, 1);
+      return active.where((s) => s.startedAtUtc >= startOfMonth.millisecondsSinceEpoch).toList();
+    }
+    // 'All time'
+    return active;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final filteredSessions = _filterSessions(widget.sessions);
     final dailyTotals = StatsEngine.calculateDailyTotals(widget.sessions);
 
-    // Calculate total duration
-    final totalMs = widget.sessions
-        .where((s) => s.deletedAt == null)
-        .fold<int>(0, (acc, s) => acc + s.durationMs);
+    // Calculate total duration for current filtered period
+    final totalMs = filteredSessions.fold<int>(0, (acc, s) => acc + s.durationMs);
     final hours = totalMs ~/ 3600000;
     final minutes = (totalMs % 3600000) ~/ 60000;
     final seconds = (totalMs % 60000) ~/ 1000;
@@ -45,8 +65,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
     // Grouping by Project (Subject) or Book
     final Map<String, int> distribution = {};
-    for (final s in widget.sessions) {
-      if (s.deletedAt != null) continue;
+    for (final s in filteredSessions) {
       final key = _groupByIndex == 0
           ? s.subjectName
           : (s.bookTitle ?? 'Uncategorized');
@@ -89,8 +108,24 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               Icons.file_download_outlined,
               color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
             ),
-            tooltip: 'Export',
-            onPressed: () {},
+            tooltip: 'Export PDF Report',
+            onPressed: () async {
+              try {
+                final settings = ref.read(settingsProvider).toJson();
+                await SessionPdfService.printOrSharePdf(widget.sessions, settingsSnapshot: settings);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('PDF report shared successfully.')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Export failed: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
           ),
           IconButton(
             icon: Icon(
@@ -150,9 +185,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   const SizedBox(width: 8),
                   _buildFilterPill('This week', isDark),
                   const SizedBox(width: 8),
-                  _buildFilterPill('Projects', isDark),
+                  _buildFilterPill('This month', isDark),
                   const SizedBox(width: 8),
-                  _buildFilterPill('Books', isDark),
+                  _buildFilterPill('All time', isDark),
                 ],
               ),
             ),
@@ -176,7 +211,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'TRACKED HOURS',
+                        'TRACKED HOURS ($_selectedFilter.toUpperCase())',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
@@ -185,12 +220,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         ),
                       ),
                       Text(
-                        'DETAILS',
-                        style: TextStyle(
+                        '${filteredSessions.length} SESSIONS',
+                        style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.0,
-                          color: const Color(0xFFE040FB),
+                          color: Color(0xFFE040FB),
                         ),
                       ),
                     ],
@@ -248,38 +283,33 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
                   // Segmented Switch: Projects vs Books
                   Container(
-                    height: 38,
+                    height: 40,
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1F182C) : const Color(0xFFF3F4F6),
+                      color: isDark ? const Color(0xFF1E172B) : const Color(0xFFF3F4F6),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: isDark ? const Color(0xFF2E2242) : const Color(0xFFE5E7EB),
-                      ),
                     ),
+                    padding: const EdgeInsets.all(3),
                     child: Row(
                       children: [
                         Expanded(
                           child: InkWell(
                             onTap: () => setState(() => _groupByIndex = 0),
-                            borderRadius: BorderRadius.circular(9),
+                            borderRadius: BorderRadius.circular(8),
                             child: Container(
                               alignment: Alignment.center,
-                              decoration: _groupByIndex == 0
-                                  ? BoxDecoration(
-                                      color: isDark ? const Color(0xFF331D45) : Colors.white,
-                                      borderRadius: BorderRadius.circular(9),
-                                      border: Border.all(
-                                        color: const Color(0xFFE040FB).withOpacity(0.4),
-                                      ),
-                                    )
-                                  : null,
+                              decoration: BoxDecoration(
+                                color: _groupByIndex == 0
+                                    ? (isDark ? const Color(0xFF2D233F) : Colors.white)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                               child: Text(
                                 'Projects',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w700,
                                   color: _groupByIndex == 0
-                                      ? const Color(0xFFE040FB)
+                                      ? (isDark ? Colors.white : const Color(0xFF111827))
                                       : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
                                 ),
                               ),
@@ -289,25 +319,22 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         Expanded(
                           child: InkWell(
                             onTap: () => setState(() => _groupByIndex = 1),
-                            borderRadius: BorderRadius.circular(9),
+                            borderRadius: BorderRadius.circular(8),
                             child: Container(
                               alignment: Alignment.center,
-                              decoration: _groupByIndex == 1
-                                  ? BoxDecoration(
-                                      color: isDark ? const Color(0xFF331D45) : Colors.white,
-                                      borderRadius: BorderRadius.circular(9),
-                                      border: Border.all(
-                                        color: const Color(0xFFE040FB).withOpacity(0.4),
-                                      ),
-                                    )
-                                  : null,
+                              decoration: BoxDecoration(
+                                color: _groupByIndex == 1
+                                    ? (isDark ? const Color(0xFF2D233F) : Colors.white)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                               child: Text(
                                 'Books',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w700,
                                   color: _groupByIndex == 1
-                                      ? const Color(0xFFE040FB)
+                                      ? (isDark ? Colors.white : const Color(0xFF111827))
                                       : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
                                 ),
                               ),
@@ -317,62 +344,95 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 24),
 
-                  // Donut Chart or Semi-circle
-                  if (totalMins == 0)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 32),
-                        child: Text(
-                          'No focus records logged for this period.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? const Color(0xFF71717A) : const Color(0xFFA1A1AA),
+                  if (distribution.isEmpty || totalMins == 0) ...[
+                    // Empty state
+                    Container(
+                      height: 160,
+                      alignment: Alignment.center,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.donut_large_rounded,
+                            size: 48,
+                            color: isDark ? const Color(0xFF2E2242) : const Color(0xFFE5E7EB),
                           ),
-                        ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'No sessions recorded for this period',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+                            ),
+                          ),
+                        ],
                       ),
-                    )
-                  else ...[
+                    ),
+                  ] else ...[
+                    // Donut Chart
                     Center(
                       child: SizedBox(
-                        height: 180,
-                        width: 180,
-                        child: PieChart(
-                          PieChartData(
-                            sectionsSpace: 3,
-                            centerSpaceRadius: 54,
-                            sections: List.generate(sortedEntries.length, (i) {
-                              final entry = sortedEntries[i];
-                              final color = palette[i % palette.length];
-                              final pct = (entry.value / totalMins * 100).toStringAsFixed(0);
-
-                              return PieChartSectionData(
-                                color: color,
-                                value: entry.value.toDouble(),
-                                title: '$pct%',
-                                radius: 36,
-                                titleStyle: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
+                        height: 200,
+                        width: 200,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            PieChart(
+                              PieChartData(
+                                sectionsSpace: 2,
+                                centerSpaceRadius: 65,
+                                startDegreeOffset: -90,
+                                sections: List.generate(sortedEntries.length, (i) {
+                                  final entry = sortedEntries[i];
+                                  final color = palette[i % palette.length];
+                                  final pct = (entry.value / totalMins) * 100;
+                                  return PieChartSectionData(
+                                    value: entry.value.toDouble(),
+                                    color: color,
+                                    radius: 20,
+                                    showTitle: false,
+                                    badgeWidget: null,
+                                  );
+                                }),
+                              ),
+                            ),
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '${(totalMins / 60.0).toStringAsFixed(1)}h',
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.5,
+                                    color: isDark ? Colors.white : const Color(0xFF111827),
+                                  ),
                                 ),
-                              );
-                            }),
-                          ),
+                                Text(
+                                  _groupByIndex == 0 ? 'Projects' : 'Books',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     ),
                     const SizedBox(height: 24),
 
-                    // Legend list
+                    // Legend and Breakdown Rows
                     ...List.generate(sortedEntries.length, (i) {
                       final entry = sortedEntries[i];
                       final color = palette[i % palette.length];
                       final h = (entry.value / 60.0).toStringAsFixed(1);
-
                       return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        padding: const EdgeInsets.symmetric(vertical: 6.0),
                         child: Row(
                           children: [
                             Container(
