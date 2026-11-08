@@ -43,7 +43,7 @@ jobs:
         run: flutter analyze || true
 
       - name: Run Unit & Regression Tests
-        run: flutter test
+        run: flutter test --reporter=expanded
 
       - name: Build Web Application
         run: flutter build web --release --no-web-resources-cdn
