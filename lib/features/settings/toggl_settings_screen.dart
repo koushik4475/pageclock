@@ -76,14 +76,30 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                   title: 'Workspace',
                   subtitle: 'Personal Workspace',
                   isDark: isDark,
-                  onTap: () {},
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Personal offline workspace is active.'),
+                        duration: Duration(seconds: 2),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
                 ),
                 _buildDivider(isDark),
                 _buildTile(
                   title: 'Your Plan',
                   subtitle: 'Offline First (Local Storage)',
                   isDark: isDark,
-                  onTap: () {},
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Offline First plan active. 100% private with no paid tiers.'),
+                        duration: Duration(seconds: 2),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
