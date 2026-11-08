@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -41,16 +42,54 @@ class AppleMacFlipClockScreen extends StatefulWidget {
 class _AppleMacFlipClockScreenState extends State<AppleMacFlipClockScreen> {
   bool _showWallClock = false; // Toggle between Focus Countdown and Live Mac Standby Clock
   late bool _usePastelBackdrop;
+  Timer? _ticker;
+  late int _localElapsedMs;
+  late bool _localIsRunning;
+  DateTime _lastTickTime = DateTime.now();
 
   @override
   void initState() {
     super.initState();
     _usePastelBackdrop = widget.isSpecial1;
+    _localElapsedMs = widget.elapsedMs;
+    _localIsRunning = widget.isRunning;
+    _lastTickTime = DateTime.now();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
+    _startTicker();
+  }
+
+  void _startTicker() {
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(milliseconds: 250), (_) {
+      final now = DateTime.now();
+      if (mounted) {
+        setState(() {
+          if (_localIsRunning) {
+            final diff = now.difference(_lastTickTime).inMilliseconds;
+            _localElapsedMs += diff;
+          }
+          _lastTickTime = now;
+        });
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant AppleMacFlipClockScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isRunning != widget.isRunning) {
+      _localIsRunning = widget.isRunning;
+      _lastTickTime = DateTime.now();
+    }
+    if ((widget.elapsedMs - _localElapsedMs).abs() > 1000) {
+      _localElapsedMs = widget.elapsedMs;
+    }
   }
 
   @override
   void dispose() {
+    _ticker?.cancel();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
@@ -72,10 +111,10 @@ class _AppleMacFlipClockScreenState extends State<AppleMacFlipClockScreen> {
       subBadge = now.hour >= 12 ? 'PM' : 'AM';
     } else {
       // Focus countdown mode (e.g. 25:00 countdown) or stopwatch
-      int displayMs = widget.elapsedMs;
+      int displayMs = _localElapsedMs;
       if (widget.targetMinutes != null && widget.targetMinutes! > 0) {
         final totalTargetMs = widget.targetMinutes! * 60000;
-        displayMs = (totalTargetMs - widget.elapsedMs).clamp(0, totalTargetMs);
+        displayMs = (totalTargetMs - _localElapsedMs).clamp(0, totalTargetMs);
       }
       final duration = Duration(milliseconds: displayMs);
       final minutes = duration.inMinutes;
@@ -294,7 +333,13 @@ class _AppleMacFlipClockScreenState extends State<AppleMacFlipClockScreen> {
                   children: [
                     // Play / Pause Button
                     InkWell(
-                      onTap: widget.onTogglePlay,
+                      onTap: () {
+                        setState(() {
+                          _localIsRunning = !_localIsRunning;
+                          _lastTickTime = DateTime.now();
+                        });
+                        widget.onTogglePlay();
+                      },
                       borderRadius: BorderRadius.circular(30),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -316,13 +361,13 @@ class _AppleMacFlipClockScreenState extends State<AppleMacFlipClockScreen> {
                         child: Row(
                           children: [
                             Icon(
-                              widget.isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                              _localIsRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
                               size: 18,
                               color: isDark ? Colors.white : Special1Palette.primaryText,
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              widget.isRunning ? 'Pause' : 'Resume',
+                              _localIsRunning ? 'Pause' : 'Resume',
                               style: TextStyle(
                                 color: isDark ? Colors.white : Special1Palette.primaryText,
                                 fontSize: 13,
