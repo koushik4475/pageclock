@@ -4,6 +4,9 @@
 key.properties
 *.key
 *.p12
+*.pem
+keystore_base64.txt
+android/keystore/
 
 # Flutter / Dart
 .dart_tool/
