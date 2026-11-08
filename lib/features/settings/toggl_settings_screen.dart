@@ -1,7 +1,17 @@
+import 'dart:convert';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import '../../core/engine/stopwatch_engine.dart';
+import '../../core/format/formatters.dart';
+import '../../core/models/reading_session.dart';
+import '../../core/repository/session_repository.dart';
+import '../../core/services/export_service.dart';
+import '../../core/services/pdf_service.dart';
+import '../../core/settings/app_settings.dart';
 import '../../core/theme/theme_provider.dart';
-import '../../main.dart';
 
 /// Full Production Settings Screen matching Toggl Track UI
 /// References:
@@ -17,17 +27,18 @@ class TogglSettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
-  bool _hapticFeedback = true;
-  bool _showAllEntries = true;
-  bool _use24HourClock = false;
-  bool _groupSimilar = true;
-  bool _smartDailyReminder = true;
-  bool _runningTimerNotif = true;
-  bool _stoppedTimerNotif = true;
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final settings = ref.watch(settingsProvider);
+    final settingsNotifier = ref.read(settingsProvider.notifier);
+
+    final localTzName = DateTime.now().timeZoneName;
+    final localTzOffset = DateTime.now().timeZoneOffset;
+    final hoursOffset = localTzOffset.inHours;
+    final minsOffset = (localTzOffset.inMinutes.abs() % 60).toString().padLeft(2, '0');
+    final sign = hoursOffset >= 0 ? '+' : '-';
+    final tzFormatted = '(GMT$sign${hoursOffset.abs().toString().padLeft(2, '0')}:$minsOffset) $localTzName';
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F0B15) : const Color(0xFFF9FAFB),
@@ -63,16 +74,45 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
               [
                 _buildTile(
                   title: 'Workspace',
-                  subtitle: 'Workspace',
+                  subtitle: 'Personal Workspace',
                   isDark: isDark,
                   onTap: () {},
                 ),
                 _buildDivider(isDark),
                 _buildTile(
                   title: 'Your Plan',
-                  subtitle: 'Premium (Offline First)',
+                  subtitle: 'Offline First (Local Storage)',
                   isDark: isDark,
                   onTap: () {},
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // GOALS & CONSISTENCY Section
+            _buildSectionHeader('GOALS & CONSISTENCY', isDark),
+            _buildCard(
+              isDark,
+              [
+                _buildTile(
+                  title: 'Daily reading goal',
+                  subtitle: '${settings.dailyGoalMinutes} minutes / day',
+                  isDark: isDark,
+                  onTap: () => _showGoalDialog(context, settings),
+                ),
+                _buildDivider(isDark),
+                _buildTile(
+                  title: 'Streak threshold',
+                  subtitle: '${settings.streakThresholdMinutes} minutes minimum to count toward streak',
+                  isDark: isDark,
+                  onTap: () => _showStreakThresholdDialog(context, settings),
+                ),
+                _buildDivider(isDark),
+                _buildTile(
+                  title: 'Consistency window',
+                  subtitle: '${settings.consistencyWindowDays} days',
+                  isDark: isDark,
+                  onTap: () => _showConsistencyWindowPicker(context, settings),
                 ),
               ],
             ),
@@ -89,7 +129,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Personal details and preferences',
+                        'Device details and environment',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -97,15 +137,11 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                         ),
                       ),
                       const SizedBox(height: 14),
-                      _buildProfileRow('Full name', 'Koushik HY', isDark),
+                      _buildProfileRow('Account Mode', 'Local / Anonymous', isDark),
                       const SizedBox(height: 10),
-                      _buildProfileRow('Email', 'koushik4475@gmail.com', isDark),
+                      _buildProfileRow('Device Timezone', tzFormatted, isDark),
                       const SizedBox(height: 10),
-                      _buildProfileRow('Reports Timezone', '(GMT+05:30) Asia/Kolkata', isDark),
-                      const SizedBox(height: 10),
-                      _buildProfileRow('Google Sign-In', 'Enabled', isDark),
-                      const SizedBox(height: 10),
-                      _buildProfileRow('Apple Sign-In', 'Not Enabled', isDark),
+                      _buildProfileRow('Cloud Sync', 'None (100% Private)', isDark),
                     ],
                   ),
                 ),
@@ -120,36 +156,36 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
               [
                 _buildTile(
                   title: 'Date format',
-                  subtitle: 'MM/DD/YYYY',
+                  subtitle: settings.dateFormat,
                   isDark: isDark,
-                  onTap: () {},
+                  onTap: () => _showDateFormatPicker(context, settings),
                 ),
                 _buildDivider(isDark),
                 _buildSwitchTile(
                   title: 'Use 24-hour clock',
-                  value: _use24HourClock,
-                  onChanged: (v) => setState(() => _use24HourClock = v),
+                  value: settings.use24HourClock,
+                  onChanged: (v) => settingsNotifier.update((s) => s.copyWith(use24HourClock: v)),
                   isDark: isDark,
                 ),
                 _buildDivider(isDark),
                 _buildTile(
                   title: 'Duration format',
-                  subtitle: 'Improved (0:47:06)',
+                  subtitle: settings.durationFormat == 'digital' ? 'Digital (0:47:06)' : 'Human (47m 6s)',
                   isDark: isDark,
-                  onTap: () {},
+                  onTap: () => _showDurationFormatPicker(context, settings),
                 ),
                 _buildDivider(isDark),
                 _buildTile(
                   title: 'First day of the week',
-                  subtitle: 'Sunday',
+                  subtitle: settings.weekStartDay == DateTime.sunday ? 'Sunday' : 'Monday',
                   isDark: isDark,
-                  onTap: () {},
+                  onTap: () => _showWeekStartPicker(context, settings),
                 ),
                 _buildDivider(isDark),
                 _buildSwitchTile(
                   title: 'Group similar time entries',
-                  value: _groupSimilar,
-                  onChanged: (v) => setState(() => _groupSimilar = v),
+                  value: settings.groupSimilar,
+                  onChanged: (v) => settingsNotifier.update((s) => s.copyWith(groupSimilar: v)),
                   isDark: isDark,
                 ),
               ],
@@ -162,46 +198,31 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
               isDark,
               [
                 _buildTile(
-                  title: 'Pomodoro settings',
-                  subtitle: '25 min focus • 5 min break',
+                  title: 'Pomodoro intervals',
+                  subtitle: '${settings.pomodoroFocusMinutes} min focus • ${settings.pomodoroShortBreakMinutes} min break • ${settings.pomodoroLongBreakMinutes} min long break',
                   isDark: isDark,
-                  onTap: () {},
+                  onTap: () => _showPomodoroSettingsDialog(context, settings),
                 ),
                 _buildDivider(isDark),
                 _buildTile(
+                  title: 'Minimum session duration',
+                  subtitle: '${settings.minSessionSeconds} seconds (prompts to discard if stopped sooner)',
+                  isDark: isDark,
+                  onTap: () => _showMinDurationPicker(context, settings),
+                ),
+                _buildDivider(isDark),
+                _buildSwitchTile(
+                  title: 'Pomodoro sound & chime',
+                  value: settings.pomodoroSoundEnabled,
+                  onChanged: (v) => settingsNotifier.update((s) => s.copyWith(pomodoroSoundEnabled: v)),
+                  isDark: isDark,
+                ),
+                _buildDivider(isDark),
+                _buildSwitchTile(
                   title: 'Prompt running entry override',
-                  subtitle: 'Always',
-                  isDark: isDark,
-                  onTap: () {},
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // NOTIFICATIONS Section
-            _buildSectionHeader('NOTIFICATIONS', isDark),
-            _buildCard(
-              isDark,
-              [
-                _buildSwitchTile(
-                  title: 'Smart Daily Reminder',
-                  value: _smartDailyReminder,
-                  onChanged: (v) => setState(() => _smartDailyReminder = v),
-                  isDark: isDark,
-                ),
-                _buildDivider(isDark),
-                _buildSwitchTile(
-                  title: 'Running timer',
-                  value: _runningTimerNotif,
-                  onChanged: (v) => setState(() => _runningTimerNotif = v),
-                  isDark: isDark,
-                ),
-                _buildDivider(isDark),
-                _buildSwitchTile(
-                  title: 'Stopped timer',
-                  subtitle: 'Displays an icon in the notification area whenever the timer is stopped or running.',
-                  value: _stoppedTimerNotif,
-                  onChanged: (v) => setState(() => _stoppedTimerNotif = v),
+                  subtitle: 'Warn before starting a new timer when one is active',
+                  value: settings.promptRunningEntryOverride,
+                  onChanged: (v) => settingsNotifier.update((s) => s.copyWith(promptRunningEntryOverride: v)),
                   isDark: isDark,
                 ),
               ],
@@ -222,86 +243,84 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                 _buildDivider(isDark),
                 _buildSwitchTile(
                   title: 'Haptic feedback',
-                  value: _hapticFeedback,
-                  onChanged: (v) => setState(() => _hapticFeedback = v),
-                  isDark: isDark,
-                ),
-                _buildDivider(isDark),
-                _buildSwitchTile(
-                  title: 'Show all entries',
-                  subtitle: 'List and calendar will show time entries from all workspaces.',
-                  value: _showAllEntries,
-                  onChanged: (v) => setState(() => _showAllEntries = v),
+                  value: settings.enableHaptics,
+                  onChanged: (v) => settingsNotifier.update((s) => s.copyWith(enableHaptics: v)),
                   isDark: isDark,
                 ),
                 _buildDivider(isDark),
                 _buildTile(
-                  title: 'About',
-                  subtitle: '1.0.0 (Production Release)',
+                  title: 'About PageClock',
+                  subtitle: '1.0.0 (Offline-First Edition)',
                   isDark: isDark,
-                  onTap: () {},
+                  onTap: () {
+                    showAboutDialog(
+                      context: context,
+                      applicationName: 'PageClock',
+                      applicationVersion: '1.0.0',
+                      applicationLegalese: '100% Offline-First Focus & Reading Tracker\nZero analytics • Zero cloud sync • Your data is yours.',
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // DATA & BACKUP Section
+            _buildSectionHeader('DATA & BACKUP', isDark),
+            _buildCard(
+              isDark,
+              [
+                _buildTile(
+                  title: 'Export full PDF report',
+                  subtitle: 'Formatted report of all sessions, charts & logs',
+                  isDark: isDark,
+                  onTap: () => _handlePdfExport(context),
+                ),
+                _buildDivider(isDark),
+                _buildTile(
+                  title: 'Export JSON backup (v2)',
+                  subtitle: 'Complete database + settings export',
+                  isDark: isDark,
+                  onTap: () => _handleJsonExport(context),
+                ),
+                _buildDivider(isDark),
+                _buildTile(
+                  title: 'Export CSV',
+                  subtitle: 'Spreadsheet compatible data export',
+                  isDark: isDark,
+                  onTap: () => _handleCsvExport(context),
+                ),
+                _buildDivider(isDark),
+                _buildTile(
+                  title: 'Import backup file',
+                  subtitle: 'Restore or merge JSON/CSV data safely',
+                  isDark: isDark,
+                  onTap: () => _handleImportBackup(context),
                 ),
               ],
             ),
             const SizedBox(height: 32),
 
-            // Bottom Sync Status
-            Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'All data synced',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  const Icon(Icons.check, size: 16, color: Color(0xFFE040FB)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Sign Out Button
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(
-                    color: isDark ? const Color(0xFF2E2242) : const Color(0xFFE5E7EB),
-                  ),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            // DANGER ZONE Section
+            _buildSectionHeader('DANGER ZONE', isDark, isDanger: true),
+            _buildCard(
+              isDark,
+              [
+                _buildDangerTile(
+                  title: 'Clear all sessions',
+                  subtitle: 'Permanently deletes all recorded sessions. Preserves settings.',
+                  isDark: isDark,
+                  onTap: () => _showClearSessionsConfirmation(context),
                 ),
-                onPressed: () {},
-                child: Text(
-                  'Sign Out',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: isDark ? Colors.white : const Color(0xFF111827),
-                  ),
+                _buildDivider(isDark),
+                _buildDangerTile(
+                  title: 'Reset app to defaults',
+                  subtitle: 'Wipes all sessions, subjects, and resets all settings to factory state.',
+                  isDark: isDark,
+                  onTap: () => _showResetAppConfirmation(context),
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Close Account Danger Link
-            Center(
-              child: TextButton(
-                onPressed: () {},
-                child: const Text(
-                  'Close account',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFFEF4444),
-                  ),
-                ),
-              ),
+              ],
+              borderColor: const Color(0xFFEF4444).withOpacity(0.3),
             ),
             const SizedBox(height: 36),
           ],
@@ -310,7 +329,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title, bool isDark) {
+  Widget _buildSectionHeader(String title, bool isDark, {bool isDanger = false}) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Text(
@@ -319,20 +338,22 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
           fontSize: 11,
           fontWeight: FontWeight.w800,
           letterSpacing: 1.2,
-          color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+          color: isDanger
+              ? const Color(0xFFEF4444)
+              : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
         ),
       ),
     );
   }
 
-  Widget _buildCard(bool isDark, List<Widget> children) {
+  Widget _buildCard(bool isDark, List<Widget> children, {Color? borderColor}) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF15101E) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? const Color(0xFF261D36) : const Color(0xFFE5E7EB),
+          color: borderColor ?? (isDark ? const Color(0xFF261D36) : const Color(0xFFE5E7EB)),
         ),
       ),
       child: Column(
@@ -370,6 +391,44 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: isDark ? Colors.white : const Color(0xFF111827),
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDangerTile({
+    required String title,
+    required String subtitle,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: SizedBox(
+          width: double.infinity,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFEF4444),
                 ),
               ),
               const SizedBox(height: 3),
@@ -455,6 +514,659 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  // --- Dialogs & Pickers ---
+
+  void _showGoalDialog(BuildContext context, AppSettings settings) {
+    int selected = settings.dailyGoalMinutes;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Daily Goal (Minutes)'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [15, 30, 45, 60, 90, 120].map((m) {
+            return RadioListTile<int>(
+              title: Text('$m minutes'),
+              value: m,
+              groupValue: selected,
+              onChanged: (val) {
+                if (val != null) {
+                  ref.read(settingsProvider.notifier).update((s) => s.copyWith(dailyGoalMinutes: val));
+                  Navigator.pop(ctx);
+                }
+              },
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  void _showStreakThresholdDialog(BuildContext context, AppSettings settings) {
+    int selected = settings.streakThresholdMinutes;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Streak Minimum Threshold'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [5, 10, 15, 20, 30].map((m) {
+            return RadioListTile<int>(
+              title: Text('$m minutes / day'),
+              value: m,
+              groupValue: selected,
+              onChanged: (val) {
+                if (val != null) {
+                  ref.read(settingsProvider.notifier).update((s) => s.copyWith(streakThresholdMinutes: val));
+                  Navigator.pop(ctx);
+                }
+              },
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  void _showConsistencyWindowPicker(BuildContext context, AppSettings settings) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Consistency Window'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [7, 30, 90].map((d) {
+            return RadioListTile<int>(
+              title: Text('$d days'),
+              value: d,
+              groupValue: settings.consistencyWindowDays,
+              onChanged: (val) {
+                if (val != null) {
+                  ref.read(settingsProvider.notifier).update((s) => s.copyWith(consistencyWindowDays: val));
+                  Navigator.pop(ctx);
+                }
+              },
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  void _showDateFormatPicker(BuildContext context, AppSettings settings) {
+    const formats = ['YYYY-MM-DD', 'MM/DD/YYYY', 'DD/MM/YYYY'];
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Date Format'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: formats.map((fmt) {
+            return RadioListTile<String>(
+              title: Text(fmt),
+              value: fmt,
+              groupValue: settings.dateFormat,
+              onChanged: (val) {
+                if (val != null) {
+                  ref.read(settingsProvider.notifier).update((s) => s.copyWith(dateFormat: val));
+                  Navigator.pop(ctx);
+                }
+              },
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  void _showDurationFormatPicker(BuildContext context, AppSettings settings) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Duration Format'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RadioListTile<String>(
+              title: const Text('Digital (0:47:06)'),
+              value: 'digital',
+              groupValue: settings.durationFormat,
+              onChanged: (val) {
+                if (val != null) {
+                  ref.read(settingsProvider.notifier).update((s) => s.copyWith(durationFormat: val));
+                  Navigator.pop(ctx);
+                }
+              },
+            ),
+            RadioListTile<String>(
+              title: const Text('Human (47m 6s)'),
+              value: 'human',
+              groupValue: settings.durationFormat,
+              onChanged: (val) {
+                if (val != null) {
+                  ref.read(settingsProvider.notifier).update((s) => s.copyWith(durationFormat: val));
+                  Navigator.pop(ctx);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showWeekStartPicker(BuildContext context, AppSettings settings) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('First Day of the Week'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            RadioListTile<int>(
+              title: const Text('Monday'),
+              value: DateTime.monday,
+              groupValue: settings.weekStartDay,
+              onChanged: (val) {
+                if (val != null) {
+                  ref.read(settingsProvider.notifier).update((s) => s.copyWith(weekStartDay: val));
+                  Navigator.pop(ctx);
+                }
+              },
+            ),
+            RadioListTile<int>(
+              title: const Text('Sunday'),
+              value: DateTime.sunday,
+              groupValue: settings.weekStartDay,
+              onChanged: (val) {
+                if (val != null) {
+                  ref.read(settingsProvider.notifier).update((s) => s.copyWith(weekStartDay: val));
+                  Navigator.pop(ctx);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showMinDurationPicker(BuildContext context, AppSettings settings) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Minimum Session Duration'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [5, 10, 30, 60].map((sec) {
+            return RadioListTile<int>(
+              title: Text('$sec seconds'),
+              value: sec,
+              groupValue: settings.minSessionSeconds,
+              onChanged: (val) {
+                if (val != null) {
+                  ref.read(settingsProvider.notifier).update((s) => s.copyWith(minSessionSeconds: val));
+                  Navigator.pop(ctx);
+                }
+              },
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  void _showPomodoroSettingsDialog(BuildContext context, AppSettings settings) {
+    int focus = settings.pomodoroFocusMinutes;
+    int shortB = settings.pomodoroShortBreakMinutes;
+    int longB = settings.pomodoroLongBreakMinutes;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Pomodoro Intervals'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Focus Duration:'),
+                    DropdownButton<int>(
+                      value: focus,
+                      items: [15, 20, 25, 30, 45, 50, 60].map((v) => DropdownMenuItem(value: v, child: Text('$v min'))).toList(),
+                      onChanged: (v) { if (v != null) setDialogState(() => focus = v); },
+                    ),
+                  ],
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Short Break:'),
+                    DropdownButton<int>(
+                      value: shortB,
+                      items: [3, 5, 10, 15].map((v) => DropdownMenuItem(value: v, child: Text('$v min'))).toList(),
+                      onChanged: (v) { if (v != null) setDialogState(() => shortB = v); },
+                    ),
+                  ],
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Long Break:'),
+                    DropdownButton<int>(
+                      value: longB,
+                      items: [10, 15, 20, 25, 30].map((v) => DropdownMenuItem(value: v, child: Text('$v min'))).toList(),
+                      onChanged: (v) { if (v != null) setDialogState(() => longB = v); },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  ref.read(settingsProvider.notifier).update((s) => s.copyWith(
+                    pomodoroFocusMinutes: focus,
+                    pomodoroShortBreakMinutes: shortB,
+                    pomodoroLongBreakMinutes: longB,
+                  ));
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // --- Data & Backup Actions ---
+
+  Future<void> _handlePdfExport(BuildContext context) async {
+    try {
+      final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
+      await SessionPdfService.printOrSharePdf(sessions);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('PDF report generated successfully.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF export failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleJsonExport(BuildContext context) async {
+    try {
+      final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
+      final settingsJson = ref.read(settingsProvider).toJson();
+      final jsonStr = SessionExportService.exportJsonBackupV2(
+        sessions: sessions,
+        settings: settingsJson,
+      );
+
+      await Clipboard.setData(ClipboardData(text: jsonStr));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('JSON v2 Backup with ${sessions.length} sessions copied to clipboard.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('JSON Export failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleCsvExport(BuildContext context) async {
+    try {
+      final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
+      final csvData = SessionExportService.exportToCsv(sessions);
+      await Clipboard.setData(ClipboardData(text: csvData));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('CSV with ${sessions.length} sessions copied to clipboard.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('CSV Export failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleImportBackup(BuildContext context) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json', 'csv'],
+      );
+
+      String? content;
+      if (result != null && result.files.isNotEmpty) {
+        final bytes = result.files.first.bytes;
+        if (bytes != null) {
+          content = utf8.decode(bytes);
+        }
+      }
+
+      if (content == null || content.isEmpty) {
+        // Fallback: offer pasted text input dialog
+        if (mounted) {
+          _showPasteImportDialog(context);
+        }
+        return;
+      }
+
+      await _processImportContent(context, content);
+    } catch (e) {
+      if (mounted) {
+        _showPasteImportDialog(context);
+      }
+    }
+  }
+
+  void _showPasteImportDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Import Backup'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Paste JSON or CSV backup content below:'),
+            const SizedBox(height: 10),
+            TextField(
+              controller: controller,
+              maxLines: 8,
+              decoration: const InputDecoration(
+                hintText: '{"schema": 2, ...} or id,started_at_utc,...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final text = controller.text.trim();
+              Navigator.pop(ctx);
+              if (text.isNotEmpty) {
+                _processImportContent(context, text);
+              }
+            },
+            child: const Text('Import'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _processImportContent(BuildContext context, String rawData) async {
+    final repo = ref.read(sessionRepositoryProvider);
+    final existingSessions = await repo.getAllSessions();
+    final existingIds = existingSessions.map((s) => s.id).toSet();
+
+    List<ReadingSession> importedSessions = [];
+    Map<String, dynamic>? importedSettings;
+
+    if (rawData.trim().startsWith('{') || rawData.trim().startsWith('[')) {
+      final parsed = SessionExportService.parseBackup(rawData);
+      if (!parsed.isValid) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Import failed: ${parsed.errorMessage}'), backgroundColor: Colors.red),
+          );
+        }
+        return;
+      }
+      importedSessions = parsed.sessions;
+      importedSettings = parsed.settings;
+    } else {
+      importedSessions = SessionExportService.importFromCsv(rawData);
+    }
+
+    if (importedSessions.isEmpty && importedSettings == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No valid records found in import.')),
+        );
+      }
+      return;
+    }
+
+    int newCount = 0;
+    int dupCount = 0;
+
+    for (final s in importedSessions) {
+      if (existingIds.contains(s.id)) {
+        dupCount++;
+      } else {
+        await repo.saveSession(s);
+        newCount++;
+      }
+    }
+
+    if (importedSettings != null && mounted) {
+      final restoreSettings = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Restore Settings?'),
+          content: const Text('This backup contains configuration preferences. Would you like to restore them?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Skip')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Restore')),
+          ],
+        ),
+      );
+
+      if (restoreSettings == true) {
+        try {
+          final s = AppSettings.fromJson(importedSettings);
+          await ref.read(settingsProvider.notifier).setSettings(s);
+        } catch (_) {}
+      }
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Import complete: $newCount added, $dupCount duplicates skipped.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  // --- Danger Zone Typed Confirmations ---
+
+  Future<void> _showClearSessionsConfirmation(BuildContext context) async {
+    final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
+    final totalMs = sessions.fold<int>(0, (sum, s) => sum + s.durationMs);
+    final hours = totalMs ~/ 3600000;
+    final mins = (totalMs % 3600000) ~/ 60000;
+
+    if (!mounted) return;
+
+    final controller = TextEditingController();
+    bool canConfirm = false;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Clear All Sessions?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'This will permanently delete ${sessions.length} sessions ($hours h $mins m). Active timer will be cancelled. App settings will remain intact.',
+                  style: const TextStyle(fontSize: 13, color: Color(0xFFEF4444)),
+                ),
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.download_rounded, size: 16),
+                  label: const Text('Export backup first'),
+                  onPressed: () => _handleJsonExport(context),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Type confirm to continue:',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    hintText: 'confirm',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (text) {
+                    final matches = text.trim().toLowerCase() == 'confirm';
+                    if (matches != canConfirm) {
+                      setDialogState(() => canConfirm = matches);
+                    }
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+                onPressed: canConfirm
+                    ? () async {
+                        Navigator.pop(ctx);
+                        await ref.read(stopwatchEngineProvider.notifier).cancel();
+                        await ref.read(sessionRepositoryProvider).hardDeleteAll();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('All sessions have been permanently cleared.')),
+                          );
+                        }
+                      }
+                    : null,
+                child: const Text('Clear All'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showResetAppConfirmation(BuildContext context) async {
+    final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
+    if (!mounted) return;
+
+    final controller = TextEditingController();
+    bool canConfirm = false;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Reset App to Defaults?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'WARNING: This wipes all sessions, custom subjects, and resets all settings (theme, goals, pomodoro) to default factory state.',
+                  style: TextStyle(fontSize: 13, color: Color(0xFFEF4444), fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.download_rounded, size: 16),
+                  label: const Text('Export backup first'),
+                  onPressed: () => _handleJsonExport(context),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Type confirm to continue:',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    hintText: 'confirm',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (text) {
+                    final matches = text.trim().toLowerCase() == 'confirm';
+                    if (matches != canConfirm) {
+                      setDialogState(() => canConfirm = matches);
+                    }
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+                onPressed: canConfirm
+                    ? () async {
+                        Navigator.pop(ctx);
+                        await ref.read(stopwatchEngineProvider.notifier).cancel();
+                        await ref.read(sessionRepositoryProvider).hardDeleteAll();
+                        await ref.read(settingsProvider.notifier).resetToDefaults();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('App has been reset to defaults.')),
+                          );
+                        }
+                      }
+                    : null,
+                child: const Text('Reset App'),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -548,12 +1260,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: InkWell(
         onTap: () {
-          ref.read(appThemeIdProvider.notifier).state = themeId;
-          if (themeId == AppThemeId.defaultDark) {
-            ref.read(themeModeProvider.notifier).state = ThemeMode.dark;
-          } else {
-            ref.read(themeModeProvider.notifier).state = ThemeMode.light;
-          }
+          ref.read(settingsProvider.notifier).update((s) => s.copyWith(themeId: themeId.name));
           Navigator.pop(ctx);
         },
         borderRadius: BorderRadius.circular(12),
@@ -573,7 +1280,6 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
           ),
           child: Row(
             children: [
-              // Palette preview dots
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: colorPreview.map((c) {
