@@ -8,21 +8,37 @@ PageClock is an offline-first reading focus tracker built with Flutter, Riverpod
 
 ---
 
+## ✨ Features
+
+- **Dual-Mode Focus Experience**: Switch seamlessly between a high-density Toggl Track timeline / entry list and a full-featured Pomodoro ring countdown.
+- **Apple Mac Retro Flip Clock**: Ambient Fliqlo-style flip clock with authentic matte plates, central creasing slit, and StandBy clock mode.
+- **Three Refined Themes**:
+  - `Default Dark`: Obsidian / Titanium Vercel aesthetic.
+  - `Default Light`: Clean, crisp minimalist white theme.
+  - `special1`: Pastel Waves (Cream, Soft Rose, Butter Yellow, and Sky Blue).
+- **100% Offline-First Persistence**: Powered by SQLite via Drift on mobile and desktop, and SharedPreferences-backed storage on Web.
+- **Complete Data Portability**:
+  - Export formatted PDF reading reports with streaks and charts.
+  - Full JSON v2 database backups with schema versioning.
+  - CSV export for spreadsheets.
+  - Safe import with duplicate record skipping.
+- **Danger Zone Purge**: Reset all sessions or factory restore the entire app with case-insensitive typed `"confirm"` confirmation dialogues.
+
+---
+
 ## 🔄 Automated In-App Android Updates
 
-PageClock features a built-in, 100% free, automated in-app update mechanism powered by GitHub Releases.
+PageClock features a built-in automated in-app update mechanism powered by GitHub Releases.
 
 1. **Automatic Discovery**:
    - On application startup (or periodically every 6 hours), PageClock queries `api.github.com/repos/koushik4475/pageclock/releases/latest`.
-   - Update checks are completely non-intrusive and never interrupt an active reading session.
+   - Update checks are non-intrusive and never interrupt an active reading session.
 2. **Integrity & Security**:
-   - Downloads the APK directly from GitHub Releases with live percentage and MB progress.
+   - Downloads the APK directly from GitHub Releases with live percentage and progress.
    - Computes SHA-256 hash using streaming cryptography and validates it against the published `.sha256` asset before opening the installer.
    - Rejects tampered or truncated downloads automatically.
 3. **Android Package Installer**:
-   - Uses Android `FileProvider` (`androidx.core.content.FileProvider`) and `REQUEST_INSTALL_PACKAGES` to launch the native system installer seamlessly.
-4. **Manual Trigger**:
-   - Go to **Settings > Check for Updates** anytime to verify or force-check the latest release.
+   - Uses Android `FileProvider` (`androidx.core.content.FileProvider`) and `REQUEST_INSTALL_PACKAGES` to launch the native system installer.
 
 ---
 
@@ -34,12 +50,12 @@ To enable permanent signed releases across all builds, configure the following s
 | :--- | :--- | :--- |
 | `ANDROID_KEYSTORE_BASE64` | Base64 representation of release keystore | `base64 -w 0 release.keystore` |
 | `ANDROID_KEYSTORE_PASSWORD` | Keystore password | `your_keystore_password` |
-| `ANDROID_KEY_ALIAS` | Release key alias | `pageclock` |
+| `ANDROID_KEY_ALIAS` | Release key alias | `pageclock_key` |
 | `ANDROID_KEY_PASSWORD` | Key password | `your_key_password` |
 
 ### How to Generate a Release Keystore (Run Locally Once):
 ```bash
-keytool -genkey -v -keystore release.keystore -alias pageclock -keyalg RSA -keysize 2048 -validity 10000
+keytool -genkey -v -keystore release.keystore -alias pageclock_key -keyalg RSA -keysize 2048 -validity 10000
 ```
 Then encode it to Base64:
 - **macOS / Linux:**
@@ -52,24 +68,22 @@ Then encode it to Base64:
   ```
 Paste the output into GitHub secret `ANDROID_KEYSTORE_BASE64`.
 
-> **Note:** If `ANDROID_KEYSTORE_BASE64` is not configured, the CI workflow falls back to debug signing so testing and development builds continue uninterrupted.
+> **Security Guard:** If `ANDROID_KEYSTORE_BASE64` is missing, PR and development branch builds will build a debug APK without publishing. Release builds on tag `v*` will fail with an error rather than generating an untrusted throwaway keystore.
 
 ---
 
-## 📱 Exact Download & Installation Paths
+## 📱 Installation & Distribution
 
 ### 1. Android Installation
 - **Latest GitHub Release:**
   👉 **[https://github.com/koushik4475/pageclock/releases/latest](https://github.com/koushik4475/pageclock/releases/latest)**
   Download `PageClock-v*.apk` and install.
-- **Local Path on Your Laptop:**
-  `C:\Users\koush\Desktop\pageclock-apk\app-release.apk`
 
 ---
 
 ### 2. iOS Installation (iPhone & iPad)
-- **Free Standalone PWA (Recommended):**
-  1. Open `http://<your-ip>:8080` (or GitHub Pages) in Safari on iOS.
+- **Free Standalone PWA:**
+  1. Open the hosted web application in Safari on iOS.
   2. Tap **Share** -> **Add to Home Screen**.
   3. Launches full-screen as a standalone application.
 
@@ -77,14 +91,15 @@ Paste the output into GitHub secret `ANDROID_KEYSTORE_BASE64`.
 
 ## 💻 Running Locally
 
-- **Local Web Server**:
-  👉 **[http://localhost:8080](http://localhost:8080)**
-- **Local Source Code:**
-  📁 `C:\Users\koush\Desktop\pageclock`
+```bash
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
+flutter run -d chrome
+```
 
 ---
 
 ## ⚖️ License & Policy Compliance
 
 - **License**: MIT License (free and open source). See [LICENSE](LICENSE).
-- **Privacy Policy**: 100% offline, compliant with Apple App Store Review Guidelines §5.1 and Google Play Data Safety policies. See [PRIVACY_POLICY.md](PRIVACY_POLICY.md).
+- **Privacy Policy**: 100% offline-first. No third-party trackers, no cloud sync, zero telemetry. See [PRIVACY_POLICY.md](PRIVACY_POLICY.md).

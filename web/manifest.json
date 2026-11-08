@@ -1,10 +1,10 @@
 {
-  "name": "Productivity",
-  "short_name": "Productivity",
+  "name": "PageClock",
+  "short_name": "PageClock",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#09090B",
-  "theme_color": "#6366F1",
+  "theme_color": "#E040FB",
   "description": "Offline-first reading focus tracker with precision analytics and PDF reports.",
   "orientation": "any",
   "prefer_related_applications": false,
