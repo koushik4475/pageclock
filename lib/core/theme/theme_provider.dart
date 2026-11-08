@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../settings/app_settings.dart';
 
 enum AppThemeId {
   defaultDark,
@@ -30,8 +31,6 @@ extension AppThemeIdExtension on AppThemeId {
     }
   }
 }
-
-import '../settings/app_settings.dart';
 
 /// Global theme selection provider backed directly by persisted settings
 final appThemeIdProvider = Provider<AppThemeId>((ref) {
