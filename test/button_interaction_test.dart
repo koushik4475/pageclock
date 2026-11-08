@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pageclock/core/repository/session_repository.dart';
+import 'package:pageclock/core/settings/app_settings.dart';
 import 'package:pageclock/core/theme/theme_provider.dart';
 import 'package:pageclock/features/timer/toggl_timer_screen.dart';
 import 'package:pageclock/features/settings/toggl_settings_screen.dart';
@@ -9,12 +11,18 @@ import 'package:pageclock/features/timer/widgets/fullscreen_ambient_focus_screen
 
 void main() {
   group('Toggl Track Timer Screen & Action Buttons End-to-End Test', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
     testWidgets('Header Actions: (+) manual entry, [ ] Mac flip clock, ⚙ settings', (tester) async {
       final inMemoryRepo = InMemorySessionRepository([]);
+      final prefs = await SharedPreferences.getInstance();
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            sharedPreferencesProvider.overrideWithValue(prefs),
             sessionRepositoryProvider.overrideWithValue(inMemoryRepo),
           ],
           child: const MaterialApp(
@@ -87,10 +95,12 @@ void main() {
 
     testWidgets('Pomodoro / List View Mode Switching & Elements', (tester) async {
       final inMemoryRepo = InMemorySessionRepository([]);
+      final prefs = await SharedPreferences.getInstance();
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            sharedPreferencesProvider.overrideWithValue(prefs),
             sessionRepositoryProvider.overrideWithValue(inMemoryRepo),
           ],
           child: const MaterialApp(
@@ -125,10 +135,12 @@ void main() {
 
     testWidgets('Theme Switcher: special1 activates Pastel Waves & Cream palette', (tester) async {
       final inMemoryRepo = InMemorySessionRepository([]);
+      final prefs = await SharedPreferences.getInstance();
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            sharedPreferencesProvider.overrideWithValue(prefs),
             sessionRepositoryProvider.overrideWithValue(inMemoryRepo),
           ],
           child: const MaterialApp(

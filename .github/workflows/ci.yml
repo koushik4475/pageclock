@@ -39,13 +39,16 @@ jobs:
       - name: Run code generation (Drift / build_runner)
         run: dart run build_runner build --delete-conflicting-outputs || true
 
+      - name: Run Flutter Static Analysis
+        run: flutter analyze
+
       - name: Run Unit & Regression Tests
         run: flutter test
 
       - name: Build Web Application
         run: flutter build web --release --no-web-resources-cdn
 
-      - name: Setup Android Keystore (if secrets provided)
+      - name: Setup Android Keystore (Strict Production Gate)
         id: setup_keystore
         run: |
           if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
@@ -54,31 +57,28 @@ jobs:
             chmod 600 android/app/release.keystore
             echo "KEYSTORE_EXISTS=true" >> $GITHUB_ENV
           else
-            echo "ANDROID_KEYSTORE_BASE64 not found in secrets. Generating deterministic CI release keystore..."
-            keytool -genkeypair \
-              -alias pageclock_key \
-              -keypass pageclock123 \
-              -keystore android/app/release.keystore \
-              -storepass pageclock123 \
-              -dname "CN=PageClock, OU=Productivity, O=Koushik, L=Hyderabad, ST=Telangana, C=IN" \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000
-            chmod 600 android/app/release.keystore
-            echo "KEYSTORE_EXISTS=true" >> $GITHUB_ENV
-            echo "ANDROID_KEYSTORE_PASSWORD=pageclock123" >> $GITHUB_ENV
-            echo "ANDROID_KEY_ALIAS=pageclock_key" >> $GITHUB_ENV
-            echo "ANDROID_KEY_PASSWORD=pageclock123" >> $GITHUB_ENV
+            if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+              echo "::error::CRITICAL: Tag release build triggered but ANDROID_KEYSTORE_BASE64 secret is missing. Halting to avoid untrusted keystore generation."
+              exit 1
+            fi
+            echo "ANDROID_KEYSTORE_BASE64 not found in secrets. Branch build will run with debug build."
+            echo "KEYSTORE_EXISTS=false" >> $GITHUB_ENV
           fi
 
       - name: Build Android Release APK
         env:
           ANDROID_KEYSTORE_PATH: release.keystore
-          ANDROID_KEYSTORE_PASSWORD: ${{ env.ANDROID_KEYSTORE_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ env.ANDROID_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ env.ANDROID_KEY_PASSWORD || secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          flutter build apk --release --target-platform=android-arm64 --build-number=${{ github.run_number }} --android-skip-build-dependency-validation
+          if [ "$KEYSTORE_EXISTS" = "true" ]; then
+            flutter build apk --release --target-platform=android-arm64 --build-number=${{ github.run_number }} --android-skip-build-dependency-validation
+          else
+            flutter build apk --debug --target-platform=android-arm64 --build-number=${{ github.run_number }}
+            mkdir -p build/app/outputs/flutter-apk
+            cp build/app/outputs/flutter-apk/app-debug.apk build/app/outputs/flutter-apk/app-release.apk
+          fi
 
       - name: Secure Keystore Cleanup
         if: always()
@@ -121,8 +121,8 @@ jobs:
           name: pageclock-web
           path: build/web/
 
-      - name: Publish GitHub Release
-        if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))) || github.event_name == 'workflow_dispatch'
+      - name: Publish GitHub Release (Gated on v* Tags Only)
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
@@ -131,13 +131,13 @@ jobs:
             ### PageClock Automated Release (${{ env.RELEASE_TAG }})
             
             **What's Changed:**
-            - Automated Android In-App Updates with GitHub Releases.
-            - SHA-256 integrity verification.
-            - Drift SQLite offline-first persistence.
-            - Linear-inspired Bento-Grid interface with StandBy mode.
+            - Dual-Mode Toggl Track Timer & Apple StandBy Mac Flip Clock.
+            - Full offline-first SQLite Drift & SharedPreferences persistence.
+            - Full data export (PDF, JSON v2, CSV) and safe merge import.
+            - Danger Zone with typed 'confirm' session purge and factory reset.
+            - Verified SHA-256 integrity and permanent keystore signing.
             
             **Verification:**
-            Download `PageClock-*.apk.sha256` or run:
             ```bash
             sha256sum -c ${{ env.RELEASE_TAG }}.apk.sha256
             ```
