@@ -94,13 +94,20 @@ class NotificationService {
         ? '${session.id}:${state.status.index}:${session.note ?? ''}:${session.subjectId ?? ''}'
         : 'inactive';
     if (_lastTimerState == signature) return;
-    _lastTimerState = signature;
 
     if (!enabled) {
       await plugin.stopForegroundService();
+      _lastTimerState = signature;
       return;
     }
-    if (await plugin.areNotificationsEnabled() == false) return;
+    // Do not cache an active state until Android accepts the notification.
+    // If permission is denied or the foreground-service start fails, a later
+    // sync (for example after the user enables notifications in system
+    // settings) must retry instead of being skipped as an unchanged state.
+    if (await plugin.areNotificationsEnabled() == false) {
+      _lastTimerState = null;
+      return;
+    }
 
     final running = state.status == StopwatchStatus.running;
     final project = session.subjectId?.trim().isNotEmpty == true
@@ -141,6 +148,7 @@ class NotificationService {
       body,
       notificationDetails: details,
     );
+    _lastTimerState = signature;
   }
 
   static Future<void> showPomodoroComplete(
