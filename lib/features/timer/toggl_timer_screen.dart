@@ -1160,11 +1160,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           // the currently running session, instead of a static onboarding value.
           Builder(
             builder: (context) {
-              final goalMinutes = dailyGoalMinutes.clamp(1, 1440);
+              final goalMinutes = dailyGoalMinutes.clamp(1, 1440).toInt();
               final goalMs = goalMinutes * 60 * 1000;
-              final progress = (todayTotalMs / goalMs).clamp(0.0, 1.0);
+              final progress = (todayTotalMs / goalMs).clamp(0.0, 1.0).toDouble();
               final percent = (progress * 100).round();
-              final remainingMs = (goalMs - todayTotalMs).clamp(0, goalMs);
+              final remainingMs = (goalMs - todayTotalMs).clamp(0, goalMs).toInt();
               final achieved = todayTotalMs >= goalMs;
               return Container(
                 padding: const EdgeInsets.all(16),
