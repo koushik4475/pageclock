@@ -799,9 +799,14 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     int focusMinutes,
   ) {
     final targetMs = focusMinutes * 60 * 1000;
+    final isFocusOvertime = !_isPomodoroBreak &&
+        stopwatchState.status != StopwatchStatus.idle &&
+        stopwatchState.elapsedMs >= targetMs;
     final remainingMs = _isPomodoroBreak
         ? _pomodoroBreakRemainingMs
-        : (targetMs - stopwatchState.elapsedMs).clamp(0, targetMs);
+        : (isFocusOvertime
+            ? stopwatchState.elapsedMs - targetMs
+            : (targetMs - stopwatchState.elapsedMs).clamp(0, targetMs));
     final progress = _isPomodoroBreak
         ? (_pomodoroBreakDurationMs == 0
             ? 0.0
@@ -925,7 +930,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     Text(
                       _isPomodoroBreak
                           ? (_isLongBreak ? 'LONG BREAK' : 'SHORT BREAK')
-                          : (isSpecial1 ? 'Focus' : 'FOCUS INTERVAL'),
+                          : (isFocusOvertime
+                              ? 'OVERTIME'
+                              : (isSpecial1 ? 'Focus' : 'FOCUS INTERVAL')),
                       style: TextStyle(
                         fontSize: isSpecial1 ? 16 : 11,
                         fontWeight: FontWeight.w700,

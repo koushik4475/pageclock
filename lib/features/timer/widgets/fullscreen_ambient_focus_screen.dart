@@ -322,7 +322,7 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
 
           // Bottom Calm Controls: Pause / Resume and Stop
           Positioned(
-            bottom: 32,
+            bottom: 40,
             left: 0,
             right: 0,
             child: Center(
@@ -538,16 +538,26 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
               ),
             ),
           Center(
-            child: Text(
-              value,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: const Color(0xFFEDEDED),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: TextStyle(
+                color: isDark
+                    ? const Color(0xFFF5F5F5)
+                    : const Color(0xFF302536),
                 fontSize: fontSize,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -4,
                 height: 1.0,
                 fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
               ),
             ),
           ),
@@ -557,11 +567,15 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
               children: [
                 Container(
                   height: 1.2,
-                  color: const Color(0xFF09090B),
+                  color: isDark
+                      ? const Color(0xFF09090B)
+                      : const Color(0xFFD1C9D0),
                 ),
                 Container(
                   height: 1.0,
-                  color: const Color(0xFF27272A),
+                  color: isDark
+                      ? const Color(0xFF27272A)
+                      : const Color(0xFFE8E1E7),
                 ),
               ],
             ),
