@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
@@ -63,7 +62,7 @@ void main() {
     });
 
     test('10,000 High-Throughput Version Comparison Permutations (<500ms)', () {
-      final sw = Stopwatch().start();
+      final sw = Stopwatch()..start();
       final rng = Random(42);
 
       for (int i = 0; i < 10000; i++) {
