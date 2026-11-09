@@ -18,6 +18,8 @@ class NotificationService {
   static bool _initialized = false;
   static bool _timezoneReady = false;
   static String? _lastTimerState;
+  static DateTime? _lastTimerPermissionCheckAt;
+  static const _timerPermissionRecheckInterval = Duration(seconds: 10);
   static String? _pendingAction;
   static Future<void> Function(String action)? _actionHandler;
 
@@ -93,14 +95,34 @@ class NotificationService {
     final signature = enabled
         ? '${session.id}:${state.status.index}:${session.note ?? ''}:${session.subjectId ?? ''}'
         : 'inactive';
-    if (_lastTimerState == signature) return;
-    _lastTimerState = signature;
-
     if (!enabled) {
-      await plugin.stopForegroundService();
+      if (_lastTimerState != signature) {
+        await plugin.stopForegroundService();
+        _lastTimerState = signature;
+      }
       return;
     }
-    if (await plugin.areNotificationsEnabled() == false) return;
+
+    // Timer state emits four times per second. Recheck OS permission at a
+    // bounded interval so external permission changes are detected without
+    // issuing a platform-channel request on every ticker update.
+    final now = DateTime.now();
+    final deniedSignature = 'permission-denied:$signature';
+    final hasActiveNotification = _lastTimerState == signature;
+    final hasDeniedCache = _lastTimerState == deniedSignature;
+    final permissionCheckDue = !hasActiveNotification &&
+            !hasDeniedCache ||
+        _lastTimerPermissionCheckAt == null ||
+        now.difference(_lastTimerPermissionCheckAt!) >=
+            _timerPermissionRecheckInterval;
+    if (!permissionCheckDue) return;
+
+    _lastTimerPermissionCheckAt = now;
+    if (await plugin.areNotificationsEnabled() == false) {
+      _lastTimerState = deniedSignature;
+      return;
+    }
+    if (hasActiveNotification) return;
 
     final running = state.status == StopwatchStatus.running;
     final project = session.subjectId?.trim().isNotEmpty == true
@@ -141,6 +163,7 @@ class NotificationService {
       body,
       notificationDetails: details,
     );
+    _lastTimerState = signature;
   }
 
   static Future<void> showPomodoroComplete(
