@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import '../../core/format/formatters.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/settings/app_settings.dart';
 import '../../main.dart';
@@ -75,7 +75,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final weekStartDay = ref.watch(settingsProvider).weekStartDay;
+    final settings = ref.watch(settingsProvider);
+    final weekStartDay = settings.weekStartDay;
 
     // Split entries at local-day boundaries so overnight sessions appear
     // on both dates instead of producing a negative-height block.
@@ -122,11 +123,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       0,
       (sum, segment) => sum + segment.durationMs,
     );
-    final totalHours = totalMs ~/ 3600000;
-    final totalMinutes = (totalMs % 3600000) ~/ 60000;
-    final totalSeconds = (totalMs % 60000) ~/ 1000;
-    final durationFormatted =
-        '${totalHours.toString().padLeft(2, '0')}:${totalMinutes.toString().padLeft(2, '0')}:${totalSeconds.toString().padLeft(2, '0')}';
+    final durationFormatted = AppFormatters.formatDuration(
+      totalMs,
+      format: settings.durationFormat,
+    );
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F0B15) : const Color(0xFFF9FAFB),
@@ -164,7 +164,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  DateFormat('EEEE, MMM d').format(_selectedDay).toUpperCase(),
+                  AppFormatters.formatDate(_selectedDay, settings.dateFormat).toUpperCase(),
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
@@ -207,7 +207,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     // Hour grid lines & labels
                     ...List.generate(24, (hour) {
                       final topOffset = hour * 60.0;
-                      final label = _formatHourLabel(hour);
+                      final label = _formatHourLabel(hour, settings.use24HourClock);
 
                       return Positioned(
                         top: topOffset,
@@ -409,7 +409,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 
-  String _formatHourLabel(int hour) {
+  String _formatHourLabel(int hour, bool use24HourClock) {
+    if (use24HourClock) return hour.toString().padLeft(2, '0') + ':00';
     if (hour == 0) return '12 am';
     if (hour < 12) return '$hour am';
     if (hour == 12) return '12 pm';

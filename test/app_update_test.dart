@@ -111,6 +111,36 @@ void main() {
       expect(result.errorMessage, contains('No releases found yet'));
     });
 
+    test('Blocks APK releases that do not publish a valid SHA-256 checksum', () async {
+      final mockClient = MockClient((request) async {
+        return http.Response(
+          json.encode({
+            'tag_name': 'v3.0.0',
+            'body': 'Release without checksum',
+            'draft': false,
+            'prerelease': false,
+            'assets': [
+              {
+                'name': 'pageclock.apk',
+                'browser_download_url': 'https://example.com/pageclock.apk',
+                'size': 12345,
+              }
+            ],
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+
+      final service = AppUpdateService(client: mockClient);
+      AppUpdateService.clearCache();
+      final result = await service.checkForUpdate(force: true);
+
+      expect(result.hasUpdate, isFalse);
+      expect(result.releaseInfo, isNull);
+      expect(result.errorMessage, contains('SHA-256 checksum'));
+    });
+
     test('Handles 403 API rate limit cleanly', () async {
       final mockClient = MockClient((request) async {
         return http.Response('{"message": "API rate limit exceeded"}', 403);

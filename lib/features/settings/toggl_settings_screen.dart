@@ -737,6 +737,8 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     int focus = settings.pomodoroFocusMinutes;
     int shortB = settings.pomodoroShortBreakMinutes;
     int longB = settings.pomodoroLongBreakMinutes;
+    int longBreakInterval = settings.pomodoroLongBreakInterval;
+    bool autoStart = settings.pomodoroAutoStart;
 
     showDialog(
       context: context,
@@ -780,6 +782,30 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                     ),
                   ],
                 ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Long break after:'),
+                    DropdownButton<int>(
+                      value: longBreakInterval,
+                      items: [2, 3, 4, 5, 6].map(
+                        (v) => DropdownMenuItem(value: v, child: Text('$v sessions')),
+                      ).toList(),
+                      onChanged: (v) {
+                        if (v != null) {
+                          setDialogState(() => longBreakInterval = v);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Auto-start next interval'),
+                  value: autoStart,
+                  onChanged: (value) =>
+                      setDialogState(() => autoStart = value),
+                ),
               ],
             ),
             actions: [
@@ -793,6 +819,8 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                     pomodoroFocusMinutes: focus,
                     pomodoroShortBreakMinutes: shortB,
                     pomodoroLongBreakMinutes: longB,
+                    pomodoroLongBreakInterval: longBreakInterval,
+                    pomodoroAutoStart: autoStart,
                   ));
                   Navigator.pop(ctx);
                 },

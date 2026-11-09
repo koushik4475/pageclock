@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/engine/stopwatch_engine.dart';
+import '../../core/format/formatters.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/repository/session_repository.dart';
 import '../../core/settings/app_settings.dart';
@@ -340,6 +341,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
 
 
   void _setSelectedMode(int mode) {
+    _triggerHaptic();
     setState(() => _selectedMode = mode);
     ref.read(settingsProvider.notifier).update(
           (settings) => settings.copyWith(selectedTimerMode: mode),
@@ -381,6 +383,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       subjectId: project,
       note: description.trim().isEmpty ? null : description.trim(),
     );
+    _triggerHaptic();
   }
 
   Future<bool> _stopCurrentSession(BuildContext context) async {
@@ -421,6 +424,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       return true;
     }
     await notifier.stop(minSessionDurationMs: minDurationMs);
+    _triggerHaptic();
     return true;
   }
 
@@ -494,7 +498,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   }
 
   void _completePomodoroBreak(BuildContext context) {
-    final autoStart = ref.read(settingsProvider).pomodoroAutoStart;
+    final settings = ref.read(settingsProvider);
+    final autoStart = settings.pomodoroAutoStart;
+    if (settings.pomodoroSoundEnabled) {
+      SystemSound.play(SystemSoundType.alert);
+    }
     setState(() {
       _isPomodoroBreak = false;
       _isLongBreak = false;
@@ -508,6 +516,12 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
         project: ref.read(focusSelectedProjectProvider),
         description: _taskController.text,
       );
+    }
+  }
+
+  void _triggerHaptic() {
+    if (ref.read(settingsProvider).enableHaptics) {
+      HapticFeedback.selectionClick();
     }
   }
 
@@ -754,6 +768,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         todaySessions,
                         settings.groupSimilar,
                         todayTotalMs,
+                        settings.durationFormat,
                       ),
               ),
 
@@ -1077,6 +1092,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     List<ReadingSession> todaySessions,
     bool groupSimilar,
     int todayTotalMs,
+    String durationFormat,
   ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -1148,7 +1164,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 ),
               ),
               Text(
-                _formatElapsed(todayTotalMs),
+                AppFormatters.formatDuration(todayTotalMs, format: durationFormat),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
@@ -1210,6 +1226,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
               todaySessions,
               groupSimilar: groupSimilar,
               isDark: isDark,
+              durationFormat: durationFormat,
             ),
           const SizedBox(height: 48),
 
@@ -1262,6 +1279,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     List<ReadingSession> sessions, {
     required bool groupSimilar,
     required bool isDark,
+    required String durationFormat,
   }) {
     final groups = <String, List<ReadingSession>>{};
     for (final session in sessions) {
@@ -1323,7 +1341,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
               ),
               const SizedBox(width: 10),
               Text(
-                _formatElapsed(durationMs),
+                AppFormatters.formatDuration(durationMs, format: durationFormat),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
