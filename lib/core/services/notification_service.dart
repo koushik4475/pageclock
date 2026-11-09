@@ -93,21 +93,21 @@ class NotificationService {
     final signature = enabled
         ? '${session.id}:${state.status.index}:${session.note ?? ''}:${session.subjectId ?? ''}'
         : 'inactive';
-    if (_lastTimerState == signature) return;
-
     if (!enabled) {
-      await plugin.stopForegroundService();
-      _lastTimerState = signature;
+      if (_lastTimerState != signature) {
+        await plugin.stopForegroundService();
+        _lastTimerState = signature;
+      }
       return;
     }
-    // Do not cache an active state until Android accepts the notification.
-    // If permission is denied or the foreground-service start fails, a later
-    // sync (for example after the user enables notifications in system
-    // settings) must retry instead of being skipped as an unchanged state.
+    // Check the OS permission before consulting the active-state cache. Android
+    // can revoke permission outside the app, which removes the notification;
+    // clearing the cache lets a later sync retry after permission is restored.
     if (await plugin.areNotificationsEnabled() == false) {
       _lastTimerState = null;
       return;
     }
+    if (_lastTimerState == signature) return;
 
     final running = state.status == StopwatchStatus.running;
     final project = session.subjectId?.trim().isNotEmpty == true
