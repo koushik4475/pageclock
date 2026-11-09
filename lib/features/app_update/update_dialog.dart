@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'apk_downloader.dart';
 import 'apk_installer.dart';
@@ -64,7 +63,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
 
       final installResult = await ApkInstaller.installApk(file);
       if (mounted) {
-        if (installResult.type != null && installResult.type.toString().contains('done')) {
+        if (installResult.type.toString().contains('done')) {
           Navigator.of(context).pop();
         } else {
           setState(() {
@@ -76,7 +75,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
           });
         }
       }
-    } on ChecksumMismatchException catch (e) {
+    } on ChecksumMismatchException {
       if (mounted) {
         setState(() {
           _isDownloading = false;

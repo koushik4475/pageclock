@@ -3,7 +3,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../core/engine/stopwatch_engine.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/repository/session_repository.dart';

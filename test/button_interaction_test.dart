@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pageclock/core/repository/session_repository.dart';
 import 'package:pageclock/core/settings/app_settings.dart';
-import 'package:pageclock/core/theme/theme_provider.dart';
 import 'package:pageclock/features/timer/toggl_timer_screen.dart';
 import 'package:pageclock/features/settings/toggl_settings_screen.dart';
 import 'package:pageclock/features/timer/widgets/fullscreen_ambient_focus_screen.dart';

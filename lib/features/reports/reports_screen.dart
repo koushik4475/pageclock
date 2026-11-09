@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -393,7 +392,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                 sections: List.generate(sortedEntries.length, (i) {
                                   final entry = sortedEntries[i];
                                   final color = palette[i % palette.length];
-                                  final pct = (entry.value / totalMins) * 100;
                                   return PieChartSectionData(
                                     value: entry.value.toDouble(),
                                     color: color,
