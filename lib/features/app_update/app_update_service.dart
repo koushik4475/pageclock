@@ -124,7 +124,9 @@ class AppUpdateService {
         } catch (_) {}
       }
 
-      if (sha256 == null || !RegExp(r'^[A-Fa-f0-9]{64}\        tagName: release.tagName,
+      if (sha256 == null ||
+          sha256.trim().length != 64 ||
+          !RegExp(r'^[A-Fa-f0-9]+        tagName: release.tagName,
         versionName: release.versionName,
         buildNumber: release.buildNumber,
         releaseNotes: release.releaseNotes,
@@ -171,10 +173,10 @@ class AppUpdateService {
     _lastCheckTime = null;
   }
 }
-).hasMatch(sha256)) {
+).hasMatch(sha256.trim())) {
         return UpdateCheckResult(
           hasUpdate: false,
-          currentVersion: '$currentVersion+$currentBuild',
+          currentVersion: currentVersion + '+' + currentBuild.toString(),
           latestVersion: release.tagName,
           errorMessage: 'Update blocked: a valid SHA-256 checksum is unavailable.',
         );

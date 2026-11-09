@@ -42,7 +42,8 @@ class ApkDownloader {
     CancellationToken? cancelToken,
   }) async {
     if (expectedSha256 == null ||
-        !RegExp(r'^[A-Fa-f0-9]{64}    int redirects = 0;
+        expectedSha256.trim().length != 64 ||
+        !RegExp(r'^[A-Fa-f0-9]+    int redirects = 0;
 
     while (true) {
       final request = http.Request('GET', currentUri);
@@ -105,7 +106,7 @@ class ApkDownloader {
       final digest = await sha256.bind(targetFile.openRead()).first;
       final actualSha256 = digest.toString().toLowerCase();
 
-      // The expected checksum is mandatory and validated before download.
+      // Compare the downloaded file against the mandatory SHA-256 checksum.
       final expected = expectedSha256!.trim().toLowerCase();
       if (actualSha256 != expected) {
         if (await targetFile.exists()) {
@@ -143,8 +144,7 @@ class CancellationToken {
     if (currentUri.scheme != 'https') {
       throw HttpException('APK downloads must use HTTPS.');
     }
-    http.StreamedResponse response;
-    int redirects = 0;
+    http.StreamedResponse response;    int redirects = 0;
 
     while (true) {
       final request = http.Request('GET', currentUri);
