@@ -293,7 +293,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: const Text(
+                    child: Text(
                       _verifiedApkFile == null ? 'Download Update' : 'Share Verified APK',
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
