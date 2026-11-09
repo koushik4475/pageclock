@@ -109,19 +109,79 @@ class AppUpdateService {
 
       final release = AppReleaseInfo.fromJson(data);
 
-      // Fetch external SHA-256 asset if available and not in body
+      // A release is installable only when its checksum is available.
       String? sha256 = release.expectedSha256;
       if (sha256 == null && release.sha256DownloadUrl != null) {
         try {
-          final shaRes = await _client.get(Uri.parse(release.sha256DownloadUrl!))
+          final shaRes = await _client
+              .get(Uri.parse(release.sha256DownloadUrl!))
               .timeout(const Duration(seconds: 5));
           if (shaRes.statusCode == 200) {
             final match = RegExp(r'[A-Fa-f0-9]{64}').firstMatch(shaRes.body);
-            if (match != null) {
-              sha256 = match.group(0);
-            }
+            if (match != null) sha256 = match.group(0);
           }
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('[AppUpdateService] Checksum fetch failed: $e');
+        }
+      }
+
+      if (sha256 == null || !RegExp(r'^[A-Fa-f0-9]{64}
+      final enrichedRelease = AppReleaseInfo(
+        tagName: release.tagName,
+        versionName: release.versionName,
+        buildNumber: release.buildNumber,
+        releaseNotes: release.releaseNotes,
+        apkDownloadUrl: release.apkDownloadUrl,
+        sha256DownloadUrl: release.sha256DownloadUrl,
+        expectedSha256: sha256,
+        apkSize: release.apkSize,
+        publishedAt: release.publishedAt,
+      );
+
+      final isNewer = VersionComparator.isNewer(
+        enrichedRelease.versionName,
+        currentVersion,
+        remoteBuild: enrichedRelease.buildNumber,
+        currentBuild: currentBuild,
+      );
+
+      final result = UpdateCheckResult(
+        hasUpdate: isNewer && enrichedRelease.apkDownloadUrl.isNotEmpty,
+        currentVersion: '$currentVersion+$currentBuild',
+        latestVersion: enrichedRelease.tagName,
+        releaseInfo: enrichedRelease,
+      );
+
+      _cache(result);
+      return result;
+    } catch (e) {
+      return UpdateCheckResult(
+        hasUpdate: false,
+        currentVersion: currentVersion,
+        latestVersion: currentVersion,
+        errorMessage: 'Network error while checking updates: $e',
+      );
+    }
+  }
+
+  static void _cache(UpdateCheckResult result) {
+    _cachedResult = result;
+    _lastCheckTime = DateTime.now();
+  }
+
+  static void clearCache() {
+    _cachedResult = null;
+    _lastCheckTime = null;
+  }
+}
+).hasMatch(sha256)) {
+        return UpdateCheckResult(
+          hasUpdate: false,
+          currentVersion: '$currentVersion+$currentBuild',
+          latestVersion: release.tagName,
+          errorMessage:
+              'Update blocked: a valid SHA-256 checksum could not be verified.',
+        );
       }
 
       final enrichedRelease = AppReleaseInfo(

@@ -16,7 +16,18 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor e) : super(e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          // Version 1 databases predate pausedAtUtc. pausedTotalMs already
+          // existed in v1, so only add the newly introduced nullable column.
+          if (from < 2) {
+            await m.addColumn(readingSessions, readingSessions.pausedAtUtc);
+          }
+        },
+      );
 }
 
 LazyDatabase _openConnection() {
