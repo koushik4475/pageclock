@@ -32,13 +32,6 @@ class SessionPdfService {
       thresholdMinutes: (settingsSnapshot?['streakThresholdMinutes'] as num?)?.toInt() ?? 10,
     );
 
-    final consistency7 = StatsEngine.calculateConsistency(
-      dailyTotals: dailyTotals,
-      today: now,
-      windowDays: 7,
-      thresholdMinutes: (settingsSnapshot?['streakThresholdMinutes'] as num?)?.toInt() ?? 10,
-    );
-
     final consistency30 = StatsEngine.calculateConsistency(
       dailyTotals: dailyTotals,
       today: now,

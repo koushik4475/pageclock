@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pageclock/core/models/reading_session.dart';
-import 'package:pageclock/core/repository/session_repository.dart';
 import 'package:pageclock/core/services/export_service.dart';
 
 void main() {

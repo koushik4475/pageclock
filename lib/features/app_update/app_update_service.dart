@@ -124,6 +124,14 @@ class AppUpdateService {
         } catch (_) {}
       }
 
+      if (!_isValidSha256(sha256)) {
+        return UpdateCheckResult(
+          hasUpdate: false,
+          currentVersion: currentVersion + '+' + currentBuild.toString(),
+          latestVersion: release.tagName,
+          errorMessage: 'Update blocked: a valid SHA-256 checksum is unavailable.',
+        );
+      }
       final enrichedRelease = AppReleaseInfo(
         tagName: release.tagName,
         versionName: release.versionName,
@@ -171,4 +179,13 @@ class AppUpdateService {
     _cachedResult = null;
     _lastCheckTime = null;
   }
+}
+bool _isValidSha256(String? value) {
+  if (value == null) return false;
+  final normalized = value.trim();
+  if (normalized.length != 64) return false;
+  return normalized.codeUnits.every((unit) =>
+      (unit >= 48 && unit <= 57) ||
+      (unit >= 65 && unit <= 70) ||
+      (unit >= 97 && unit <= 102));
 }

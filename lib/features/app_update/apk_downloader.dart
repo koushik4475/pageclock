@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -41,7 +40,14 @@ class ApkDownloader {
     void Function(DownloadProgress)? onProgress,
     CancellationToken? cancelToken,
   }) async {
+    if (!_isValidSha256(expectedSha256)) {
+      throw StateError('A valid SHA-256 checksum is required before installing an APK.');
+    }
+
     Uri currentUri = Uri.parse(url);
+    if (currentUri.scheme != 'https') {
+      throw HttpException('APK downloads must use HTTPS.');
+    }
     http.StreamedResponse response;
     int redirects = 0;
 
@@ -52,7 +58,10 @@ class ApkDownloader {
 
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.containsKey('location')) {
         final location = response.headers['location']!;
-        currentUri = Uri.parse(location);
+        currentUri = currentUri.resolve(location);
+        if (currentUri.scheme != 'https') {
+          throw HttpException('APK download redirects must remain on HTTPS.');
+        }
         redirects++;
         if (redirects > 8) {
           throw HttpException('Too many HTTP redirects when downloading APK.');
@@ -103,15 +112,13 @@ class ApkDownloader {
       final digest = await sha256.bind(targetFile.openRead()).first;
       final actualSha256 = digest.toString().toLowerCase();
 
-      // Verify SHA-256 if expected hash is provided
-      if (expectedSha256 != null && expectedSha256.trim().isNotEmpty) {
-        final expected = expectedSha256.trim().toLowerCase();
-        if (actualSha256 != expected) {
-          if (await targetFile.exists()) {
-            await targetFile.delete();
-          }
-          throw ChecksumMismatchException(expected: expected, actual: actualSha256);
+      // The checksum was required and validated before the download.
+      final expected = expectedSha256!.trim().toLowerCase();
+      if (actualSha256 != expected) {
+        if (await targetFile.exists()) {
+          await targetFile.delete();
         }
+        throw ChecksumMismatchException(expected: expected, actual: actualSha256);
       }
 
       return targetFile;
@@ -125,6 +132,16 @@ class ApkDownloader {
       rethrow;
     }
   }
+}
+
+bool _isValidSha256(String? value) {
+  if (value == null) return false;
+  final normalized = value.trim();
+  if (normalized.length != 64) return false;
+  return normalized.codeUnits.every((unit) =>
+      (unit >= 48 && unit <= 57) ||
+      (unit >= 65 && unit <= 70) ||
+      (unit >= 97 && unit <= 102));
 }
 
 class CancellationToken {

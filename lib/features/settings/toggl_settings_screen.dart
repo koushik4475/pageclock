@@ -3,9 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../core/engine/stopwatch_engine.dart';
-import '../../core/format/formatters.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/repository/session_repository.dart';
 import '../../core/services/export_service.dart';
@@ -739,6 +737,8 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     int focus = settings.pomodoroFocusMinutes;
     int shortB = settings.pomodoroShortBreakMinutes;
     int longB = settings.pomodoroLongBreakMinutes;
+    int longBreakInterval = settings.pomodoroLongBreakInterval;
+    bool autoStart = settings.pomodoroAutoStart;
 
     showDialog(
       context: context,
@@ -782,6 +782,30 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                     ),
                   ],
                 ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Long break after:'),
+                    DropdownButton<int>(
+                      value: longBreakInterval,
+                      items: [2, 3, 4, 5, 6].map(
+                        (v) => DropdownMenuItem(value: v, child: Text('$v sessions')),
+                      ).toList(),
+                      onChanged: (v) {
+                        if (v != null) {
+                          setDialogState(() => longBreakInterval = v);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Auto-start next interval'),
+                  value: autoStart,
+                  onChanged: (value) =>
+                      setDialogState(() => autoStart = value),
+                ),
               ],
             ),
             actions: [
@@ -795,6 +819,8 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                     pomodoroFocusMinutes: focus,
                     pomodoroShortBreakMinutes: shortB,
                     pomodoroLongBreakMinutes: longB,
+                    pomodoroLongBreakInterval: longBreakInterval,
+                    pomodoroAutoStart: autoStart,
                   ));
                   Navigator.pop(ctx);
                 },
@@ -881,6 +907,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json', 'csv'],
+        withData: true,
       );
 
       String? content;
@@ -1109,7 +1136,6 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
   }
 
   Future<void> _showResetAppConfirmation(BuildContext context) async {
-    final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
     if (!mounted) return;
 
     final controller = TextEditingController();

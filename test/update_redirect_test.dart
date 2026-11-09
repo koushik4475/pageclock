@@ -81,6 +81,44 @@ void main() {
         ),
         throwsA(isA<ChecksumMismatchException>()),
       );
+    }); 
+    test('ApkDownloader rejects missing checksums before starting a network request', () async {
+      var requestStarted = false;
+      final mockClient = MockClient((request) async {
+        requestStarted = true;
+        return http.Response('unexpected', 200);
+      });
+      final downloader = ApkDownloader(client: mockClient);
+
+      expect(
+        () async => downloader.downloadAndVerifyApk(
+          url: 'https://example.com/app.apk',
+          expectedSha256: null,
+        ),
+        throwsA(isA<StateError>()),
+      );
+      expect(requestStarted, isFalse);
     });
+
+    test('ApkDownloader rejects HTTPS-to-HTTP redirects', () async {
+      final mockClient = MockClient((request) async {
+        return http.Response(
+          '',
+          302,
+          headers: {'location': 'http://insecure.example.com/app.apk'},
+        );
+      });
+      final downloader = ApkDownloader(client: mockClient);
+
+      expect(
+        () async => downloader.downloadAndVerifyApk(
+          url: 'https://example.com/app.apk',
+          expectedSha256:
+              '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+        ),
+        throwsA(isA<HttpException>()),
+      );
+    });
+
   });
 }

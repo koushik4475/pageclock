@@ -1,9 +1,8 @@
-import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
+import '../../core/format/formatters.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/services/pdf_service.dart';
 import '../../core/settings/app_settings.dart';
@@ -33,12 +32,16 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   int _groupByIndex = 0; // 0: Projects, 1: Books
   String _selectedFilter = 'This week';
 
-  List<ReadingSession> _filterSessions(List<ReadingSession> all) {
+  List<ReadingSession> _filterSessions(
+    List<ReadingSession> all,
+    int weekStartDay,
+  ) {
     final active = all.where((s) => s.deletedAt == null).toList();
     final now = DateTime.now();
 
     if (_selectedFilter == 'This week') {
-      final startOfWeek = now.subtract(Duration(days: (now.weekday - DateTime.monday + 7) % 7));
+      final daysFromWeekStart = (now.weekday - weekStartDay + 7) % 7;
+      final startOfWeek = now.subtract(Duration(days: daysFromWeekStart));
       final midnightStart = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
       return active.where((s) => s.startedAtUtc >= midnightStart.millisecondsSinceEpoch).toList();
     } else if (_selectedFilter == 'This month') {
@@ -52,16 +55,17 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final filteredSessions = _filterSessions(widget.sessions);
+    final settings = ref.watch(settingsProvider);
+    final filteredSessions =
+        _filterSessions(widget.sessions, settings.weekStartDay);
     final dailyTotals = StatsEngine.calculateDailyTotals(widget.sessions);
 
     // Calculate total duration for current filtered period
     final totalMs = filteredSessions.fold<int>(0, (acc, s) => acc + s.durationMs);
-    final hours = totalMs ~/ 3600000;
-    final minutes = (totalMs % 3600000) ~/ 60000;
-    final seconds = (totalMs % 60000) ~/ 1000;
-    final formattedTotal =
-        '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    final formattedTotal = AppFormatters.formatDuration(
+      totalMs,
+      format: settings.durationFormat,
+    );
 
     // Grouping by Project (Subject) or Book
     final Map<String, int> distribution = {};
@@ -152,7 +156,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      '${DateFormat('EEEE, MMM d, yyyy').format(date)}: ${mins} minutes logged',
+                      AppFormatters.formatDate(date, settings.dateFormat) +
+                          ': ' + mins.toString() + ' minutes logged',
                     ),
                     duration: const Duration(seconds: 2),
                     behavior: SnackBarBehavior.floating,
@@ -387,7 +392,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                 sections: List.generate(sortedEntries.length, (i) {
                                   final entry = sortedEntries[i];
                                   final color = palette[i % palette.length];
-                                  final pct = (entry.value / totalMins) * 100;
                                   return PieChartSectionData(
                                     value: entry.value.toDouble(),
                                     color: color,

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -22,7 +21,7 @@ class AppleMacFlipClockScreen extends ConsumerStatefulWidget {
   final String description;
   final String projectName;
   final bool isSpecial1;
-  final VoidCallback? onStop;
+  final Future<bool> Function()? onStop;
   final VoidCallback? onTogglePlay;
 
   const AppleMacFlipClockScreen({
@@ -392,13 +391,60 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                     const SizedBox(width: 12),
                     // Stop Button
                     InkWell(
-                      onTap: () {
+                      onTap: () async {
+                        final minDurationMs =
+                            ref.read(settingsProvider).minSessionSeconds * 1000;
+                        bool shouldClose;
                         if (widget.onStop != null) {
-                          widget.onStop!();
+                          shouldClose = await widget.onStop!();
                         } else {
-                          stopwatchNotifier.stop();
+                          final state = ref.read(stopwatchEngineProvider);
+                          if (state.elapsedMs < minDurationMs) {
+                            final decision = await showDialog<bool>(
+                              context: context,
+                              builder: (dialogContext) => AlertDialog(
+                                title: const Text('Short session'),
+                                content: const Text(
+                                  'Save this short session or discard it?',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(dialogContext, null),
+                                    child: const Text('Continue'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(dialogContext, false),
+                                    child: const Text('Discard'),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () =>
+                                        Navigator.pop(dialogContext, true),
+                                    child: const Text('Save anyway'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (decision == null) return;
+                            if (decision) {
+                              await stopwatchNotifier.stop(
+                                minSessionDurationMs: minDurationMs,
+                                forceSave: true,
+                              );
+                            } else {
+                              await stopwatchNotifier.cancel();
+                            }
+                          } else {
+                            await stopwatchNotifier.stop(
+                              minSessionDurationMs: minDurationMs,
+                            );
+                          }
+                          shouldClose = true;
                         }
-                        Navigator.maybePop(context);
+                        if (shouldClose && mounted) {
+                          Navigator.maybePop(context);
+                        }
                       },
                       borderRadius: BorderRadius.circular(30),
                       child: Container(

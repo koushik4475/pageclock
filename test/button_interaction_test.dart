@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pageclock/core/repository/session_repository.dart';
 import 'package:pageclock/core/settings/app_settings.dart';
-import 'package:pageclock/core/theme/theme_provider.dart';
 import 'package:pageclock/features/timer/toggl_timer_screen.dart';
 import 'package:pageclock/features/settings/toggl_settings_screen.dart';
 import 'package:pageclock/features/timer/widgets/fullscreen_ambient_focus_screen.dart';
@@ -58,8 +57,12 @@ void main() {
       await tester.tap(find.text('Save Entry'));
       await tester.pumpAndSettle();
 
-      // Verify modal dismissed
+      // Verify modal dismissed and default 30-minute manual entry persisted.
       expect(find.text('Add Time Entry'), findsNothing);
+      final savedManualEntries = await inMemoryRepo.getAllSessions();
+      expect(savedManualEntries, hasLength(1));
+      expect(savedManualEntries.single.source, 'manual');
+      expect(savedManualEntries.single.durationMs, 30 * 60 * 1000);
 
       // 2. Test [ ] Mac Retro Flip Clock Mode
       await tester.tap(flipIcon);
@@ -91,6 +94,35 @@ void main() {
 
       // Returned back to Timer Screen
       expect(find.text('Timer'), findsOneWidget);
+    });
+
+    testWidgets('Manual entry rejects zero or invalid duration', (tester) async {
+      final inMemoryRepo = InMemorySessionRepository([]);
+      final prefs = await SharedPreferences.getInstance();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sharedPreferencesProvider.overrideWithValue(prefs),
+            sessionRepositoryProvider.overrideWithValue(inMemoryRepo),
+          ],
+          child: const MaterialApp(home: TogglTimerScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Add Manual Time Entry'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).at(1), '0');
+      await tester.tap(find.text('Save Entry'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add Time Entry'), findsOneWidget);
+      expect(
+        find.text('Enter a duration greater than zero minutes.'),
+        findsOneWidget,
+      );
+      expect(await inMemoryRepo.getAllSessions(), isEmpty);
     });
 
     testWidgets('Pomodoro / List View Mode Switching & Elements', (tester) async {
@@ -130,7 +162,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('TODAY'), findsOneWidget);
-      expect(find.text('Deep Work & Focus'), findsOneWidget);
+      expect(find.text('No reading sessions today'), findsOneWidget);
     });
 
     testWidgets('Theme Switcher: special1 activates Pastel Waves & Cream palette', (tester) async {

@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../core/engine/stopwatch_engine.dart';
+import '../../core/format/formatters.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/repository/session_repository.dart';
+import '../../core/settings/app_settings.dart';
 import '../../core/theme/theme_provider.dart';
 import '../../main.dart';
 import '../settings/toggl_settings_screen.dart';
@@ -39,6 +42,13 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   int _selectedMode = 0; // 0: List view, 1: Pomodoro
   late TextEditingController _taskController;
   bool _soundEnabled = true;
+  bool _isPomodoroBreak = false;
+  bool _isLongBreak = false;
+  bool _pomodoroBreakRunning = false;
+  int _pomodoroCompletedFocusSessions = 0;
+  int _pomodoroBreakDurationMs = 0;
+  int _pomodoroBreakRemainingMs = 0;
+  Timer? _pomodoroBreakTicker;
 
   final List<String> _availableProjects = const [
     'General Focus',
@@ -51,6 +61,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   @override
   void initState() {
     super.initState();
+    final settings = ref.read(settingsProvider);
+    _selectedMode = settings.selectedTimerMode;
+    _soundEnabled = settings.pomodoroSoundEnabled;
+    ref.read(focusSelectedProjectProvider.notifier).state =
+        settings.lastSelectedProject;
     _taskController = TextEditingController(
       text: ref.read(focusTaskDescriptionProvider),
     );
@@ -58,6 +73,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
 
   @override
   void dispose() {
+    _pomodoroBreakTicker?.cancel();
     _taskController.dispose();
     super.dispose();
   }
@@ -179,12 +195,21 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       onPressed: () async {
-                        final mins = int.tryParse(minsCtrl.text) ?? 30;
+                        final mins = int.tryParse(minsCtrl.text.trim());
+                        if (mins == null || mins <= 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Enter a duration greater than zero minutes.'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                          return;
+                        }
                         final desc = descCtrl.text.trim();
                         final now = DateTime.now();
                         final durationMs = mins * 60 * 1000;
                         final session = ReadingSession(
-                          id: DateTime.now().millisecondsSinceEpoch.toString(),
+                          id: now.microsecondsSinceEpoch.toString(),
                           startedAtUtc: now.subtract(Duration(milliseconds: durationMs)).millisecondsSinceEpoch,
                           endedAtUtc: now.millisecondsSinceEpoch,
                           durationMs: durationMs,
@@ -262,6 +287,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         : null,
                     onTap: () {
                       ref.read(focusSelectedProjectProvider.notifier).state = p;
+                      ref.read(settingsProvider.notifier).update(
+                            (settings) =>
+                                settings.copyWith(lastSelectedProject: p),
+                          );
                       Navigator.pop(ctx);
                     },
                   );
@@ -319,12 +348,234 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     return '${minutes.toString().padLeft(1, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
+
+  void _setSelectedMode(int mode) {
+    _triggerHaptic();
+    setState(() => _selectedMode = mode);
+    ref.read(settingsProvider.notifier).update(
+          (settings) => settings.copyWith(selectedTimerMode: mode),
+        );
+  }
+
+  Future<void> _startNewSession(BuildContext context, {
+    required String project,
+    required String description,
+  }) async {
+    final notifier = ref.read(stopwatchProvider.notifier);
+    final current = ref.read(stopwatchProvider);
+    final settings = ref.read(settingsProvider);
+    if (current.currentSession != null &&
+        current.status != StopwatchStatus.idle) {
+      if (settings.promptRunningEntryOverride) {
+        final replace = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('A session is already active'),
+            content: const Text('Save the current session and start a new one?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Keep current'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Save and start'),
+              ),
+            ],
+          ),
+        );
+        if (replace != true) return;
+      }
+      await notifier.stop(minSessionDurationMs: 0, forceSave: true);
+    }
+    await notifier.start(
+      subjectId: project,
+      note: description.trim().isEmpty ? null : description.trim(),
+    );
+    _triggerHaptic();
+  }
+
+  Future<bool> _stopCurrentSession(BuildContext context) async {
+    final state = ref.read(stopwatchProvider);
+    if (state.currentSession == null) return false;
+    final minDurationMs = ref.read(settingsProvider).minSessionSeconds * 1000;
+    final notifier = ref.read(stopwatchProvider.notifier);
+    if (state.elapsedMs < minDurationMs) {
+      final decision = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Short session'),
+          content: Text(
+            'This session is only ${_formatElapsed(state.elapsedMs)}. Save it anyway or discard it?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, null),
+              child: const Text('Continue session'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Discard'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Save anyway'),
+            ),
+          ],
+        ),
+      );
+      if (decision == null) return false;
+      if (decision) {
+        await notifier.stop(minSessionDurationMs: minDurationMs, forceSave: true);
+      } else {
+        await notifier.cancel();
+      }
+      return true;
+    }
+    await notifier.stop(minSessionDurationMs: minDurationMs);
+    _triggerHaptic();
+    return true;
+  }
+
+
+  Future<void> _completePomodoroFocus(BuildContext context) async {
+    final settings = ref.read(settingsProvider);
+    final focusTargetMs = settings.pomodoroFocusMinutes * 60000;
+    final current = ref.read(stopwatchProvider);
+    if (current.elapsedMs < focusTargetMs ||
+        current.status != StopwatchStatus.running ||
+        _isPomodoroBreak) {
+      return;
+    }
+
+    await ref.read(stopwatchProvider.notifier).stop(
+          minSessionDurationMs: 0,
+          forceSave: true,
+        );
+    if (!mounted) return;
+
+    _pomodoroCompletedFocusSessions++;
+    final longBreakDue = settings.pomodoroLongBreakInterval > 0 &&
+        _pomodoroCompletedFocusSessions %
+                settings.pomodoroLongBreakInterval ==
+            0;
+    final breakMinutes = longBreakDue
+        ? settings.pomodoroLongBreakMinutes
+        : settings.pomodoroShortBreakMinutes;
+
+    setState(() {
+      _isPomodoroBreak = true;
+      _isLongBreak = longBreakDue;
+      _pomodoroBreakDurationMs = breakMinutes * 60000;
+      _pomodoroBreakRemainingMs = _pomodoroBreakDurationMs;
+      _pomodoroBreakRunning = false;
+    });
+
+    if (settings.pomodoroSoundEnabled) {
+      SystemSound.play(SystemSoundType.alert);
+    }
+    if (settings.pomodoroAutoStart) {
+      _startPomodoroBreak(context);
+    }
+  }
+
+  void _startPomodoroBreak(BuildContext context) {
+    if (!_isPomodoroBreak || _pomodoroBreakDurationMs <= 0) return;
+    _pomodoroBreakTicker?.cancel();
+    setState(() => _pomodoroBreakRunning = true);
+    _pomodoroBreakTicker = Timer.periodic(
+      const Duration(seconds: 1),
+      (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+        final nextRemaining = _pomodoroBreakRemainingMs - 1000;
+        if (nextRemaining <= 0) {
+          timer.cancel();
+          _completePomodoroBreak(context);
+        } else {
+          setState(() => _pomodoroBreakRemainingMs = nextRemaining);
+        }
+      },
+    );
+  }
+
+  void _pausePomodoroBreak() {
+    _pomodoroBreakTicker?.cancel();
+    setState(() => _pomodoroBreakRunning = false);
+  }
+
+  void _completePomodoroBreak(BuildContext context) {
+    final settings = ref.read(settingsProvider);
+    final autoStart = settings.pomodoroAutoStart;
+    if (settings.pomodoroSoundEnabled) {
+      SystemSound.play(SystemSoundType.alert);
+    }
+    setState(() {
+      _isPomodoroBreak = false;
+      _isLongBreak = false;
+      _pomodoroBreakRunning = false;
+      _pomodoroBreakDurationMs = 0;
+      _pomodoroBreakRemainingMs = 0;
+    });
+    if (autoStart) {
+      _startNewSession(
+        context,
+        project: ref.read(focusSelectedProjectProvider),
+        description: _taskController.text,
+      );
+    }
+  }
+
+  void _triggerHaptic() {
+    if (ref.read(settingsProvider).enableHaptics) {
+      HapticFeedback.selectionClick();
+    }
+  }
+
+  void _togglePomodoroSound() {
+    final enabled = !ref.read(settingsProvider).pomodoroSoundEnabled;
+    ref.read(settingsProvider.notifier).update(
+          (settings) => settings.copyWith(pomodoroSoundEnabled: enabled),
+        );
+    setState(() => _soundEnabled = enabled);
+    if (enabled) SystemSound.play(SystemSoundType.alert);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final stopwatchState = ref.watch(stopwatchProvider);
+    final settings = ref.watch(settingsProvider);
+    final allSessions = ref.watch(sessionsStreamProvider).value ?? [];
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final todayEnd = todayStart.add(const Duration(days: 1));
+    final todaySessions = allSessions.where((session) {
+      return session.deletedAt == null &&
+          session.endedAtUtc != null &&
+          session.startedAtUtc >= todayStart.millisecondsSinceEpoch &&
+          session.startedAtUtc < todayEnd.millisecondsSinceEpoch;
+    }).toList();
+    final todayCompletedMs =
+        todaySessions.fold<int>(0, (sum, session) => sum + session.durationMs);
+    final activeSessionIsToday = stopwatchState.currentSession != null &&
+        stopwatchState.currentSession!.startedAtUtc >=
+            todayStart.millisecondsSinceEpoch;
+    final todayTotalMs =
+        todayCompletedMs + (activeSessionIsToday ? stopwatchState.elapsedMs : 0);
     final taskDescription = ref.watch(focusTaskDescriptionProvider);
     final selectedProject = ref.watch(focusSelectedProjectProvider);
+    ref.listen<StopwatchState>(stopwatchProvider, (previous, next) {
+      if (_selectedMode != 1 || _isPomodoroBreak || previous == null) return;
+      final focusTargetMs = ref.read(settingsProvider).pomodoroFocusMinutes * 60000;
+      if (previous.elapsedMs < focusTargetMs &&
+          next.elapsedMs >= focusTargetMs &&
+          next.status == StopwatchStatus.running) {
+        _completePomodoroFocus(context);
+      }
+    });
     final appThemeId = ref.watch(appThemeIdProvider);
     final isSpecial1 = appThemeId == AppThemeId.special1;
 
@@ -366,16 +617,26 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => AppleMacFlipClockScreen(
-                    targetMinutes: _selectedMode == 1 ? 25 : null,
+                    targetMinutes: _selectedMode == 1
+                        ? settings.pomodoroFocusMinutes
+                        : null,
                     description: taskDescription,
                     projectName: selectedProject,
                     isSpecial1: isSpecial1,
-                    onStop: () => ref.read(stopwatchProvider.notifier).stop(),
+                    onStop: () => _stopCurrentSession(context),
                     onTogglePlay: () {
-                      if (stopwatchState.status == StopwatchStatus.running) {
+                      if (ref.read(stopwatchProvider).status ==
+                          StopwatchStatus.running) {
                         ref.read(stopwatchProvider.notifier).pause();
+                      } else if (ref.read(stopwatchProvider).status ==
+                          StopwatchStatus.paused) {
+                        ref.read(stopwatchProvider.notifier).resume();
                       } else {
-                        ref.read(stopwatchProvider.notifier).start();
+                        _startNewSession(
+                          context,
+                          project: selectedProject,
+                          description: taskDescription,
+                        );
                       }
                     },
                   ),
@@ -425,7 +686,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     children: [
                       Expanded(
                         child: InkWell(
-                          onTap: () => setState(() => _selectedMode = 0),
+                          onTap: () => _setSelectedMode(0),
                           borderRadius: BorderRadius.circular(10),
                           child: Container(
                             alignment: Alignment.center,
@@ -461,7 +722,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                       ),
                       Expanded(
                         child: InkWell(
-                          onTap: () => setState(() => _selectedMode = 1),
+                          onTap: () => _setSelectedMode(1),
                           borderRadius: BorderRadius.circular(10),
                           child: Container(
                             alignment: Alignment.center,
@@ -503,8 +764,21 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
               // Main View Body
               Expanded(
                 child: _selectedMode == 1
-                    ? _buildPomodoroView(isDark, stopwatchState, isSpecial1)
-                    : _buildListView(isDark, stopwatchState, isSpecial1),
+                    ? _buildPomodoroView(
+                        isDark,
+                        stopwatchState,
+                        isSpecial1,
+                        settings.pomodoroFocusMinutes,
+                      )
+                    : _buildListView(
+                        isDark,
+                        stopwatchState,
+                        isSpecial1,
+                        todaySessions,
+                        settings.groupSimilar,
+                        todayTotalMs,
+                        settings.durationFormat,
+                      ),
               ),
 
               // Persistent Running Mini-Player Bottom Bar (like Toggl Track)
@@ -518,10 +792,24 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     );
   }
 
-  Widget _buildPomodoroView(bool isDark, StopwatchState stopwatchState, bool isSpecial1) {
-    const targetMs = 25 * 60 * 1000;
-    final remainingMs = (targetMs - stopwatchState.elapsedMs).clamp(0, targetMs);
-    final progress = (stopwatchState.elapsedMs / targetMs).clamp(0.0, 1.0);
+  Widget _buildPomodoroView(
+    bool isDark,
+    StopwatchState stopwatchState,
+    bool isSpecial1,
+    int focusMinutes,
+  ) {
+    final targetMs = focusMinutes * 60 * 1000;
+    final remainingMs = _isPomodoroBreak
+        ? _pomodoroBreakRemainingMs
+        : (targetMs - stopwatchState.elapsedMs).clamp(0, targetMs);
+    final progress = _isPomodoroBreak
+        ? (_pomodoroBreakDurationMs == 0
+            ? 0.0
+            : (1 -
+                    _pomodoroBreakRemainingMs /
+                        _pomodoroBreakDurationMs)
+                .clamp(0.0, 1.0))
+        : (stopwatchState.elapsedMs / targetMs).clamp(0.0, 1.0);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -596,12 +884,22 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           // Circular Ring Progress Timer (Tap to toggle play/pause)
           GestureDetector(
             onTap: () {
-              if (stopwatchState.status == StopwatchStatus.running) {
+              if (_isPomodoroBreak) {
+                if (_pomodoroBreakRunning) {
+                  _pausePomodoroBreak();
+                } else {
+                  _startPomodoroBreak(context);
+                }
+              } else if (stopwatchState.status == StopwatchStatus.running) {
                 ref.read(stopwatchProvider.notifier).pause();
               } else if (stopwatchState.status == StopwatchStatus.paused) {
                 ref.read(stopwatchProvider.notifier).resume();
               } else {
-                ref.read(stopwatchProvider.notifier).start();
+                _startNewSession(
+                  context,
+                  project: ref.read(focusSelectedProjectProvider),
+                  description: _taskController.text,
+                );
               }
             },
             child: Stack(
@@ -625,9 +923,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      isSpecial1
-                          ? 'Focus'
-                          : 'FOCUS INTERVAL',
+                      _isPomodoroBreak
+                          ? (_isLongBreak ? 'LONG BREAK' : 'SHORT BREAK')
+                          : (isSpecial1 ? 'Focus' : 'FOCUS INTERVAL'),
                       style: TextStyle(
                         fontSize: isSpecial1 ? 16 : 11,
                         fontWeight: FontWeight.w700,
@@ -652,13 +950,17 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      isSpecial1
-                          ? (stopwatchState.status == StopwatchStatus.running
-                              ? 'Focusing...'
-                              : 'Ready?')
-                          : (stopwatchState.status == StopwatchStatus.running
-                              ? 'SESSION ACTIVE'
-                              : 'READY TO FOCUS'),
+                      _isPomodoroBreak
+                          ? (_pomodoroBreakRunning
+                              ? 'Break in progress'
+                              : 'Ready for a break?')
+                          : (isSpecial1
+                              ? (stopwatchState.status == StopwatchStatus.running
+                                  ? 'Focusing...'
+                                  : 'Ready?')
+                              : (stopwatchState.status == StopwatchStatus.running
+                                  ? 'SESSION ACTIVE'
+                                  : 'READY TO FOCUS')),
                       style: TextStyle(
                         fontSize: isSpecial1 ? 16 : 11,
                         fontWeight: FontWeight.w700,
@@ -692,16 +994,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   size: 20,
                 ),
                 tooltip: _soundEnabled ? 'Mute Pomodoro Sound' : 'Enable Pomodoro Sound',
-                onPressed: () {
-                  setState(() => _soundEnabled = !_soundEnabled);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(_soundEnabled ? 'Pomodoro chime active' : 'Pomodoro muted'),
-                      duration: const Duration(seconds: 1),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
+                onPressed: _togglePomodoroSound,
               ),
             )
           else
@@ -712,16 +1005,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 size: 26,
               ),
               tooltip: _soundEnabled ? 'Mute Pomodoro Sound' : 'Enable Pomodoro Sound',
-              onPressed: () {
-                setState(() => _soundEnabled = !_soundEnabled);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(_soundEnabled ? 'Pomodoro chime active' : 'Pomodoro muted'),
-                    duration: const Duration(seconds: 1),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
+              onPressed: _togglePomodoroSound,
             ),
           const SizedBox(height: 20),
 
@@ -741,16 +1025,32 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 elevation: isSpecial1 ? 0 : 4,
               ),
               onPressed: () {
-                if (stopwatchState.status == StopwatchStatus.running) {
+                if (_isPomodoroBreak) {
+                  if (_pomodoroBreakRunning) {
+                    _pausePomodoroBreak();
+                  } else {
+                    _startPomodoroBreak(context);
+                  }
+                } else if (stopwatchState.status == StopwatchStatus.running) {
                   ref.read(stopwatchProvider.notifier).pause();
                 } else if (stopwatchState.status == StopwatchStatus.paused) {
                   ref.read(stopwatchProvider.notifier).resume();
                 } else {
-                  ref.read(stopwatchProvider.notifier).start();
+                  _startNewSession(
+                    context,
+                    project: ref.read(focusSelectedProjectProvider),
+                    description: _taskController.text,
+                  );
                 }
               },
               child: Text(
-                stopwatchState.status == StopwatchStatus.running ? 'Pause session' : 'Start session',
+                _isPomodoroBreak
+                    ? (_pomodoroBreakRunning ? 'Pause break' : 'Start break')
+                    : (stopwatchState.status == StopwatchStatus.running
+                        ? 'Pause session'
+                        : (stopwatchState.status == StopwatchStatus.paused
+                            ? 'Resume session'
+                            : 'Start session')),
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
@@ -794,7 +1094,15 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     );
   }
 
-  Widget _buildListView(bool isDark, StopwatchState stopwatchState, bool isSpecial1) {
+  Widget _buildListView(
+    bool isDark,
+    StopwatchState stopwatchState,
+    bool isSpecial1,
+    List<ReadingSession> todaySessions,
+    bool groupSimilar,
+    int todayTotalMs,
+    String durationFormat,
+  ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Column(
@@ -865,7 +1173,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 ),
               ),
               Text(
-                _formatElapsed(stopwatchState.elapsedMs),
+                AppFormatters.formatDuration(todayTotalMs, format: durationFormat),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
@@ -877,81 +1185,58 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Time entry card
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF161122) : Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isDark ? const Color(0xFF281F3B) : const Color(0xFFE5E7EB),
+          if (todaySessions.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF161122) : Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF281F3B)
+                      : const Color(0xFFE5E7EB),
+                ),
               ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.menu_book_outlined,
+                    size: 28,
+                    color: isDark
+                        ? const Color(0xFFA1A1AA)
+                        : const Color(0xFF9CA3AF),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'No reading sessions today',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : const Color(0xFF111827),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Start a focus session to see it here.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark
+                          ? const Color(0xFFA1A1AA)
+                          : const Color(0xFF71717A),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ..._buildTodaySessionCards(
+              context,
+              todaySessions,
+              groupSimilar: groupSimilar,
+              isDark: isDark,
+              durationFormat: durationFormat,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Deep Work & Focus',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : const Color(0xFF111827),
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Text(
-                          '0:45:00',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white70 : Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        InkWell(
-                          onTap: () {
-                            ref.read(focusTaskDescriptionProvider.notifier).state = 'Deep Work & Focus';
-                            ref.read(focusSelectedProjectProvider.notifier).state = 'General Focus';
-                            ref.read(stopwatchProvider.notifier).start();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Started focus session: Deep Work & Focus'),
-                                backgroundColor: Color(0xFFE040FB),
-                                duration: Duration(seconds: 2),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(16),
-                          child: const Padding(
-                            padding: EdgeInsets.all(4.0),
-                            child: Icon(Icons.play_arrow_rounded, color: Color(0xFFE040FB), size: 24),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Text(
-                      '@ reading a project',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: const Color(0xFFE040FB),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
           const SizedBox(height: 48),
 
           // "Keep tracking" Motivational Callout
@@ -995,6 +1280,107 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
         ],
       ),
     );
+  }
+
+
+  List<Widget> _buildTodaySessionCards(
+    BuildContext context,
+    List<ReadingSession> sessions, {
+    required bool groupSimilar,
+    required bool isDark,
+    required String durationFormat,
+  }) {
+    final groups = <String, List<ReadingSession>>{};
+    for (final session in sessions) {
+      final key = groupSimilar
+          ? '${session.subjectId ?? 'General Focus'}|${session.note ?? ''}'
+          : session.id;
+      groups.putIfAbsent(key, () => []).add(session);
+    }
+    return groups.values.map((group) {
+      final latest = group.last;
+      final durationMs =
+          group.fold<int>(0, (sum, session) => sum + session.durationMs);
+      final description = latest.note ?? '';
+      final project = latest.subjectName;
+      final title = description.isEmpty ? project : description;
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF161122) : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isDark
+                  ? const Color(0xFF281F3B)
+                  : const Color(0xFFE5E7EB),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : const Color(0xFF111827),
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      group.length > 1
+                          ? '$project • ${group.length} similar entries'
+                          : project,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark
+                            ? const Color(0xFFA1A1AA)
+                            : const Color(0xFF71717A),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                AppFormatters.formatDuration(durationMs, format: durationFormat),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white70 : Colors.black87,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Start this session again',
+                icon: const Icon(
+                  Icons.play_arrow_rounded,
+                  color: Color(0xFFE040FB),
+                ),
+                onPressed: () {
+                  ref.read(focusTaskDescriptionProvider.notifier).state =
+                      description;
+                  ref.read(focusSelectedProjectProvider.notifier).state =
+                      project;
+                  _taskController.text = description;
+                  _startNewSession(
+                    context,
+                    project: project,
+                    description: description,
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    }).toList();
   }
 
   Widget _buildRunningBottomBar(
@@ -1088,7 +1474,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
 
             // Stop Button (matching uploaded image pastel rose button)
             InkWell(
-              onTap: () => ref.read(stopwatchProvider.notifier).stop(),
+              onTap: () => _stopCurrentSession(context),
               borderRadius: BorderRadius.circular(24),
               child: Container(
                 width: 48,
