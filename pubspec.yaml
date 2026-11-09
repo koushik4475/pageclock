@@ -20,6 +20,7 @@ dependencies:
   uuid: ^4.5.1
   csv: ^6.0.0
   share_plus: ^10.0.2
+  cross_file: ^0.3.4+2
   pdf: ^3.11.1
   printing: ^5.13.2
   # printing pulls image transitively; 4.11.1 fixes its archive API requirement.
