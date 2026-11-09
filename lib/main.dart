@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/models/reading_session.dart';
+import 'core/navigation/main_tab_navigation.dart';
 import 'core/engine/stopwatch_engine.dart';
 import 'core/services/notification_service.dart';
 import 'core/repository/session_repository.dart';
@@ -20,9 +21,6 @@ import 'features/settings/toggl_settings_screen.dart';
 import 'features/timer/toggl_timer_screen.dart';
 
 export 'core/theme/app_colors.dart';
-
-// State Providers for navigation & reactive UI
-final mainTabNavigationIndexProvider = StateProvider<int>((ref) => 0);
 
 final sessionsStreamProvider = StreamProvider<List<ReadingSession>>((ref) {
   final repo = ref.watch(sessionRepositoryProvider);
