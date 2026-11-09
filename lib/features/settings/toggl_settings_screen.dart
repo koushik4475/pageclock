@@ -1,15 +1,19 @@
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/engine/stopwatch_engine.dart';
 import '../../core/models/reading_session.dart';
+import '../../core/services/notification_service.dart';
 import '../../core/repository/session_repository.dart';
 import '../../core/services/export_service.dart';
 import '../../core/services/pdf_service.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/theme/theme_provider.dart';
+import '../app_update/app_update_service.dart';
+import '../app_update/update_dialog.dart';
 
 /// Full Production Settings Screen matching Toggl Track UI
 /// References:
@@ -25,6 +29,8 @@ class TogglSettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
+  bool _checkingForUpdates = false;
+  String? _updateStatus;
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -279,6 +285,84 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
             ),
             const SizedBox(height: 24),
 
+            // APP UPDATES
+            _buildSectionHeader('APP UPDATES', isDark),
+            _buildCard(
+              isDark,
+              [
+                _buildTile(
+                  title: 'Check for updates',
+                  subtitle: _checkingForUpdates
+                      ? 'Checking GitHub Releases...'
+                      : (_updateStatus ?? 'Installed version • Check for the latest release'),
+                  isDark: isDark,
+                  onTap: _checkingForUpdates ? () {} : () => _checkForUpdates(context),
+                ),
+                if (_checkingForUpdates)
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 0, 16, 14),
+                    child: LinearProgressIndicator(minHeight: 2),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // NOTIFICATIONS
+            _buildSectionHeader('NOTIFICATIONS', isDark),
+            _buildCard(
+              isDark,
+              [
+                _buildSwitchTile(
+                  title: 'Allow notifications',
+                  subtitle: 'Enable PageClock alerts on this device',
+                  value: settings.notificationsEnabled,
+                  onChanged: _setNotificationsEnabled,
+                  isDark: isDark,
+                ),
+                _buildDivider(isDark),
+                _buildSwitchTile(
+                  title: 'Running timer notification',
+                  subtitle: 'Keep an ongoing timer notification while PageClock is in the background',
+                  value: settings.runningTimerNotification,
+                  onChanged: _setRunningTimerNotification,
+                  isDark: isDark,
+                ),
+                _buildDivider(isDark),
+                _buildSwitchTile(
+                  title: 'Pomodoro completion alerts',
+                  subtitle: 'Notify when focus or break intervals finish',
+                  value: settings.pomodoroNotificationsEnabled,
+                  onChanged: (value) => ref.read(settingsProvider.notifier).update(
+                    (s) => s.copyWith(pomodoroNotificationsEnabled: value),
+                  ),
+                  isDark: isDark,
+                ),
+                _buildDivider(isDark),
+                _buildSwitchTile(
+                  title: 'Daily focus reminder',
+                  subtitle: settings.smartDailyReminder
+                      ? 'Every day at ${TimeOfDay(hour: settings.dailyReminderHour, minute: settings.dailyReminderMinute).format(context)}'
+                      : 'Off • Choose a time for a daily reminder',
+                  value: settings.smartDailyReminder,
+                  onChanged: _setDailyReminder,
+                  isDark: isDark,
+                ),
+                if (settings.smartDailyReminder) ...[
+                  _buildDivider(isDark),
+                  _buildTile(
+                    title: 'Reminder time',
+                    subtitle: TimeOfDay(
+                      hour: settings.dailyReminderHour,
+                      minute: settings.dailyReminderMinute,
+                    ).format(context),
+                    isDark: isDark,
+                    onTap: () => _chooseDailyReminderTime(context, settings),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 24),
+
             // DATA & BACKUP Section
             _buildSectionHeader('DATA & BACKUP', isDark),
             _buildCard(
@@ -529,6 +613,142 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
         ),
       ],
     );
+  }
+
+  Future<void> _checkForUpdates(BuildContext context) async {
+    setState(() {
+      _checkingForUpdates = true;
+      _updateStatus = null;
+    });
+    try {
+      final result = await AppUpdateService().checkForUpdate(force: true);
+      if (!mounted) return;
+      if (result.hasUpdate && result.releaseInfo != null) {
+        setState(() => _updateStatus = 'Update available • ${result.latestVersion}');
+        await UpdateDialog.show(context, result.releaseInfo!);
+      } else {
+        final message = result.errorMessage ??
+            'You are up to date • ${result.currentVersion}';
+        setState(() => _updateStatus = message);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _updateStatus = 'Could not check for updates');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Update check failed: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _checkingForUpdates = false);
+    }
+  }
+
+  Future<bool> _ensureNotificationPermission() async {
+    if (kIsWeb) return false;
+    await NotificationService.initialize();
+    return NotificationService.requestPermission();
+  }
+
+  Future<void> _setNotificationsEnabled(bool enabled) async {
+    if (enabled) {
+      final allowed = await _ensureNotificationPermission();
+      if (!mounted) return;
+      if (!allowed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notification permission was not granted. Enable it in Android Settings to use PageClock notifications.'),
+          ),
+        );
+        return;
+      }
+      await ref.read(settingsProvider.notifier).update(
+        (s) => s.copyWith(
+          notificationsEnabled: true,
+          runningTimerNotification: true,
+        ),
+      );
+      await NotificationService.syncTimer(
+        ref.read(stopwatchProvider),
+        ref.read(settingsProvider),
+      );
+      await NotificationService.scheduleDailyReminder(ref.read(settingsProvider));
+    } else {
+      await ref.read(settingsProvider.notifier).update(
+        (s) => s.copyWith(notificationsEnabled: false),
+      );
+      await NotificationService.disableNotifications();
+    }
+  }
+
+  Future<void> _setRunningTimerNotification(bool enabled) async {
+    if (enabled && !ref.read(settingsProvider).notificationsEnabled) {
+      final allowed = await _ensureNotificationPermission();
+      if (!mounted) return;
+      if (!allowed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Allow notifications first to show the running timer.')),
+        );
+        return;
+      }
+      await ref.read(settingsProvider.notifier).update(
+        (s) => s.copyWith(
+          notificationsEnabled: true,
+          runningTimerNotification: true,
+        ),
+      );
+    } else {
+      await ref.read(settingsProvider.notifier).update(
+        (s) => s.copyWith(runningTimerNotification: enabled),
+      );
+    }
+    await NotificationService.syncTimer(
+      ref.read(stopwatchProvider),
+      ref.read(settingsProvider),
+    );
+  }
+
+  Future<void> _setDailyReminder(bool enabled) async {
+    if (enabled && !ref.read(settingsProvider).notificationsEnabled) {
+      final allowed = await _ensureNotificationPermission();
+      if (!mounted) return;
+      if (!allowed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Allow notifications first to enable reminders.')),
+        );
+        return;
+      }
+      await ref.read(settingsProvider.notifier).update(
+        (s) => s.copyWith(notificationsEnabled: true),
+      );
+    }
+    await ref.read(settingsProvider.notifier).update(
+      (s) => s.copyWith(smartDailyReminder: enabled),
+    );
+    await NotificationService.scheduleDailyReminder(ref.read(settingsProvider));
+  }
+
+  Future<void> _chooseDailyReminderTime(
+    BuildContext context,
+    AppSettings settings,
+  ) async {
+    final selected = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: settings.dailyReminderHour,
+        minute: settings.dailyReminderMinute,
+      ),
+    );
+    if (selected == null) return;
+    await ref.read(settingsProvider.notifier).update(
+      (s) => s.copyWith(
+        dailyReminderHour: selected.hour,
+        dailyReminderMinute: selected.minute,
+      ),
+    );
+    await NotificationService.scheduleDailyReminder(ref.read(settingsProvider));
   }
 
   // --- Dialogs & Pickers ---

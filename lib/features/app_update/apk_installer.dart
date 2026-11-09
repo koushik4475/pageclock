@@ -21,7 +21,7 @@ class ApkInstaller {
         if (!requestStatus.isGranted) {
           return OpenResult(
             type: ResultType.permissionDenied,
-            message: 'Permission to install unknown packages was denied.',
+            message: 'Android blocked APK installation. Open Settings → Apps → Special app access → Install unknown apps → PageClock, allow it, then retry.',
           );
         }
       }
@@ -32,7 +32,18 @@ class ApkInstaller {
         type: 'application/vnd.android.package-archive',
       );
 
-      return result;
+      if (result.type == ResultType.done) {
+        return OpenResult(
+          type: ResultType.done,
+          message: 'Android installer opened. Confirm Install in the system prompt; reopen PageClock afterwards to verify the installed version.',
+        );
+      }
+      return OpenResult(
+        type: result.type,
+        message: result.message.isNotEmpty
+            ? result.message
+            : 'Could not open Android Package Installer. Check Install unknown apps permission and try again.',
+      );
     } catch (e) {
       return OpenResult(
         type: ResultType.error,

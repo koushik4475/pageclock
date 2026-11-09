@@ -30,6 +30,9 @@ dependencies:
   shared_preferences: ^2.3.2
   file_picker: ^8.1.4
   wakelock_plus: ^1.2.8
+  flutter_local_notifications: ^19.5.0
+  timezone: ^0.10.1
+  flutter_timezone: ^5.1.1
 
 dev_dependencies:
   flutter_test:
