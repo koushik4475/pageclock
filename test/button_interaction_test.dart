@@ -193,15 +193,15 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify bottom sheet has special1
-      expect(find.text('Choose Theme'), findsOneWidget);
-      expect(find.text('special1'), findsOneWidget);
+      expect(find.text('Make PageClock yours'), findsOneWidget);
+      expect(find.text('Pastel Waves'), findsOneWidget);
 
       // Tap on special1
-      await tester.tap(find.text('special1'));
+      await tester.tap(find.text('Pastel Waves'));
       await tester.pumpAndSettle();
 
       // Verify bottom sheet dismissed
-      expect(find.text('Choose Theme'), findsNothing);
+      expect(find.text('Make PageClock yours'), findsNothing);
     });
   });
 }
