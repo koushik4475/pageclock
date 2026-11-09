@@ -124,56 +124,7 @@ class AppUpdateService {
         } catch (_) {}
       }
 
-      if (sha256 == null ||
-          sha256.trim().length != 64 ||
-          !RegExp(r'^[A-Fa-f0-9]+        tagName: release.tagName,
-        versionName: release.versionName,
-        buildNumber: release.buildNumber,
-        releaseNotes: release.releaseNotes,
-        apkDownloadUrl: release.apkDownloadUrl,
-        sha256DownloadUrl: release.sha256DownloadUrl,
-        expectedSha256: sha256,
-        apkSize: release.apkSize,
-        publishedAt: release.publishedAt,
-      );
-
-      final isNewer = VersionComparator.isNewer(
-        enrichedRelease.versionName,
-        currentVersion,
-        remoteBuild: enrichedRelease.buildNumber,
-        currentBuild: currentBuild,
-      );
-
-      final result = UpdateCheckResult(
-        hasUpdate: isNewer && enrichedRelease.apkDownloadUrl.isNotEmpty,
-        currentVersion: '$currentVersion+$currentBuild',
-        latestVersion: enrichedRelease.tagName,
-        releaseInfo: enrichedRelease,
-      );
-
-      _cache(result);
-      return result;
-    } catch (e) {
-      return UpdateCheckResult(
-        hasUpdate: false,
-        currentVersion: currentVersion,
-        latestVersion: currentVersion,
-        errorMessage: 'Network error while checking updates: $e',
-      );
-    }
-  }
-
-  static void _cache(UpdateCheckResult result) {
-    _cachedResult = result;
-    _lastCheckTime = DateTime.now();
-  }
-
-  static void clearCache() {
-    _cachedResult = null;
-    _lastCheckTime = null;
-  }
-}
-).hasMatch(sha256.trim())) {
+      if (!_isValidSha256(sha256)) {
         return UpdateCheckResult(
           hasUpdate: false,
           currentVersion: currentVersion + '+' + currentBuild.toString(),
@@ -228,4 +179,13 @@ class AppUpdateService {
     _cachedResult = null;
     _lastCheckTime = null;
   }
+}
+bool _isValidSha256(String? value) {
+  if (value == null) return false;
+  final normalized = value.trim();
+  if (normalized.length != 64) return false;
+  return normalized.codeUnits.every((unit) =>
+      (unit >= 48 && unit <= 57) ||
+      (unit >= 65 && unit <= 70) ||
+      (unit >= 97 && unit <= 102));
 }
