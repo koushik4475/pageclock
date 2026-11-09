@@ -49,7 +49,8 @@ class ApkDownloader {
     if (currentUri.scheme != 'https') {
       throw HttpException('APK downloads must use HTTPS.');
     }
-    http.StreamedResponse response;    int redirects = 0;
+    http.StreamedResponse response;
+    int redirects = 0;
 
     while (true) {
       final request = http.Request('GET', currentUri);
