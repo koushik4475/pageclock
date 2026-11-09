@@ -30,10 +30,11 @@ android {
 
     defaultConfig {
         applicationId "com.example.pageclock"
-        minSdkVersion flutter.minSdkVersion
+        minSdkVersion 21
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutter.versionCode
         versionName flutter.versionName
+        multiDexEnabled true
     }
 
     signingConfigs {
