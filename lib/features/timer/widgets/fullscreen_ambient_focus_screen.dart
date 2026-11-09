@@ -605,7 +605,7 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
             child: Container(
               width: 3,
               height: 6,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: plateBorder,
                 borderRadius: BorderRadius.horizontal(right: Radius.circular(2)),
               ),
@@ -617,8 +617,8 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
             child: Container(
               width: 3,
               height: 6,
-              decoration: const BoxDecoration(
-                color: Color(0xFF09090B),
+              decoration: BoxDecoration(
+                color: plateBorder,
                 borderRadius: BorderRadius.horizontal(left: Radius.circular(2)),
               ),
             ),
