@@ -105,15 +105,13 @@ class ApkDownloader {
       final digest = await sha256.bind(targetFile.openRead()).first;
       final actualSha256 = digest.toString().toLowerCase();
 
-      // Verify SHA-256 if expected hash is provided
-      if (expectedSha256 != null && expectedSha256.trim().isNotEmpty) {
-        final expected = expectedSha256.trim().toLowerCase();
-        if (actualSha256 != expected) {
-          if (await targetFile.exists()) {
-            await targetFile.delete();
-          }
-          throw ChecksumMismatchException(expected: expected, actual: actualSha256);
+      // The expected checksum is mandatory and validated before download.
+      final expected = expectedSha256!.trim().toLowerCase();
+      if (actualSha256 != expected) {
+        if (await targetFile.exists()) {
+          await targetFile.delete();
         }
+        throw ChecksumMismatchException(expected: expected, actual: actualSha256);
       }
 
       return targetFile;

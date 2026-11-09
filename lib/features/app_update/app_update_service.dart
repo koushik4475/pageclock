@@ -109,25 +109,22 @@ class AppUpdateService {
 
       final release = AppReleaseInfo.fromJson(data);
 
-      // A release is installable only when its checksum is available.
+      // Fetch external SHA-256 asset if available and not in body
       String? sha256 = release.expectedSha256;
       if (sha256 == null && release.sha256DownloadUrl != null) {
         try {
-          final shaRes = await _client
-              .get(Uri.parse(release.sha256DownloadUrl!))
+          final shaRes = await _client.get(Uri.parse(release.sha256DownloadUrl!))
               .timeout(const Duration(seconds: 5));
           if (shaRes.statusCode == 200) {
             final match = RegExp(r'[A-Fa-f0-9]{64}').firstMatch(shaRes.body);
-            if (match != null) sha256 = match.group(0);
+            if (match != null) {
+              sha256 = match.group(0);
+            }
           }
-        } catch (e) {
-          debugPrint('[AppUpdateService] Checksum fetch failed: $e');
-        }
+        } catch (_) {}
       }
 
-      if (sha256 == null || !RegExp(r'^[A-Fa-f0-9]{64}
-      final enrichedRelease = AppReleaseInfo(
-        tagName: release.tagName,
+      if (sha256 == null || !RegExp(r'^[A-Fa-f0-9]{64}\        tagName: release.tagName,
         versionName: release.versionName,
         buildNumber: release.buildNumber,
         releaseNotes: release.releaseNotes,
@@ -179,11 +176,9 @@ class AppUpdateService {
           hasUpdate: false,
           currentVersion: '$currentVersion+$currentBuild',
           latestVersion: release.tagName,
-          errorMessage:
-              'Update blocked: a valid SHA-256 checksum could not be verified.',
+          errorMessage: 'Update blocked: a valid SHA-256 checksum is unavailable.',
         );
       }
-
       final enrichedRelease = AppReleaseInfo(
         tagName: release.tagName,
         versionName: release.versionName,

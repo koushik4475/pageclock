@@ -1110,7 +1110,6 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
   }
 
   Future<void> _showResetAppConfirmation(BuildContext context) async {
-    final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
     if (!mounted) return;
 
     final controller = TextEditingController();
