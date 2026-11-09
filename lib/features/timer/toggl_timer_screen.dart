@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -40,6 +41,13 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   int _selectedMode = 0; // 0: List view, 1: Pomodoro
   late TextEditingController _taskController;
   bool _soundEnabled = true;
+  bool _isPomodoroBreak = false;
+  bool _isLongBreak = false;
+  bool _pomodoroBreakRunning = false;
+  int _pomodoroCompletedFocusSessions = 0;
+  int _pomodoroBreakDurationMs = 0;
+  int _pomodoroBreakRemainingMs = 0;
+  Timer? _pomodoroBreakTicker;
 
   final List<String> _availableProjects = const [
     'General Focus',
@@ -64,6 +72,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
 
   @override
   void dispose() {
+    _pomodoroBreakTicker?.cancel();
     _taskController.dispose();
     super.dispose();
   }
@@ -415,6 +424,93 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     return true;
   }
 
+
+  Future<void> _completePomodoroFocus(BuildContext context) async {
+    final settings = ref.read(settingsProvider);
+    final focusTargetMs = settings.pomodoroFocusMinutes * 60000;
+    final current = ref.read(stopwatchProvider);
+    if (current.elapsedMs < focusTargetMs ||
+        current.status != StopwatchStatus.running ||
+        _isPomodoroBreak) {
+      return;
+    }
+
+    await ref.read(stopwatchProvider.notifier).stop(
+          minSessionDurationMs: 0,
+          forceSave: true,
+        );
+    if (!mounted) return;
+
+    _pomodoroCompletedFocusSessions++;
+    final longBreakDue = settings.pomodoroLongBreakInterval > 0 &&
+        _pomodoroCompletedFocusSessions %
+                settings.pomodoroLongBreakInterval ==
+            0;
+    final breakMinutes = longBreakDue
+        ? settings.pomodoroLongBreakMinutes
+        : settings.pomodoroShortBreakMinutes;
+
+    setState(() {
+      _isPomodoroBreak = true;
+      _isLongBreak = longBreakDue;
+      _pomodoroBreakDurationMs = breakMinutes * 60000;
+      _pomodoroBreakRemainingMs = _pomodoroBreakDurationMs;
+      _pomodoroBreakRunning = false;
+    });
+
+    if (settings.pomodoroSoundEnabled) {
+      SystemSound.play(SystemSoundType.alert);
+    }
+    if (settings.pomodoroAutoStart) {
+      _startPomodoroBreak(context);
+    }
+  }
+
+  void _startPomodoroBreak(BuildContext context) {
+    if (!_isPomodoroBreak || _pomodoroBreakDurationMs <= 0) return;
+    _pomodoroBreakTicker?.cancel();
+    setState(() => _pomodoroBreakRunning = true);
+    _pomodoroBreakTicker = Timer.periodic(
+      const Duration(seconds: 1),
+      (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+        final nextRemaining = _pomodoroBreakRemainingMs - 1000;
+        if (nextRemaining <= 0) {
+          timer.cancel();
+          _completePomodoroBreak(context);
+        } else {
+          setState(() => _pomodoroBreakRemainingMs = nextRemaining);
+        }
+      },
+    );
+  }
+
+  void _pausePomodoroBreak() {
+    _pomodoroBreakTicker?.cancel();
+    setState(() => _pomodoroBreakRunning = false);
+  }
+
+  void _completePomodoroBreak(BuildContext context) {
+    final autoStart = ref.read(settingsProvider).pomodoroAutoStart;
+    setState(() {
+      _isPomodoroBreak = false;
+      _isLongBreak = false;
+      _pomodoroBreakRunning = false;
+      _pomodoroBreakDurationMs = 0;
+      _pomodoroBreakRemainingMs = 0;
+    });
+    if (autoStart) {
+      _startNewSession(
+        context,
+        project: ref.read(focusSelectedProjectProvider),
+        description: _taskController.text,
+      );
+    }
+  }
+
   void _togglePomodoroSound() {
     final enabled = !ref.read(settingsProvider).pomodoroSoundEnabled;
     ref.read(settingsProvider.notifier).update(
@@ -448,6 +544,15 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
         todayCompletedMs + (activeSessionIsToday ? stopwatchState.elapsedMs : 0);
     final taskDescription = ref.watch(focusTaskDescriptionProvider);
     final selectedProject = ref.watch(focusSelectedProjectProvider);
+    ref.listen<StopwatchState>(stopwatchProvider, (previous, next) {
+      if (_selectedMode != 1 || _isPomodoroBreak || previous == null) return;
+      final focusTargetMs = ref.read(settingsProvider).pomodoroFocusMinutes * 60000;
+      if (previous.elapsedMs < focusTargetMs &&
+          next.elapsedMs >= focusTargetMs &&
+          next.status == StopwatchStatus.running) {
+        _completePomodoroFocus(context);
+      }
+    });
     final appThemeId = ref.watch(appThemeIdProvider);
     final isSpecial1 = appThemeId == AppThemeId.special1;
 
@@ -670,8 +775,17 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     int focusMinutes,
   ) {
     final targetMs = focusMinutes * 60 * 1000;
-    final remainingMs = (targetMs - stopwatchState.elapsedMs).clamp(0, targetMs);
-    final progress = (stopwatchState.elapsedMs / targetMs).clamp(0.0, 1.0);
+    final remainingMs = _isPomodoroBreak
+        ? _pomodoroBreakRemainingMs
+        : (targetMs - stopwatchState.elapsedMs).clamp(0, targetMs);
+    final progress = _isPomodoroBreak
+        ? (_pomodoroBreakDurationMs == 0
+            ? 0.0
+            : (1 -
+                    _pomodoroBreakRemainingMs /
+                        _pomodoroBreakDurationMs)
+                .clamp(0.0, 1.0))
+        : (stopwatchState.elapsedMs / targetMs).clamp(0.0, 1.0);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -746,7 +860,13 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           // Circular Ring Progress Timer (Tap to toggle play/pause)
           GestureDetector(
             onTap: () {
-              if (stopwatchState.status == StopwatchStatus.running) {
+              if (_isPomodoroBreak) {
+                if (_pomodoroBreakRunning) {
+                  _pausePomodoroBreak();
+                } else {
+                  _startPomodoroBreak(context);
+                }
+              } else if (stopwatchState.status == StopwatchStatus.running) {
                 ref.read(stopwatchProvider.notifier).pause();
               } else if (stopwatchState.status == StopwatchStatus.paused) {
                 ref.read(stopwatchProvider.notifier).resume();
@@ -779,9 +899,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      isSpecial1
-                          ? 'Focus'
-                          : 'FOCUS INTERVAL',
+                      _isPomodoroBreak
+                          ? (_isLongBreak ? 'LONG BREAK' : 'SHORT BREAK')
+                          : (isSpecial1 ? 'Focus' : 'FOCUS INTERVAL'),
                       style: TextStyle(
                         fontSize: isSpecial1 ? 16 : 11,
                         fontWeight: FontWeight.w700,
@@ -806,13 +926,17 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      isSpecial1
-                          ? (stopwatchState.status == StopwatchStatus.running
-                              ? 'Focusing...'
-                              : 'Ready?')
-                          : (stopwatchState.status == StopwatchStatus.running
-                              ? 'SESSION ACTIVE'
-                              : 'READY TO FOCUS'),
+                      _isPomodoroBreak
+                          ? (_pomodoroBreakRunning
+                              ? 'Break in progress'
+                              : 'Ready for a break?')
+                          : (isSpecial1
+                              ? (stopwatchState.status == StopwatchStatus.running
+                                  ? 'Focusing...'
+                                  : 'Ready?')
+                              : (stopwatchState.status == StopwatchStatus.running
+                                  ? 'SESSION ACTIVE'
+                                  : 'READY TO FOCUS')),
                       style: TextStyle(
                         fontSize: isSpecial1 ? 16 : 11,
                         fontWeight: FontWeight.w700,
@@ -877,7 +1001,13 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 elevation: isSpecial1 ? 0 : 4,
               ),
               onPressed: () {
-                if (stopwatchState.status == StopwatchStatus.running) {
+                if (_isPomodoroBreak) {
+                  if (_pomodoroBreakRunning) {
+                    _pausePomodoroBreak();
+                  } else {
+                    _startPomodoroBreak(context);
+                  }
+                } else if (stopwatchState.status == StopwatchStatus.running) {
                   ref.read(stopwatchProvider.notifier).pause();
                 } else if (stopwatchState.status == StopwatchStatus.paused) {
                   ref.read(stopwatchProvider.notifier).resume();
@@ -890,7 +1020,13 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 }
               },
               child: Text(
-                stopwatchState.status == StopwatchStatus.running ? 'Pause session' : 'Start session',
+                _isPomodoroBreak
+                    ? (_pomodoroBreakRunning ? 'Pause break' : 'Start break')
+                    : (stopwatchState.status == StopwatchStatus.running
+                        ? 'Pause session'
+                        : (stopwatchState.status == StopwatchStatus.paused
+                            ? 'Resume session'
+                            : 'Start session')),
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
