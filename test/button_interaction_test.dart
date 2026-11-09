@@ -129,7 +129,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('TODAY'), findsOneWidget);
-      expect(find.text('Deep Work & Focus'), findsOneWidget);
+      expect(find.text('No reading sessions today'), findsOneWidget);
     });
 
     testWidgets('Theme Switcher: special1 activates Pastel Waves & Cream palette', (tester) async {
