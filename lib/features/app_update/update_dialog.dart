@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'apk_downloader.dart';
 import 'apk_installer.dart';
@@ -25,6 +26,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
   double _progress = 0.0;
   String _statusText = '';
   String? _errorMessage;
+  String? _infoMessage;
+  File? _verifiedApkFile;
   CancellationToken? _cancelToken;
 
   void _startDownload() async {
@@ -33,6 +36,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
       _progress = 0.0;
       _statusText = 'Starting download...';
       _errorMessage = null;
+      _infoMessage = null;
+      _verifiedApkFile = null;
       _cancelToken = CancellationToken();
     });
 
@@ -58,28 +63,16 @@ class _UpdateDialogState extends State<UpdateDialog> {
       if (!mounted) return;
 
       setState(() {
-        _statusText = 'Verifying and launching installer...';
+        _isDownloading = false;
+        _verifiedApkFile = file;
+        _statusText = 'SHA-256 verification successful.';
       });
-
-      final installResult = await ApkInstaller.installApk(file);
-      if (mounted) {
-        if (installResult.type.toString().contains('done')) {
-          Navigator.of(context).pop();
-        } else {
-          setState(() {
-            _isDownloading = false;
-            _statusText = '';
-            _errorMessage = installResult.message.isNotEmpty
-                ? installResult.message
-                : 'Android installer opened. Confirm the installation on your phone, then reopen PageClock.';
-          });
-        }
-      }
+      await _shareVerifiedApk();
     } on ChecksumMismatchException {
       if (mounted) {
         setState(() {
           _isDownloading = false;
-          _errorMessage = 'Security Warning: SHA-256 Checksum Mismatch!\nThe downloaded APK file may be corrupted or tampered.';
+          _errorMessage = 'Security Warning: SHA-256 Checksum Mismatch!\nThe downloaded APK was deleted and will not be shared or installed.';
         });
       }
     } catch (e) {
@@ -90,6 +83,21 @@ class _UpdateDialogState extends State<UpdateDialog> {
         });
       }
     }
+  }
+
+  Future<void> _shareVerifiedApk() async {
+    final file = _verifiedApkFile;
+    if (file == null) return;
+    setState(() {
+      _errorMessage = null;
+      _infoMessage = 'Opening Android share sheet...';
+    });
+    final result = await ApkInstaller.shareVerifiedApk(file);
+    if (!mounted) return;
+    setState(() {
+      _infoMessage = result.opened ? result.message : null;
+      _errorMessage = result.opened ? null : result.message;
+    });
   }
 
   @override
@@ -216,6 +224,30 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 ),
               ),
             ],
+            if (_infoMessage != null) ...[
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.verified_user_outlined, color: Color(0xFF34D399), size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _infoMessage!,
+                        style: const TextStyle(color: Color(0xFF6EE7B7), fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             if (_errorMessage != null) ...[
               const SizedBox(height: 14),
               Container(
@@ -254,7 +286,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                   ),
                   const SizedBox(width: 8),
                   FilledButton(
-                    onPressed: _startDownload,
+                    onPressed: _verifiedApkFile == null ? _startDownload : _shareVerifiedApk,
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFF10B981),
                       foregroundColor: Colors.black,
@@ -262,7 +294,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     child: const Text(
-                      'Update Now',
+                      _verifiedApkFile == null ? 'Download Update' : 'Share Verified APK',
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
