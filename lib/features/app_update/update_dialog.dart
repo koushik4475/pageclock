@@ -71,7 +71,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
             _statusText = '';
             _errorMessage = installResult.message.isNotEmpty
                 ? installResult.message
-                : 'Installer prompt completed.';
+                : 'Android installer opened. Confirm the installation on your phone, then reopen PageClock.';
           });
         }
       }
@@ -86,7 +86,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
       if (mounted) {
         setState(() {
           _isDownloading = false;
-          _errorMessage = 'Download error: $e';
+          _errorMessage = 'Update could not be installed: $e';
         });
       }
     }

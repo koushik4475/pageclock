@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/models/reading_session.dart';
+import 'core/engine/stopwatch_engine.dart';
+import 'core/services/notification_service.dart';
 import 'core/repository/session_repository.dart';
 import 'core/settings/app_settings.dart';
 import 'core/theme/app_colors.dart';
@@ -30,6 +32,7 @@ final sessionsStreamProvider = StreamProvider<List<ReadingSession>>((ref) {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
+  await NotificationService.initialize();
 
   runApp(
     ProviderScope(
@@ -270,9 +273,28 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
   @override
   void initState() {
     super.initState();
+    NotificationService.setTimerActionHandler(_handleTimerNotificationAction);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkAutoUpdate();
+      final settings = ref.read(settingsProvider);
+      NotificationService.syncTimer(ref.read(stopwatchProvider), settings);
+      NotificationService.scheduleDailyReminder(settings);
     });
+  }
+
+  Future<void> _handleTimerNotificationAction(String action) async {
+    final stopwatch = ref.read(stopwatchProvider.notifier);
+    switch (action) {
+      case 'pause':
+        await stopwatch.pause();
+        break;
+      case 'resume':
+        await stopwatch.resume();
+        break;
+      case 'stop':
+        await stopwatch.stop(minSessionDurationMs: 0, forceSave: true);
+        break;
+    }
   }
 
   void _checkAutoUpdate() async {

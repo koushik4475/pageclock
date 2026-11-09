@@ -17,6 +17,10 @@ class AppSettings {
   final bool enableHaptics;
   final bool smartDailyReminder;
   final bool runningTimerNotification;
+  final bool notificationsEnabled;
+  final bool pomodoroNotificationsEnabled;
+  final int dailyReminderHour;
+  final int dailyReminderMinute;
   final int pomodoroFocusMinutes;
   final int pomodoroShortBreakMinutes;
   final int pomodoroLongBreakMinutes;
@@ -43,6 +47,10 @@ class AppSettings {
     this.enableHaptics = true,
     this.smartDailyReminder = false,
     this.runningTimerNotification = false,
+    this.notificationsEnabled = false,
+    this.pomodoroNotificationsEnabled = true,
+    this.dailyReminderHour = 20,
+    this.dailyReminderMinute = 0,
     this.pomodoroFocusMinutes = 25,
     this.pomodoroShortBreakMinutes = 5,
     this.pomodoroLongBreakMinutes = 15,
@@ -70,6 +78,10 @@ class AppSettings {
     bool? enableHaptics,
     bool? smartDailyReminder,
     bool? runningTimerNotification,
+    bool? notificationsEnabled,
+    bool? pomodoroNotificationsEnabled,
+    int? dailyReminderHour,
+    int? dailyReminderMinute,
     int? pomodoroFocusMinutes,
     int? pomodoroShortBreakMinutes,
     int? pomodoroLongBreakMinutes,
@@ -96,6 +108,10 @@ class AppSettings {
       enableHaptics: enableHaptics ?? this.enableHaptics,
       smartDailyReminder: smartDailyReminder ?? this.smartDailyReminder,
       runningTimerNotification: runningTimerNotification ?? this.runningTimerNotification,
+      notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
+      pomodoroNotificationsEnabled: pomodoroNotificationsEnabled ?? this.pomodoroNotificationsEnabled,
+      dailyReminderHour: dailyReminderHour ?? this.dailyReminderHour,
+      dailyReminderMinute: dailyReminderMinute ?? this.dailyReminderMinute,
       pomodoroFocusMinutes: pomodoroFocusMinutes ?? this.pomodoroFocusMinutes,
       pomodoroShortBreakMinutes: pomodoroShortBreakMinutes ?? this.pomodoroShortBreakMinutes,
       pomodoroLongBreakMinutes: pomodoroLongBreakMinutes ?? this.pomodoroLongBreakMinutes,
@@ -125,6 +141,10 @@ class AppSettings {
       'enableHaptics': enableHaptics,
       'smartDailyReminder': smartDailyReminder,
       'runningTimerNotification': runningTimerNotification,
+      'notificationsEnabled': notificationsEnabled,
+      'pomodoroNotificationsEnabled': pomodoroNotificationsEnabled,
+      'dailyReminderHour': dailyReminderHour,
+      'dailyReminderMinute': dailyReminderMinute,
       'pomodoroFocusMinutes': pomodoroFocusMinutes,
       'pomodoroShortBreakMinutes': pomodoroShortBreakMinutes,
       'pomodoroLongBreakMinutes': pomodoroLongBreakMinutes,
@@ -154,6 +174,10 @@ class AppSettings {
       enableHaptics: json['enableHaptics'] as bool? ?? true,
       smartDailyReminder: json['smartDailyReminder'] as bool? ?? false,
       runningTimerNotification: json['runningTimerNotification'] as bool? ?? false,
+      notificationsEnabled: json['notificationsEnabled'] as bool? ?? false,
+      pomodoroNotificationsEnabled: json['pomodoroNotificationsEnabled'] as bool? ?? true,
+      dailyReminderHour: (json['dailyReminderHour'] as num?)?.toInt() ?? 20,
+      dailyReminderMinute: (json['dailyReminderMinute'] as num?)?.toInt() ?? 0,
       pomodoroFocusMinutes: (json['pomodoroFocusMinutes'] as num?)?.toInt() ?? 25,
       pomodoroShortBreakMinutes: (json['pomodoroShortBreakMinutes'] as num?)?.toInt() ?? 5,
       pomodoroLongBreakMinutes: (json['pomodoroLongBreakMinutes'] as num?)?.toInt() ?? 15,

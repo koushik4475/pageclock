@@ -8,6 +8,7 @@ import '../../core/format/formatters.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/repository/session_repository.dart';
 import '../../core/settings/app_settings.dart';
+import '../../core/services/notification_service.dart';
 import '../../core/theme/theme_provider.dart';
 import '../../main.dart';
 import '../settings/toggl_settings_screen.dart';
@@ -471,6 +472,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       _pomodoroBreakRunning = false;
     });
 
+    unawaited(NotificationService.showPomodoroComplete(
+      settings,
+      title: 'Focus session complete',
+      body: 'Time for a ${longBreakDue ? 'long' : 'short'} break.',
+    ));
     if (settings.pomodoroSoundEnabled) {
       SystemSound.play(SystemSoundType.alert);
     }
@@ -509,6 +515,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   void _completePomodoroBreak(BuildContext context) {
     final settings = ref.read(settingsProvider);
     final autoStart = settings.pomodoroAutoStart;
+    unawaited(NotificationService.showPomodoroComplete(
+      settings,
+      title: 'Break complete',
+      body: 'Ready for another focus session?',
+    ));
     if (settings.pomodoroSoundEnabled) {
       SystemSound.play(SystemSoundType.alert);
     }
@@ -568,12 +579,28 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     final taskDescription = ref.watch(focusTaskDescriptionProvider);
     final selectedProject = ref.watch(focusSelectedProjectProvider);
     ref.listen<StopwatchState>(stopwatchProvider, (previous, next) {
+      unawaited(
+        NotificationService.syncTimer(next, ref.read(settingsProvider)),
+      );
       if (_selectedMode != 1 || _isPomodoroBreak || previous == null) return;
       final focusTargetMs = ref.read(settingsProvider).pomodoroFocusMinutes * 60000;
       if (previous.elapsedMs < focusTargetMs &&
           next.elapsedMs >= focusTargetMs &&
           next.status == StopwatchStatus.running) {
         _completePomodoroFocus(context);
+      }
+    });
+    ref.listen<AppSettings>(settingsProvider, (previous, next) {
+      unawaited(
+        NotificationService.syncTimer(ref.read(stopwatchProvider), next),
+      );
+      final reminderChanged = previous == null ||
+          previous.notificationsEnabled != next.notificationsEnabled ||
+          previous.smartDailyReminder != next.smartDailyReminder ||
+          previous.dailyReminderHour != next.dailyReminderHour ||
+          previous.dailyReminderMinute != next.dailyReminderMinute;
+      if (reminderChanged) {
+        unawaited(NotificationService.scheduleDailyReminder(next));
       }
     });
     final appThemeId = ref.watch(appThemeIdProvider);
