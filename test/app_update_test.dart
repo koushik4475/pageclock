@@ -31,6 +31,36 @@ void main() {
   });
 
   group('AppReleaseInfo JSON Parsing', () {
+    test('Prefers GitHub APK asset digest when checksum sidecar exists', () {
+      final json = {
+        'tag_name': 'v1.0.0+56',
+        'body': 'Release notes.',
+        'published_at': '2026-11-09T07:31:53Z',
+        'assets': [
+          {
+            'name': 'PageClock-v1.0.0+56.apk',
+            'browser_download_url': 'https://example.com/PageClock-v1.0.0+56.apk',
+            'size': 28888075,
+            'digest': 'sha256:8fb9657455c7194e37c712e1941abe1af912cde06b64151ad73a5398e34d8745',
+          },
+          {
+            'name': 'PageClock-v1.0.0+56.apk.sha256',
+            'browser_download_url': 'https://example.com/PageClock-v1.0.0+56.apk.sha256',
+            'size': 90,
+          },
+        ],
+      };
+
+      final info = AppReleaseInfo.fromJson(json);
+
+      expect(info.versionName, '1.0.0');
+      expect(info.buildNumber, 56);
+      expect(info.expectedSha256,
+          '8fb9657455c7194e37c712e1941abe1af912cde06b64151ad73a5398e34d8745');
+      expect(info.sha256DownloadUrl,
+          'https://example.com/PageClock-v1.0.0+56.apk.sha256');
+    });
+
     test('Correctly extracts release tag, APK asset, and SHA-256', () {
       final json = {
         'tag_name': 'v1.2.0',
