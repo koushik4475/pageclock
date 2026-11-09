@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/format/formatters.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/settings/app_settings.dart';
-import '../../main.dart';
+import '../../core/navigation/main_tab_navigation.dart';
 
 /// 24-Hour Calendar Timeline Screen matching Toggl Track UI
 /// Features:
