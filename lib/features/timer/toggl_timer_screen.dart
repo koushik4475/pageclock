@@ -195,12 +195,21 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       onPressed: () async {
-                        final mins = int.tryParse(minsCtrl.text) ?? 30;
+                        final mins = int.tryParse(minsCtrl.text.trim());
+                        if (mins == null || mins <= 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Enter a duration greater than zero minutes.'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                          return;
+                        }
                         final desc = descCtrl.text.trim();
                         final now = DateTime.now();
                         final durationMs = mins * 60 * 1000;
                         final session = ReadingSession(
-                          id: DateTime.now().millisecondsSinceEpoch.toString(),
+                          id: now.microsecondsSinceEpoch.toString(),
                           startedAtUtc: now.subtract(Duration(milliseconds: durationMs)).millisecondsSinceEpoch,
                           endedAtUtc: now.millisecondsSinceEpoch,
                           durationMs: durationMs,
