@@ -55,6 +55,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
     final settings = ref.watch(settingsProvider);
     final filteredSessions =
         _filterSessions(widget.sessions, settings.weekStartDay);
@@ -93,9 +94,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     ];
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0F0B15) : const Color(0xFFF9FAFB),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: isDark ? const Color(0xFF0F0B15) : const Color(0xFFF9FAFB),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         title: Text(
           'Reports',
@@ -103,7 +104,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             fontSize: 24,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.5,
-            color: isDark ? Colors.white : const Color(0xFF111827),
+            color: colorScheme.onSurface,
           ),
         ),
         actions: [
@@ -188,11 +189,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _buildFilterPill('This week', isDark),
+                  _buildFilterPill('This week', isDark, colorScheme),
                   const SizedBox(width: 8),
-                  _buildFilterPill('This month', isDark),
+                  _buildFilterPill('This month', isDark, colorScheme),
                   const SizedBox(width: 8),
-                  _buildFilterPill('All time', isDark),
+                  _buildFilterPill('All time', isDark, colorScheme),
                 ],
               ),
             ),
@@ -226,11 +227,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                       ),
                       Text(
                         '${filteredSessions.length} SESSIONS',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.0,
-                          color: Color(0xFFE040FB),
+                          color: colorScheme.primary,
                         ),
                       ),
                     ],
@@ -483,7 +484,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
   }
 
-  Widget _buildFilterPill(String title, bool isDark) {
+  Widget _buildFilterPill(String title, bool isDark, ColorScheme colorScheme) {
     final isSelected = _selectedFilter == title;
     return InkWell(
       onTap: () => setState(() => _selectedFilter = title),
@@ -492,13 +493,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
           color: isSelected
-              ? (isDark ? const Color(0xFF3B1E4E) : const Color(0xFFFCE7F3))
-              : (isDark ? const Color(0xFF1A1426) : Colors.white),
+              ? colorScheme.primary.withOpacity(0.14)
+              : colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected
-                ? const Color(0xFFE040FB)
-                : (isDark ? const Color(0xFF2E2242) : const Color(0xFFE5E7EB)),
+                ? colorScheme.primary
+                : colorScheme.outline,
           ),
         ),
         child: Text(
@@ -507,8 +508,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
             color: isSelected
-                ? const Color(0xFFE040FB)
-                : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant,
           ),
         ),
       ),

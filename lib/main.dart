@@ -51,50 +51,14 @@ class PageClockApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
     final appThemeId = ref.watch(appThemeIdProvider);
-
-    ThemeData lightTheme;
-    if (appThemeId == AppThemeId.special1) {
-      lightTheme = ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.light,
-        scaffoldBackgroundColor: Special1Palette.background,
-        colorScheme: const ColorScheme.light(
-          primary: Special1Palette.accentRose,
-          surface: Special1Palette.cardBackground,
-          outline: Special1Palette.inputBorder,
-        ),
-        fontFamily: 'Inter',
-      );
-    } else {
-      lightTheme = ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.light,
-        scaffoldBackgroundColor: AppColors.bgLight,
-        colorScheme: const ColorScheme.light(
-          primary: AppColors.accentIndigo,
-          surface: AppColors.surfaceLight,
-          outline: AppColors.borderLight,
-        ),
-        fontFamily: 'Inter',
-      );
-    }
+    final selectedTheme = appThemeDataFor(appThemeId);
 
     return MaterialApp(
       title: 'PageClock',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
-      theme: lightTheme,
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: AppColors.bgDark,
-        colorScheme: const ColorScheme.dark(
-          primary: AppColors.accentIndigo,
-          surface: AppColors.surfaceDark,
-          outline: AppColors.borderDark,
-        ),
-        fontFamily: 'Inter',
-      ),
+      theme: selectedTheme,
+      darkTheme: selectedTheme,
       home: const SplashScreen(),
     );
   }
@@ -319,6 +283,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
     final sessions = sessionsAsync.value ?? [];
     final appThemeId = ref.watch(appThemeIdProvider);
     final isSpecial1 = appThemeId == AppThemeId.special1;
+    final colorScheme = Theme.of(context).colorScheme;
 
     final screens = [
       const TogglTimerScreen(),
@@ -329,22 +294,16 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
 
     if (isWide) {
       return Scaffold(
-        backgroundColor: isSpecial1
-            ? Special1Palette.background
-            : (isDark ? const Color(0xFF0F0B15) : AppColors.bgLight),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: Row(
           children: [
             Container(
               width: 230,
               decoration: BoxDecoration(
-                color: isSpecial1
-                    ? Special1Palette.background
-                    : (isDark ? const Color(0xFF140E20) : AppColors.surfaceLight),
+                color: colorScheme.surface,
                 border: Border(
                   right: BorderSide(
-                    color: isSpecial1
-                        ? Special1Palette.inputBorder
-                        : (isDark ? const Color(0xFF261A3D) : AppColors.borderLight),
+                    color: colorScheme.outline,
                     width: 1,
                   ),
                 ),
@@ -359,15 +318,15 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
                         width: 32,
                         height: 32,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFE040FB), Color(0xFF7C3AED)],
+                          gradient: LinearGradient(
+                            colors: [colorScheme.primary, colorScheme.tertiary],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFE040FB).withOpacity(0.35),
+                              color: colorScheme.primary.withOpacity(0.35),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -382,7 +341,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.5,
-                          color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                     ],
@@ -394,22 +353,22 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.2,
-                      color: isDark ? const Color(0xFFA1A1AA) : AppColors.textMutedLight,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _buildSidebarItem(0, 'Timer', Icons.schedule_rounded, isDark, currentIndex),
-                  _buildSidebarItem(1, 'Calendar', Icons.calendar_today_rounded, isDark, currentIndex),
-                  _buildSidebarItem(2, 'Reports', Icons.bar_chart_rounded, isDark, currentIndex),
-                  _buildSidebarItem(3, 'Settings', Icons.settings_outlined, isDark, currentIndex),
+                  _buildSidebarItem(0, 'Timer', Icons.schedule_rounded, isDark, currentIndex, colorScheme),
+                  _buildSidebarItem(1, 'Calendar', Icons.calendar_today_rounded, isDark, currentIndex, colorScheme),
+                  _buildSidebarItem(2, 'Reports', Icons.bar_chart_rounded, isDark, currentIndex, colorScheme),
+                  _buildSidebarItem(3, 'Settings', Icons.settings_outlined, isDark, currentIndex, colorScheme),
                   const Spacer(),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1D142E) : AppColors.bgLight,
+                      color: colorScheme.surface,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: isDark ? const Color(0xFF2E204A) : AppColors.borderLight,
+                        color: colorScheme.outline,
                         width: 1,
                       ),
                     ),
@@ -457,14 +416,10 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: isSpecial1
-              ? Special1Palette.background
-              : (isDark ? const Color(0xFF140E20) : AppColors.surfaceLight),
+          color: colorScheme.surface,
           border: Border(
             top: BorderSide(
-              color: isSpecial1
-                  ? const Color(0xFFF7EBE1)
-                  : (isDark ? const Color(0xFF241838) : AppColors.borderLight),
+              color: colorScheme.outline,
               width: 1,
             ),
           ),
@@ -475,12 +430,8 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           type: BottomNavigationBarType.fixed,
-          selectedItemColor: isSpecial1
-              ? Special1Palette.primaryText
-              : const Color(0xFFE040FB),
-          unselectedItemColor: isSpecial1
-              ? Special1Palette.secondaryText
-              : (isDark ? const Color(0xFFA1A1AA) : AppColors.textMutedLight),
+          selectedItemColor: colorScheme.primary,
+          unselectedItemColor: colorScheme.onSurfaceVariant,
           selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
           unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
           items: const [
@@ -510,7 +461,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
     );
   }
 
-  Widget _buildSidebarItem(int idx, String title, IconData icon, bool isDark, int currentIndex) {
+  Widget _buildSidebarItem(int idx, String title, IconData icon, bool isDark, int currentIndex, ColorScheme colorScheme) {
     final isSelected = currentIndex == idx;
     return Padding(
       padding: const EdgeInsets.only(bottom: 4.0),
@@ -521,7 +472,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: isSelected
-                ? (isDark ? const Color(0xFF2E1B46) : const Color(0xFFFCE7F3))
+                ? colorScheme.primary.withOpacity(0.13)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
@@ -531,8 +482,8 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
                 icon,
                 size: 18,
                 color: isSelected
-                    ? const Color(0xFFE040FB)
-                    : (isDark ? const Color(0xFFA1A1AA) : AppColors.textMutedLight),
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 12),
               Text(
@@ -541,8 +492,8 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
                   fontSize: 13,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   color: isSelected
-                      ? (isDark ? Colors.white : Colors.black87)
-                      : (isDark ? const Color(0xFFA1A1AA) : AppColors.textSecondaryLight),
+                      ? colorScheme.onSurface
+                      : colorScheme.onSurfaceVariant,
                 ),
               ),
             ],

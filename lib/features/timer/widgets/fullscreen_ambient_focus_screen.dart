@@ -81,7 +81,20 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
     final stopwatchState = ref.watch(stopwatchEngineProvider);
     final stopwatchNotifier = ref.read(stopwatchEngineProvider.notifier);
 
-    final isDark = !_usePastelBackdrop;
+    final colorScheme = Theme.of(context).colorScheme;
+    final isOledBackdrop = widget.isSpecial1 && !_usePastelBackdrop;
+    final isDark = Theme.of(context).brightness == Brightness.dark || isOledBackdrop;
+    final backgroundColor =
+        isOledBackdrop ? Colors.black : Theme.of(context).scaffoldBackgroundColor;
+    final surfaceColor = isOledBackdrop
+        ? const Color(0xFF141416)
+        : colorScheme.surface;
+    final borderColor = isOledBackdrop
+        ? const Color(0xFF27272A)
+        : colorScheme.outline;
+    final primaryTextColor = isOledBackdrop ? Colors.white : colorScheme.onSurface;
+    final mutedTextColor =
+        isOledBackdrop ? Colors.white70 : colorScheme.onSurfaceVariant;
     final now = DateTime.now();
 
     final targetMins = widget.targetMinutes ?? settings.pomodoroFocusMinutes;
@@ -130,7 +143,7 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
     final isPaused = stopwatchState.isPaused;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF09090B) : Special1Palette.background,
+      backgroundColor: backgroundColor,
       body: Stack(
         children: [
           // Ambient Waves if pastel enabled
@@ -156,7 +169,7 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                 IconButton(
                   icon: Icon(
                     Icons.close_rounded,
-                    color: isDark ? Colors.white38 : Special1Palette.primaryText,
+                    color: mutedTextColor,
                     size: 28,
                   ),
                   tooltip: 'Exit fullscreen',
@@ -171,7 +184,7 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                         _wakelockActive ? Icons.screen_lock_portrait_rounded : Icons.screen_lock_rotation_rounded,
                         color: _wakelockActive
                             ? const Color(0xFF10B981)
-                            : (isDark ? Colors.white38 : Colors.black26),
+                            : mutedTextColor,
                         size: 20,
                       ),
                       tooltip: _wakelockActive ? 'Screen keep-alive ON' : 'Screen keep-alive OFF',
@@ -184,7 +197,7 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                       IconButton(
                         icon: Icon(
                           _usePastelBackdrop ? Icons.dark_mode_outlined : Icons.palette_outlined,
-                          color: isDark ? Colors.white60 : Special1Palette.primaryText,
+                          color: primaryTextColor,
                           size: 20,
                         ),
                         tooltip: _usePastelBackdrop ? 'Switch to OLED Black' : 'Switch to Pastel',
@@ -199,10 +212,10 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF18181B) : Colors.white,
+                          color: surfaceColor,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: isDark ? const Color(0xFF27272A) : Special1Palette.inputBorder,
+                            color: borderColor,
                             width: 1,
                           ),
                         ),
@@ -212,13 +225,13 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                             Icon(
                               _showWallClock ? Icons.hourglass_empty_rounded : Icons.access_time_rounded,
                               size: 14,
-                              color: isDark ? const Color(0xFFA1A1AA) : Special1Palette.accentRoseDark,
+                              color: colorScheme.primary,
                             ),
                             const SizedBox(width: 6),
                             Text(
                               _showWallClock ? 'Focus Countdown' : 'Mac Wall Clock',
                               style: TextStyle(
-                                color: isDark ? const Color(0xFFEDEDED) : Special1Palette.primaryText,
+                                color: primaryTextColor,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -260,6 +273,8 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                             plateWidth: plateWidth,
                             plateHeight: plateHeight,
                             fontSize: fontSize,
+                            colorScheme: colorScheme,
+                            isOledBackdrop: isOledBackdrop,
                           ),
                           SizedBox(width: plateWidth * 0.08),
                           _buildFlipPlate(
@@ -270,6 +285,8 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                             plateWidth: plateWidth,
                             plateHeight: plateHeight,
                             fontSize: fontSize,
+                            colorScheme: colorScheme,
+                            isOledBackdrop: isOledBackdrop,
                           ),
                         ],
                       ),
@@ -280,10 +297,10 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                           decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF141416) : Colors.white.withOpacity(0.9),
+                            color: surfaceColor,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: isDark ? const Color(0xFF26262B) : Special1Palette.inputBorder,
+                              color: borderColor,
                               width: 1,
                             ),
                           ),
@@ -294,7 +311,7 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                                 width: 6,
                                 height: 6,
                                 decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF10B981) : Special1Palette.accentRose,
+                                  color: colorScheme.primary,
                                   shape: BoxShape.circle,
                                 ),
                               ),
@@ -304,7 +321,7 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                                     ? widget.description
                                     : widget.projectName,
                                 style: TextStyle(
-                                  color: isDark ? const Color(0xFFA1A1AA) : Special1Palette.primaryText,
+                                  color: primaryTextColor,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   letterSpacing: 0.3,
@@ -351,10 +368,10 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF18181B) : Colors.white,
+                        color: surfaceColor,
                         borderRadius: BorderRadius.circular(30),
                         border: Border.all(
-                          color: isDark ? const Color(0xFF27272A) : Special1Palette.inputBorder,
+                          color: borderColor,
                           width: 1,
                         ),
                         boxShadow: [
@@ -371,7 +388,7 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                           Icon(
                             isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
                             size: 18,
-                            color: isDark ? Colors.white : Special1Palette.primaryText,
+                            color: primaryTextColor,
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -450,22 +467,22 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444).withOpacity(0.12),
+                          color: colorScheme.error.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(30),
                           border: Border.all(
-                            color: const Color(0xFFEF4444).withOpacity(0.4),
+                            color: colorScheme.error.withOpacity(0.4),
                             width: 1,
                           ),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.stop_rounded, size: 18, color: Color(0xFFEF4444)),
-                            SizedBox(width: 6),
+                            Icon(Icons.stop_rounded, size: 18, color: colorScheme.error),
+                            const SizedBox(width: 6),
                             Text(
                               'Stop',
                               style: TextStyle(
-                                color: Color(0xFFEF4444),
+                                color: colorScheme.error,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -492,9 +509,15 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
     required double plateWidth,
     required double plateHeight,
     required double fontSize,
+    required ColorScheme colorScheme,
+    required bool isOledBackdrop,
   }) {
-    final plateBg = isDark ? const Color(0xFF141416) : Colors.white;
-    final borderColor = isDark ? const Color(0xFF222227) : Special1Palette.inputBorder;
+    final plateBg = isOledBackdrop
+        ? const Color(0xFF141416)
+        : colorScheme.surface;
+    final plateBorder = isOledBackdrop
+        ? const Color(0xFF222227)
+        : colorScheme.outline;
 
     return Container(
       width: plateWidth,
@@ -503,7 +526,7 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
         color: plateBg,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: borderColor,
+          color: plateBorder,
           width: 1.5,
         ),
         boxShadow: [
@@ -548,9 +571,9 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                   maxLines: 1,
                   softWrap: false,
                   style: TextStyle(
-                color: isDark
-                    ? const Color(0xFFF5F5F5)
-                    : const Color(0xFF302536),
+                color: isOledBackdrop
+                    ? Colors.white
+                    : colorScheme.onSurface,
                 fontSize: fontSize,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -4,
@@ -567,15 +590,11 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
               children: [
                 Container(
                   height: 1.2,
-                  color: isDark
-                      ? const Color(0xFF09090B)
-                      : const Color(0xFFD1C9D0),
+                  color: plateBorder.withOpacity(0.7),
                 ),
                 Container(
                   height: 1.0,
-                  color: isDark
-                      ? const Color(0xFF27272A)
-                      : const Color(0xFFE8E1E7),
+                  color: plateBorder,
                 ),
               ],
             ),
@@ -587,7 +606,7 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
               width: 3,
               height: 6,
               decoration: const BoxDecoration(
-                color: Color(0xFF09090B),
+                color: plateBorder,
                 borderRadius: BorderRadius.horizontal(right: Radius.circular(2)),
               ),
             ),
