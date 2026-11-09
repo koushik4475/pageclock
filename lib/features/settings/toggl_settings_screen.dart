@@ -34,6 +34,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
     final settings = ref.watch(settingsProvider);
     final settingsNotifier = ref.read(settingsProvider.notifier);
 
@@ -45,14 +46,14 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     final tzFormatted = '(GMT$sign${hoursOffset.abs().toString().padLeft(2, '0')}:$minsOffset) $localTzName';
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0F0B15) : const Color(0xFFF9FAFB),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: isDark ? const Color(0xFF0F0B15) : const Color(0xFFF9FAFB),
         elevation: 0,
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back,
-            color: isDark ? Colors.white : const Color(0xFF111827),
+            color: colorScheme.onSurface,
           ),
           onPressed: () => Navigator.maybePop(context),
         ),
@@ -551,6 +552,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     required ValueChanged<bool> onChanged,
     required bool isDark,
   }) {
+    final accent = ref.watch(appThemeIdProvider).palette.primary;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -584,8 +586,8 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: const Color(0xFFE040FB),
-            activeTrackColor: const Color(0xFFE040FB).withOpacity(0.35),
+            activeColor: accent,
+            activeTrackColor: accent.withOpacity(0.32),
           ),
         ],
       ),
@@ -1433,73 +1435,87 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
   }
 
   void _showThemeSelector(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final currentTheme = ref.read(appThemeIdProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: isDark ? const Color(0xFF140E20) : Colors.white,
+      backgroundColor: colors.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (ctx) => Center(
+      builder: (ctx) => SafeArea(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.82,
+          ),
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 26),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colors.outline.withOpacity(0.55),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Choose Theme',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? Colors.white : Colors.black87,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Make PageClock yours',
+                            style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '11 carefully balanced colour worlds',
+                            style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close_rounded),
+                      tooltip: 'Close themes',
                       onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close_rounded),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                _buildThemeOption(
-                  ctx: ctx,
-                  themeId: AppThemeId.defaultDark,
-                  title: 'Default Dark',
-                  subtitle: 'Obsidian & Vercel titanium aesthetic',
-                  colorPreview: const [Color(0xFF0F0B15), Color(0xFFE040FB), Color(0xFF2E1B46)],
-                  isSelected: currentTheme == AppThemeId.defaultDark,
+                const SizedBox(height: 18),
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: AppThemeId.values.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    mainAxisExtent: 142,
+                  ),
+                  itemBuilder: (context, index) {
+                    final themeId = AppThemeId.values[index];
+                    return _buildThemeOption(
+                      ctx: ctx,
+                      themeId: themeId,
+                      isSelected: currentTheme == themeId,
+                    );
+                  },
                 ),
-                _buildThemeOption(
-                  ctx: ctx,
-                  themeId: AppThemeId.defaultLight,
-                  title: 'Default Light',
-                  subtitle: 'Minimalist clean white layout',
-                  colorPreview: const [Color(0xFFF9FAFB), Color(0xFFE040FB), Color(0xFFE5E7EB)],
-                  isSelected: currentTheme == AppThemeId.defaultLight,
-                ),
-                _buildThemeOption(
-                  ctx: ctx,
-                  themeId: AppThemeId.special1,
-                  title: 'special1',
-                  subtitle: 'Pastel Waves (Cream, Soft Rose, Butter Yellow & Sky Blue)',
-                  colorPreview: const [
-                    Special1Palette.background,
-                    Special1Palette.accentRose,
-                    Special1Palette.waveYellow,
-                    Special1Palette.waveBlue,
-                  ],
-                  isSelected: currentTheme == AppThemeId.special1,
-                ),
-                const SizedBox(height: 10),
               ],
             ),
           ),
@@ -1511,81 +1527,84 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
   Widget _buildThemeOption({
     required BuildContext ctx,
     required AppThemeId themeId,
-    required String title,
-    required String subtitle,
-    required List<Color> colorPreview,
     required bool isSelected,
   }) {
-    final isDark = Theme.of(ctx).brightness == Brightness.dark;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+    final palette = themeId.palette;
+    return Material(
+      color: palette.surface,
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: () {
-          ref.read(settingsProvider.notifier).update((s) => s.copyWith(themeId: themeId.name));
+          ref.read(settingsProvider.notifier).update(
+            (settings) => settings.copyWith(themeId: themeId.storageId),
+          );
           Navigator.pop(ctx);
         },
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(11),
           decoration: BoxDecoration(
-            color: isSelected
-                ? (isDark ? const Color(0xFF281F3B) : const Color(0xFFFDF2F8))
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: isSelected
-                  ? const Color(0xFFE040FB)
-                  : (isDark ? const Color(0xFF221832) : const Color(0xFFE5E7EB)),
-              width: isSelected ? 1.5 : 1,
+              color: isSelected ? palette.primary : palette.outline,
+              width: isSelected ? 2 : 1,
             ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: palette.primary.withOpacity(0.13),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
+                    ),
+                  ]
+                : const [],
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisSize: MainAxisSize.min,
-                children: colorPreview.map((c) {
-                  return Container(
-                    width: 14,
-                    height: 14,
-                    margin: const EdgeInsets.only(right: 4),
-                    decoration: BoxDecoration(
-                      color: c,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.black12,
-                        width: 1,
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Row(
+                        children: palette.previewColors.map((color) {
+                          return Expanded(
+                            child: Container(height: 22, color: color),
+                          );
+                        }).toList(),
                       ),
                     ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
-                      ),
-                    ),
+                  ),
+                  if (isSelected) ...[
+                    const SizedBox(width: 6),
+                    Icon(Icons.check_circle_rounded, color: palette.primary, size: 18),
                   ],
+                ],
+              ),
+              const Spacer(),
+              Text(
+                themeId.displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: palette.text,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
                 ),
               ),
-              if (isSelected)
-                const Icon(Icons.check_circle_rounded, color: Color(0xFFE040FB), size: 20),
+              const SizedBox(height: 4),
+              Text(
+                themeId.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: palette.textMuted,
+                  fontSize: 10.5,
+                  height: 1.25,
+                ),
+              ),
             ],
           ),
         ),

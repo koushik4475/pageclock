@@ -73,6 +73,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final settings = ref.watch(settingsProvider);
@@ -129,9 +130,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0F0B15) : const Color(0xFFF9FAFB),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: isDark ? const Color(0xFF0F0B15) : const Color(0xFFF9FAFB),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         title: Text(
           'Calendar',
@@ -139,7 +140,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             fontSize: 24,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.5,
-            color: isDark ? Colors.white : const Color(0xFF111827),
+            color: colorScheme.onSurface,
           ),
         ),
         actions: [
@@ -187,7 +188,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           ),
 
           // Horizontal 7-Day Strip (Sun to Sat)
-          _buildWeekdayStrip(isDark, today, weekStartDay),
+          _buildWeekdayStrip(isDark, today, weekStartDay, colorScheme.primary),
           const SizedBox(height: 8),
 
           Divider(
@@ -256,10 +257,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFE040FB).withOpacity(0.18),
+                            color: colorScheme.primary.withOpacity(0.16),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: const Color(0xFFE040FB).withOpacity(0.55),
+                              color: colorScheme.primary.withOpacity(0.55),
                               width: 1,
                             ),
                           ),
@@ -271,10 +272,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                 session.subjectName,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFFF472B6),
+                                  color: colorScheme.primary,
                                 ),
                               ),
                               if (session.bookTitle != null && session.bookTitle!.isNotEmpty)
@@ -294,7 +295,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     }),
 
                     // Live Current Time Indicator Needle (if viewing today)
-                    if (_selectedDay == today) _buildLiveTimeNeedle(now),
+                    if (_selectedDay == today) _buildLiveTimeNeedle(now, colorScheme.primary),
                   ],
                 ),
               ),
@@ -309,6 +310,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     bool isDark,
     DateTime today,
     int weekStartDay,
+    Color accent,
   ) {
     final daysFromWeekStart = (today.weekday - weekStartDay + 7) % 7;
     final weekStart = today.subtract(Duration(days: daysFromWeekStart));
@@ -335,8 +337,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: isSelected
-                  ? const BoxDecoration(
-                      color: Color(0xFFE040FB), // Signature Toggl magenta/pink active pill
+                  ? BoxDecoration(
+                      color: accent, // Active day uses the selected theme accent
                       shape: BoxShape.circle,
                     )
                   : null,
@@ -361,7 +363,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       color: isSelected
                           ? Colors.white
                           : (isToday
-                              ? const Color(0xFFE040FB)
+                              ? accent
                               : (isDark ? Colors.white : const Color(0xFF111827))),
                     ),
                   ),
@@ -374,7 +376,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 
-  Widget _buildLiveTimeNeedle(DateTime now) {
+  Widget _buildLiveTimeNeedle(DateTime now, Color accent) {
     final currentMinute = now.hour * 60.0 + now.minute;
 
     return Positioned(
@@ -386,12 +388,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           Container(
             width: 8,
             height: 8,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Color(0xFFE040FB),
+                  color: accent,
                   blurRadius: 6,
                   spreadRadius: 2,
                 ),

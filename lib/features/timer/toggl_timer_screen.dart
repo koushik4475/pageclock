@@ -80,6 +80,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   }
 
   void _showAddEntryModal(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary;
     final descCtrl = TextEditingController();
     final minsCtrl = TextEditingController(text: '30');
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -88,7 +89,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: isDark ? const Color(0xFF140E20) : Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -132,9 +133,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     decoration: InputDecoration(
                       labelText: 'Description',
                       hintText: 'What did you work on?',
-                      labelStyle: TextStyle(color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
+                      labelStyle: TextStyle(color: isDark ? Theme.of(context).colorScheme.onSurfaceVariant : Theme.of(context).colorScheme.onSurfaceVariant),
                       filled: true,
-                      fillColor: isDark ? const Color(0xFF1B1426) : const Color(0xFFF3F4F6),
+                      fillColor: isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFF3F4F6),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                     ),
                   ),
@@ -145,9 +146,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                     decoration: InputDecoration(
                       labelText: 'Duration (minutes)',
-                      labelStyle: TextStyle(color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
+                      labelStyle: TextStyle(color: isDark ? Theme.of(context).colorScheme.onSurfaceVariant : Theme.of(context).colorScheme.onSurfaceVariant),
                       filled: true,
-                      fillColor: isDark ? const Color(0xFF1B1426) : const Color(0xFFF3F4F6),
+                      fillColor: isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFF3F4F6),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                     ),
                   ),
@@ -158,7 +159,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.0,
-                      color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+                      color: isDark ? Theme.of(context).colorScheme.onSurfaceVariant : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -175,8 +176,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                             setModalState(() => selectedProj = proj);
                           }
                         },
-                        selectedColor: const Color(0xFFE040FB),
-                        backgroundColor: isDark ? const Color(0xFF1F182C) : const Color(0xFFE5E7EB),
+                        selectedColor: accent,
+                        backgroundColor: isDark ? Theme.of(context).colorScheme.surface : Theme.of(context).colorScheme.outline,
                         labelStyle: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -191,8 +192,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     height: 48,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE040FB),
-                        foregroundColor: Colors.white,
+                        backgroundColor: accent,
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       onPressed: () async {
@@ -247,10 +248,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   }
 
   void _showProjectPicker(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
-      backgroundColor: isDark ? const Color(0xFF140E20) : Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -268,14 +270,14 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : Colors.black87,
+                    color: Theme.of(ctx).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 16),
                 ..._availableProjects.map((p) {
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.circle, color: Color(0xFFE040FB), size: 14),
+                    leading: Icon(Icons.circle, color: accent, size: 14),
                     title: Text(
                       p,
                       style: TextStyle(
@@ -284,7 +286,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                       ),
                     ),
                     trailing: ref.read(focusSelectedProjectProvider) == p
-                        ? const Icon(Icons.check_rounded, color: Color(0xFFE040FB))
+                        ? Icon(Icons.check_rounded, color: accent)
                         : null,
                     onTap: () {
                       ref.read(focusSelectedProjectProvider.notifier).state = p;
@@ -308,13 +310,13 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF161122) : Colors.white,
+        backgroundColor: Theme.of(ctx).colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           "What's Included in Productivity",
           style: TextStyle(
             fontWeight: FontWeight.w800,
-            color: isDark ? Colors.white : Colors.black87,
+            color: Theme.of(ctx).colorScheme.onSurface,
           ),
         ),
         content: Column(
@@ -331,7 +333,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Got it', style: TextStyle(color: Color(0xFFE040FB), fontWeight: FontWeight.w700)),
+            child: Text('Got it', style: TextStyle(color: Theme.of(ctx).colorScheme.primary, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -557,6 +559,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+    final accent = colorScheme.primary;
     final stopwatchState = ref.watch(stopwatchProvider);
     final settings = ref.watch(settingsProvider);
     final allSessions = ref.watch(sessionsStreamProvider).value ?? [];
@@ -606,13 +610,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     final appThemeId = ref.watch(appThemeIdProvider);
     final isSpecial1 = appThemeId == AppThemeId.special1;
 
-    final bgColor = isSpecial1
-        ? Special1Palette.background
-        : (isDark ? const Color(0xFF0F0B15) : const Color(0xFFF9FAFB));
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
 
     final headerIconColor = isSpecial1
         ? Special1Palette.primaryText
-        : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A));
+        : colorScheme.onSurfaceVariant;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -627,7 +629,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
             letterSpacing: -0.5,
             color: isSpecial1
                 ? Special1Palette.primaryText
-                : (isDark ? Colors.white : const Color(0xFF111827)),
+                : colorScheme.onSurface,
           ),
         ),
         actions: [
@@ -706,7 +708,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   decoration: BoxDecoration(
                     color: isSpecial1
                         ? Colors.transparent
-                        : (isDark ? const Color(0xFF1B1426) : const Color(0xFFE5E7EB)),
+                        : (isDark ? Theme.of(context).colorScheme.surface : Theme.of(context).colorScheme.outline),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -721,12 +723,12 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                                 ? BoxDecoration(
                                     color: isSpecial1
                                         ? Special1Palette.activePill
-                                        : (isDark ? const Color(0xFF2C1B42) : Colors.white),
+                                        : (isDark ? Theme.of(context).colorScheme.surface : Colors.white),
                                     borderRadius: BorderRadius.circular(10),
                                     border: isSpecial1
                                         ? null
                                         : Border.all(
-                                            color: const Color(0xFFE040FB).withOpacity(0.4),
+                                            color: accent.withOpacity(0.4),
                                           ),
                                   )
                                 : null,
@@ -738,10 +740,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                                 color: _selectedMode == 0
                                     ? (isSpecial1
                                         ? Special1Palette.primaryText
-                                        : const Color(0xFFE040FB))
+                                        : accent)
                                     : (isSpecial1
                                         ? Special1Palette.secondaryText
-                                        : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A))),
+                                        : (isDark ? Theme.of(context).colorScheme.onSurfaceVariant : Theme.of(context).colorScheme.onSurfaceVariant)),
                               ),
                             ),
                           ),
@@ -757,12 +759,12 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                                 ? BoxDecoration(
                                     color: isSpecial1
                                         ? Special1Palette.activePill
-                                        : (isDark ? const Color(0xFF2C1B42) : Colors.white),
+                                        : (isDark ? Theme.of(context).colorScheme.surface : Colors.white),
                                     borderRadius: BorderRadius.circular(10),
                                     border: isSpecial1
                                         ? null
                                         : Border.all(
-                                            color: const Color(0xFFE040FB).withOpacity(0.4),
+                                            color: accent.withOpacity(0.4),
                                           ),
                                   )
                                 : null,
@@ -774,10 +776,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                                 color: _selectedMode == 1
                                     ? (isSpecial1
                                         ? Special1Palette.primaryText
-                                        : const Color(0xFFE040FB))
+                                        : accent)
                                     : (isSpecial1
                                         ? Special1Palette.secondaryText
-                                        : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A))),
+                                        : (isDark ? Theme.of(context).colorScheme.onSurfaceVariant : Theme.of(context).colorScheme.onSurfaceVariant)),
                               ),
                             ),
                           ),
@@ -796,8 +798,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         stopwatchState,
                         isSpecial1,
                         settings.pomodoroFocusMinutes,
+                        colorScheme,
+                        accent,
                       )
                     : _buildListView(
+                        context,
                         isDark,
                         stopwatchState,
                         isSpecial1,
@@ -805,13 +810,15 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         settings.groupSimilar,
                         todayTotalMs,
                         settings.durationFormat,
+                        colorScheme,
+                        accent,
                       ),
               ),
 
               // Persistent Running Mini-Player Bottom Bar (like Toggl Track)
               if (stopwatchState.status == StopwatchStatus.running ||
                   stopwatchState.status == StopwatchStatus.paused)
-                _buildRunningBottomBar(isDark, stopwatchState, taskDescription, selectedProject, isSpecial1),
+                _buildRunningBottomBar(context, isDark, stopwatchState, taskDescription, selectedProject, isSpecial1, colorScheme, accent),
             ],
           ),
         ],
@@ -824,6 +831,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     StopwatchState stopwatchState,
     bool isSpecial1,
     int focusMinutes,
+    ColorScheme colorScheme,
+    Color accent,
   ) {
     final targetMs = focusMinutes * 60 * 1000;
     final isFocusOvertime = !_isPomodoroBreak &&
@@ -853,12 +862,12 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
             decoration: BoxDecoration(
               color: isSpecial1
                   ? Colors.white
-                  : (isDark ? const Color(0xFF161122) : Colors.white),
+                  : (isDark ? colorScheme.surface : Colors.white),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: isSpecial1
                     ? Special1Palette.inputBorder
-                    : (isDark ? const Color(0xFF281F3B) : const Color(0xFFE5E7EB)),
+                    : (isDark ? colorScheme.outline.withOpacity(0.25) : colorScheme.outline),
               ),
               boxShadow: isSpecial1
                   ? [
@@ -889,7 +898,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                       hintStyle: TextStyle(
                         color: isSpecial1
                             ? Special1Palette.secondaryText
-                            : (isDark ? const Color(0xFF71717A) : const Color(0xFFA1A1AA)),
+                            : (isDark ? colorScheme.onSurfaceVariant : colorScheme.onSurfaceVariant),
                       ),
                       border: InputBorder.none,
                       isDense: true,
@@ -903,7 +912,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     size: 20,
                     color: isSpecial1
                         ? Special1Palette.accentRose
-                        : const Color(0xFFE040FB),
+                        : accent,
                   ),
                   tooltip: 'Choose Project',
                   onPressed: () => _showProjectPicker(context),
@@ -945,10 +954,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     strokeWidth: isSpecial1 ? 8 : 4,
                     backgroundColor: isSpecial1
                         ? Special1Palette.ringTrack
-                        : (isDark ? const Color(0xFF281F3B) : const Color(0xFFE5E7EB)),
+                        : (isDark ? colorScheme.outline : colorScheme.outline),
                     color: isSpecial1
                         ? Special1Palette.accentRose
-                        : const Color(0xFFE040FB),
+                        : accent,
                   ),
                 ),
                 Column(
@@ -966,7 +975,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         letterSpacing: isSpecial1 ? 0.2 : 1.5,
                         color: isSpecial1
                             ? Special1Palette.primaryText
-                            : const Color(0xFFE040FB),
+                            : accent,
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -979,7 +988,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         fontFeatures: const [FontFeature.tabularFigures()],
                         color: isSpecial1
                             ? Special1Palette.primaryText
-                            : (isDark ? Colors.white : const Color(0xFF111827)),
+                            : (isDark ? Colors.white : colorScheme.onSurface),
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -1001,7 +1010,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         letterSpacing: isSpecial1 ? 0.2 : 1.5,
                         color: isSpecial1
                             ? Special1Palette.secondaryText
-                            : const Color(0xFFE040FB),
+                            : accent,
                       ),
                     ),
                   ],
@@ -1035,7 +1044,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
             IconButton(
               icon: Icon(
                 _soundEnabled ? Icons.volume_up_outlined : Icons.volume_off_outlined,
-                color: _soundEnabled ? const Color(0xFFE040FB) : Colors.white38,
+                color: _soundEnabled ? accent : colorScheme.onSurfaceVariant,
                 size: 26,
               ),
               tooltip: _soundEnabled ? 'Mute Pomodoro Sound' : 'Enable Pomodoro Sound',
@@ -1051,10 +1060,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: isSpecial1
                     ? Special1Palette.accentRose
-                    : const Color(0xFFE040FB),
+                    : accent,
                 foregroundColor: isSpecial1
                     ? Special1Palette.primaryText
-                    : Colors.white,
+                    : colorScheme.onPrimary,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 elevation: isSpecial1 ? 0 : 4,
               ),
@@ -1088,7 +1097,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
-                  color: isSpecial1 ? Special1Palette.primaryText : Colors.white,
+                  color: isSpecial1 ? Special1Palette.primaryText : colorScheme.onPrimary,
                 ),
               ),
             ),
@@ -1113,7 +1122,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     fontWeight: FontWeight.w700,
                     color: isSpecial1
                         ? Special1Palette.primaryText
-                        : const Color(0xFFE040FB),
+                        : accent,
                   ),
                 ),
                 if (isSpecial1) ...[
@@ -1129,6 +1138,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   }
 
   Widget _buildListView(
+    BuildContext context,
     bool isDark,
     StopwatchState stopwatchState,
     bool isSpecial1,
@@ -1136,6 +1146,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     bool groupSimilar,
     int todayTotalMs,
     String durationFormat,
+    ColorScheme colorScheme,
+    Color accent,
   ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -1146,10 +1158,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF161122) : Colors.white,
+              color: colorScheme.surface,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: isDark ? const Color(0xFF281F3B) : const Color(0xFFE5E7EB),
+                color: colorScheme.outline,
               ),
             ),
             child: Column(
@@ -1163,7 +1175,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.white : const Color(0xFF111827),
+                        color: colorScheme.onSurface,
                       ),
                     ),
                     Icon(Icons.keyboard_arrow_down_rounded,
@@ -1173,11 +1185,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 const SizedBox(height: 12),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
-                  child: const LinearProgressIndicator(
+                  child: LinearProgressIndicator(
                     value: 0.33,
                     minHeight: 4,
-                    backgroundColor: Color(0xFF281F3B),
-                    color: Color(0xFFE040FB),
+                    backgroundColor: colorScheme.outline.withOpacity(0.22),
+                    color: accent,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1185,7 +1197,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   '33% completed - You can do this!',
                   style: TextStyle(
                     fontSize: 11,
-                    color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -1203,7 +1215,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.0,
-                  color: isDark ? Colors.white : const Color(0xFF111827),
+                  color: isDark ? Colors.white : Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               Text(
@@ -1212,7 +1224,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
                   fontFeatures: const [FontFeature.tabularFigures()],
-                  color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+                  color: isDark ? Theme.of(context).colorScheme.onSurfaceVariant : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -1224,12 +1236,12 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF161122) : Colors.white,
+                color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                   color: isDark
-                      ? const Color(0xFF281F3B)
-                      : const Color(0xFFE5E7EB),
+                      ? Theme.of(context).colorScheme.outline
+                      : Theme.of(context).colorScheme.outline,
                 ),
               ),
               child: Column(
@@ -1238,8 +1250,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     Icons.menu_book_outlined,
                     size: 28,
                     color: isDark
-                        ? const Color(0xFFA1A1AA)
-                        : const Color(0xFF9CA3AF),
+                        ? Theme.of(context).colorScheme.onSurfaceVariant
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -1247,7 +1259,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : const Color(0xFF111827),
+                      color: isDark ? Colors.white : Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -1256,8 +1268,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     style: TextStyle(
                       fontSize: 11,
                       color: isDark
-                          ? const Color(0xFFA1A1AA)
-                          : const Color(0xFF71717A),
+                          ? Theme.of(context).colorScheme.onSurfaceVariant
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -1284,7 +1296,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : const Color(0xFF111827),
+                    color: isDark ? Colors.white : Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -1292,7 +1304,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   'Make sure to explore all the features available.',
                   style: TextStyle(
                     fontSize: 12,
-                    color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+                    color: isDark ? Theme.of(context).colorScheme.onSurfaceVariant : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -1324,6 +1336,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     required bool isDark,
     required String durationFormat,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final accent = colorScheme.primary;
     final groups = <String, List<ReadingSession>>{};
     for (final session in sessions) {
       final key = groupSimilar
@@ -1343,12 +1357,12 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF161122) : Colors.white,
+            color: colorScheme.surface,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: isDark
-                  ? const Color(0xFF281F3B)
-                  : const Color(0xFFE5E7EB),
+                  ? Theme.of(context).colorScheme.outline
+                  : Theme.of(context).colorScheme.outline,
             ),
           ),
           child: Row(
@@ -1364,7 +1378,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : const Color(0xFF111827),
+                        color: colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 5),
@@ -1374,9 +1388,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                           : project,
                       style: TextStyle(
                         fontSize: 11,
-                        color: isDark
-                            ? const Color(0xFFA1A1AA)
-                            : const Color(0xFF71717A),
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -1388,14 +1400,14 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white70 : Colors.black87,
+                  color: colorScheme.onSurface,
                 ),
               ),
               IconButton(
                 tooltip: 'Start this session again',
-                icon: const Icon(
+                icon: Icon(
                   Icons.play_arrow_rounded,
-                  color: Color(0xFFE040FB),
+                  color: accent,
                 ),
                 onPressed: () {
                   ref.read(focusTaskDescriptionProvider.notifier).state =
@@ -1418,23 +1430,26 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   }
 
   Widget _buildRunningBottomBar(
+    BuildContext context,
     bool isDark,
     StopwatchState stopwatchState,
     String description,
     String project,
     bool isSpecial1,
+    ColorScheme colorScheme,
+    Color accent,
   ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: isSpecial1
             ? Special1Palette.background
-            : (isDark ? const Color(0xFF181126) : Colors.white),
+            : colorScheme.surface,
         border: Border(
           top: BorderSide(
             color: isSpecial1
                 ? Special1Palette.inputBorder
-                : (isDark ? const Color(0xFF2E2242) : const Color(0xFFE5E7EB)),
+                : colorScheme.outline,
           ),
         ),
         boxShadow: [
@@ -1463,7 +1478,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                       fontFeatures: const [FontFeature.tabularFigures()],
                       color: isSpecial1
                           ? Special1Palette.primaryText
-                          : (isDark ? Colors.white : const Color(0xFF111827)),
+                          : colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1474,7 +1489,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                       fontWeight: FontWeight.w500,
                       color: isSpecial1
                           ? Special1Palette.primaryText
-                          : (isDark ? Colors.white70 : Colors.black87),
+                          : colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1486,7 +1501,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         decoration: BoxDecoration(
                           color: isSpecial1
                               ? Special1Palette.accentRose
-                              : const Color(0xFFE040FB),
+                              : accent,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -1497,7 +1512,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                           fontSize: 11,
                           color: isSpecial1
                               ? Special1Palette.secondaryText
-                              : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
+                              : colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -1516,7 +1531,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 decoration: BoxDecoration(
                   color: isSpecial1
                       ? Special1Palette.stopButton
-                      : const Color(0xFFF87171),
+                      : colorScheme.error,
                   shape: BoxShape.circle,
                 ),
                 child: Center(
@@ -1526,7 +1541,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     decoration: BoxDecoration(
                       color: isSpecial1
                           ? Special1Palette.primaryText
-                          : Colors.white,
+                          : colorScheme.onError,
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),
@@ -1553,7 +1568,7 @@ class _FeatureRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: const Color(0xFFE040FB)),
+          Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -1561,7 +1576,7 @@ class _FeatureRow extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: isDark ? const Color(0xFFE4E4E7) : const Color(0xFF374151),
+                color: isDark ? Theme.of(context).colorScheme.onSurface : const Color(0xFF374151),
               ),
             ),
           ),
