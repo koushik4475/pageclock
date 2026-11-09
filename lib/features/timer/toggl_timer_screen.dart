@@ -809,6 +809,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         todaySessions,
                         settings.groupSimilar,
                         todayTotalMs,
+                        settings.dailyGoalMinutes,
                         settings.durationFormat,
                         colorScheme,
                         accent,
@@ -1145,6 +1146,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     List<ReadingSession> todaySessions,
     bool groupSimilar,
     int todayTotalMs,
+    int dailyGoalMinutes,
     String durationFormat,
     ColorScheme colorScheme,
     Color accent,
@@ -1154,54 +1156,80 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Getting Started Progress Card matching Toggl Track UI
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: colorScheme.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: colorScheme.outline,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Daily focus goal reflects actual tracked time, including
+          // the currently running session, instead of a static onboarding value.
+          Builder(
+            builder: (context) {
+              final goalMinutes = dailyGoalMinutes.clamp(1, 1440).toInt();
+              final goalMs = goalMinutes * 60 * 1000;
+              final progress = (todayTotalMs / goalMs).clamp(0.0, 1.0).toDouble();
+              final percent = (progress * 100).round();
+              final remainingMs = (goalMs - todayTotalMs).clamp(0, goalMs).toInt();
+              final achieved = todayTotalMs >= goalMs;
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: colorScheme.outline),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Getting started!',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: colorScheme.onSurface,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Daily focus goal',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                        Text(
+                          '$percent%',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: accent,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 6,
+                        backgroundColor: colorScheme.outline.withOpacity(0.22),
+                        color: accent,
                       ),
                     ),
-                    Icon(Icons.keyboard_arrow_down_rounded,
-                        color: isDark ? Colors.white54 : Colors.black54),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${(todayTotalMs / 60000).floor()} / $goalMinutes min tracked',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      achieved
+                          ? 'Daily goal achieved. Great work!'
+                          : '${AppFormatters.formatDuration(remainingMs, format: durationFormat)} left to reach your goal.',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: 0.33,
-                    minHeight: 4,
-                    backgroundColor: colorScheme.outline.withOpacity(0.22),
-                    color: accent,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '33% completed - You can do this!',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           ),
           const SizedBox(height: 24),
 
