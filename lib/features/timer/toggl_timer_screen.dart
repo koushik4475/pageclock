@@ -366,11 +366,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => AppleMacFlipClockScreen(
-                    elapsedMs: stopwatchState.elapsedMs,
                     targetMinutes: _selectedMode == 1 ? 25 : null,
                     description: taskDescription,
                     projectName: selectedProject,
-                    isRunning: stopwatchState.status == StopwatchStatus.running,
                     isSpecial1: isSpecial1,
                     onStop: () => ref.read(stopwatchProvider.notifier).stop(),
                     onTogglePlay: () {
