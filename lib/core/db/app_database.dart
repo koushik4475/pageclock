@@ -24,7 +24,21 @@ class AppDatabase extends _$AppDatabase {
           // Version 1 databases predate pausedAtUtc. pausedTotalMs already
           // existed in v1, so only add the newly introduced nullable column.
           if (from < 2) {
-            await m.addColumn(readingSessions, readingSessions.pausedAtUtc);
+            // Some v1 builds had already shipped pausedAtUtc without bumping
+            // schemaVersion. Detect the column first so those databases do
+            // not fail with a duplicate-column migration error.
+            final columns = await customSelect(
+              'PRAGMA table_info(reading_sessions)',
+            ).get();
+            final hasPausedAtUtc = columns.any(
+              (row) => row.read<String>('name') == 'paused_at_utc',
+            );
+            if (!hasPausedAtUtc) {
+              await m.addColumn(
+                readingSessions,
+                readingSessions.pausedAtUtc,
+              );
+            }
           }
         },
       );
