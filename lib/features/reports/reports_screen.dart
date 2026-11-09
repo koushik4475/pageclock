@@ -7,7 +7,7 @@ import '../../core/models/reading_session.dart';
 import '../../core/services/pdf_service.dart';
 import '../../core/settings/app_settings.dart';
 import '../../stats/stats_engine.dart';
-import '../../main.dart';
+import '../../core/navigation/main_tab_navigation.dart';
 import 'widgets/contribution_heatmap.dart';
 
 /// Reports Screen matching Toggl Track UI
