@@ -96,7 +96,7 @@ class NotificationService {
     if (_lastTimerState == signature) return;
     _lastTimerState = signature;
 
-    if (!enabled || session == null) {
+    if (!enabled) {
       await plugin.stopForegroundService();
       return;
     }
