@@ -68,7 +68,7 @@ void main() {
           return http.Response(
             json.encode({
               'tag_name': 'v2.0.0',
-              'body': 'Major upgrade',
+              'body': 'Major upgrade. SHA256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
               'draft': false,
               'prerelease': false,
               'published_at': '2026-11-07T01:00:00Z',
