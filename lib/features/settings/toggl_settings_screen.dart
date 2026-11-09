@@ -881,6 +881,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json', 'csv'],
+        withData: true,
       );
 
       String? content;

@@ -25,6 +25,20 @@ class CalendarScreen extends ConsumerStatefulWidget {
   ConsumerState<CalendarScreen> createState() => _CalendarScreenState();
 }
 
+class _CalendarSessionSegment {
+  final ReadingSession session;
+  final double top;
+  final double height;
+  final int durationMs;
+
+  const _CalendarSessionSegment({
+    required this.session,
+    required this.top,
+    required this.height,
+    required this.durationMs,
+  });
+}
+
 class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   late DateTime _selectedDay;
   final ScrollController _scrollController = ScrollController();
@@ -61,17 +75,57 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    // Filter sessions for the selected day
-    final daySessions = widget.sessions.where((s) {
-      if (s.deletedAt != null) return false;
-      final start = s.startTime;
-      return start.year == _selectedDay.year &&
-          start.month == _selectedDay.month &&
-          start.day == _selectedDay.day;
-    }).toList();
+    // Split entries at local-day boundaries so overnight sessions appear
+    // on both dates instead of producing a negative-height block.
+    final dayStart = DateTime(
+      _selectedDay.year,
+      _selectedDay.month,
+      _selectedDay.day,
+      0,
+      0,
+      0,
+      0,
+      0,
+    ).toUtc();
+    final dayEnd = dayStart.add(const Duration(days: 1));
+    final daySegments = <_CalendarSessionSegment>[];
+    for (final session in widget.sessions) {
+      if (session.deletedAt != null || session.endedAtUtc == null) continue;
+      final offset = Duration(minutes: session.tzOffsetMin);
+      final sessionStart = DateTime.fromMillisecondsSinceEpoch(
+        session.startedAtUtc,
+        isUtc: true,
+      ).add(offset);
+      final sessionEnd = DateTime.fromMillisecondsSinceEpoch(
+        session.endedAtUtc!,
+        isUtc: true,
+      ).add(offset);
+      if (!sessionEnd.isAfter(dayStart) || !sessionStart.isBefore(dayEnd)) {
+        continue;
+      }
+      final boundedStart =
+          sessionStart.isBefore(dayStart) ? dayStart : sessionStart;
+      final boundedEnd = sessionEnd.isAfter(dayEnd) ? dayEnd : sessionEnd;
+      final segmentMs = boundedEnd.difference(boundedStart).inMilliseconds;
+      if (segmentMs <= 0) continue;
+      final top = boundedStart.difference(dayStart).inMicroseconds /
+          Duration.microsecondsPerMinute;
+      final height = segmentMs / Duration.millisecondsPerMinute;
+      daySegments.add(
+        _CalendarSessionSegment(
+          session: session,
+          top: top,
+          height: height < 1 ? 1 : height,
+          durationMs: segmentMs,
+        ),
+      );
+    }
 
-    // Calculate total tracked time for the selected day
-    final totalMs = daySessions.fold<int>(0, (acc, s) => acc + s.durationMs);
+    // Calculate the time overlap (not the whole session) on this selected day.
+    final totalMs = daySegments.fold<int>(
+      0,
+      (sum, segment) => sum + segment.durationMs,
+    );
     final totalHours = totalMs ~/ 3600000;
     final totalMinutes = (totalMs % 3600000) ~/ 60000;
     final totalSeconds = (totalMs % 60000) ~/ 1000;
@@ -195,23 +249,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       );
                     }),
 
-                    // Session Time Blocks
-                    ...daySessions.map((session) {
-                      final start = session.startTime;
-                      final end = session.endTime ?? start.add(Duration(milliseconds: session.durationMs));
-
-                      final startMinute = start.hour * 60 + start.minute;
-                      final endMinute = end.hour * 60 + end.minute;
-                      final durationMinutes = (endMinute - startMinute).clamp(15, 24 * 60);
-
-                      final top = startMinute * 1.0;
-                      final height = durationMinutes * 1.0;
-
+                    // Session Time Blocks (split at selected-day boundaries)
+                    ...daySegments.map((segment) {
+                      final session = segment.session;
                       return Positioned(
-                        top: top,
+                        top: segment.top,
                         left: 72,
                         right: 16,
-                        height: height,
+                        height: segment.height,
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(

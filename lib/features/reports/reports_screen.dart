@@ -33,12 +33,16 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   int _groupByIndex = 0; // 0: Projects, 1: Books
   String _selectedFilter = 'This week';
 
-  List<ReadingSession> _filterSessions(List<ReadingSession> all) {
+  List<ReadingSession> _filterSessions(
+    List<ReadingSession> all,
+    int weekStartDay,
+  ) {
     final active = all.where((s) => s.deletedAt == null).toList();
     final now = DateTime.now();
 
     if (_selectedFilter == 'This week') {
-      final startOfWeek = now.subtract(Duration(days: (now.weekday - DateTime.monday + 7) % 7));
+      final daysFromWeekStart = (now.weekday - weekStartDay + 7) % 7;
+      final startOfWeek = now.subtract(Duration(days: daysFromWeekStart));
       final midnightStart = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
       return active.where((s) => s.startedAtUtc >= midnightStart.millisecondsSinceEpoch).toList();
     } else if (_selectedFilter == 'This month') {
@@ -52,7 +56,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final filteredSessions = _filterSessions(widget.sessions);
+    final settings = ref.watch(settingsProvider);
+    final filteredSessions =
+        _filterSessions(widget.sessions, settings.weekStartDay);
     final dailyTotals = StatsEngine.calculateDailyTotals(widget.sessions);
 
     // Calculate total duration for current filtered period
