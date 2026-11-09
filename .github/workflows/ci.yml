@@ -2,7 +2,7 @@ name: PageClock CI / CD & Automated Release
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, 'release/*' ]
     tags: [ 'v*' ]
   pull_request:
     branches: [ main, master ]
@@ -44,7 +44,7 @@ jobs:
         run: flutter analyze --no-pub --no-fatal-infos
 
       - name: Run Flutter tests (retry transient dependency/network failures only)
-        if: github.head_ref != 'feat/premium-theme-gallery-and-faster-ci' && !startsWith(github.ref, 'refs/tags/v')
+        if: github.head_ref != 'feat/premium-theme-gallery-and-faster-ci' && !startsWith(github.ref, 'refs/tags/v') && !startsWith(github.ref, 'refs/heads/release/v')
         shell: bash
         run: |
           set -u
@@ -80,7 +80,7 @@ jobs:
           compression-level: 1
 
   android-apk:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
     name: Build Android release APK
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -119,7 +119,7 @@ jobs:
           if [ -n "${ANDROID_KEYSTORE_BASE64:-}" ]; then
             echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
             chmod 600 android/app/release.keystore
-          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+          elif [[ "$GITHUB_REF" == refs/tags/v* || "$GITHUB_REF" == refs/heads/release/v* ]]; then
             echo "::error::Version-tag releases require ANDROID_KEYSTORE_BASE64."
             exit 1
           else
@@ -171,6 +171,7 @@ jobs:
           APK_DIR="build/app/outputs/flutter-apk"
           VERSION_TAG="v1.0.0+${{ github.run_number }}"
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then VERSION_TAG="${{ github.ref_name }}"; fi
+          if [[ "${{ github.ref }}" == refs/heads/release/* ]]; then VERSION_TAG="${GITHUB_REF_NAME#release/}"; fi
           ASSET_NAME="PageClock-${VERSION_TAG}.apk"
           SHA_NAME="PageClock-${VERSION_TAG}.apk.sha256"
           cp "$APK_DIR/app-release.apk" "$APK_DIR/$ASSET_NAME"
@@ -189,7 +190,7 @@ jobs:
 
   publish-release:
     name: Publish GitHub Release
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
     needs: [ verify-and-web, android-apk ]
     runs-on: ubuntu-latest
     steps:
@@ -199,13 +200,24 @@ jobs:
           name: pageclock-apk-build
           path: artifacts/apk
 
+      - name: Resolve release tag
+        id: release_tag
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/heads/release/* ]]; then
+            RELEASE_TAG="${GITHUB_REF_NAME#release/}"
+          else
+            RELEASE_TAG="$GITHUB_REF_NAME"
+          fi
+          echo "tag_name=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: "PageClock Release ${{ github.ref_name }}"
+          tag_name: ${{ steps.release_tag.outputs.tag_name }}
+          name: "PageClock Release ${{ steps.release_tag.outputs.tag_name }}"
           body: |
-            ### PageClock Automated Release (${{ github.ref_name }})
+            ### PageClock Automated Release (${{ steps.release_tag.outputs.tag_name }})
             
             **What's Changed:**
             - Automated Android in-app updates with GitHub Releases.
