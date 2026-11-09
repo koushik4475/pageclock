@@ -19,6 +19,9 @@ class StopwatchState {
     this.elapsedMs = 0,
   });
 
+  bool get isRunning => status == StopwatchStatus.running;
+  bool get isPaused => status == StopwatchStatus.paused;
+
   StopwatchState copyWith({
     StopwatchStatus? status,
     ReadingSession? currentSession,
@@ -197,6 +200,16 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
     return finishedSession;
   }
 
+  /// Discards the active session without saving it as a completed entry.
+  Future<void> cancel() async {
+    _ticker?.cancel();
+    final session = state.currentSession;
+    if (session != null) {
+      await _repository.softDeleteSession(session.id);
+    }
+    state = const StopwatchState(status: StopwatchStatus.idle);
+  }
+
   @override
   void dispose() {
     _ticker?.cancel();
@@ -209,3 +222,6 @@ final stopwatchProvider =
   final repo = ref.watch(sessionRepositoryProvider);
   return StopwatchNotifier(repo);
 });
+
+/// Backwards-compatible name used by the fullscreen and settings screens.
+final stopwatchEngineProvider = stopwatchProvider;
