@@ -7,6 +7,7 @@ import 'package:pageclock/core/models/reading_session.dart';
 import 'package:pageclock/core/repository/session_repository.dart';
 import 'package:pageclock/core/settings/app_settings.dart';
 import 'package:pageclock/features/timer/toggl_timer_screen.dart';
+import 'package:pageclock/main.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -35,10 +36,13 @@ void main() {
         overrides: [
           sharedPreferencesProvider.overrideWithValue(prefs),
           sessionRepositoryProvider.overrideWithValue(repository),
+          sessionsStreamProvider.overrideWith((ref) => repository.watchAllSessions()),
         ],
         child: const MaterialApp(home: TogglTimerScreen()),
       ),
     );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
     await tester.pumpAndSettle();
 
     expect(find.text('Daily focus goal'), findsOneWidget);

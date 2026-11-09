@@ -58,6 +58,9 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
           ),
           onPressed: () {
             ref.read(mainTabNavigationIndexProvider.notifier).state = 0;
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
           },
         ),
         title: Text(
