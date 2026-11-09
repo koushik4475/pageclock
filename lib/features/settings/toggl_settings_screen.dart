@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/engine/stopwatch_engine.dart';
+import '../../core/navigation/main_tab_navigation.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/repository/session_repository.dart';
@@ -55,7 +56,9 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
             Icons.arrow_back,
             color: colorScheme.onSurface,
           ),
-          onPressed: () => Navigator.maybePop(context),
+          onPressed: () {
+            ref.read(mainTabNavigationIndexProvider.notifier).state = 0;
+          },
         ),
         title: Text(
           'Settings',
