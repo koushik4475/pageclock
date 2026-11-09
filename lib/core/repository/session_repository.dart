@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/reading_session.dart';
 import '../settings/app_settings.dart';
-import 'web_session_repository.dart';
 import 'session_repository_platform_stub.dart'
     if (dart.library.io) 'session_repository_platform_native.dart' as platform;
 

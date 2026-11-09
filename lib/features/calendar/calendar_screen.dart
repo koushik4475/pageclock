@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/models/reading_session.dart';
+import '../../core/settings/app_settings.dart';
 import '../../main.dart';
 
 /// 24-Hour Calendar Timeline Screen matching Toggl Track UI
@@ -74,19 +75,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
+    final weekStartDay = ref.watch(settingsProvider).weekStartDay;
 
     // Split entries at local-day boundaries so overnight sessions appear
     // on both dates instead of producing a negative-height block.
-    final dayStart = DateTime(
+    final dayStart = DateTime.utc(
       _selectedDay.year,
       _selectedDay.month,
       _selectedDay.day,
-      0,
-      0,
-      0,
-      0,
-      0,
-    ).toUtc();
+    );
     final dayEnd = dayStart.add(const Duration(days: 1));
     final daySegments = <_CalendarSessionSegment>[];
     for (final session in widget.sessions) {
@@ -108,9 +105,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       final boundedEnd = sessionEnd.isAfter(dayEnd) ? dayEnd : sessionEnd;
       final segmentMs = boundedEnd.difference(boundedStart).inMilliseconds;
       if (segmentMs <= 0) continue;
-      final top = boundedStart.difference(dayStart).inMicroseconds /
-          Duration.microsecondsPerMinute;
-      final height = segmentMs / Duration.millisecondsPerMinute;
+      final top = boundedStart.difference(dayStart).inMilliseconds / 60000.0;
+      final height = segmentMs / 60000.0;
       daySegments.add(
         _CalendarSessionSegment(
           session: session,
@@ -191,7 +187,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           ),
 
           // Horizontal 7-Day Strip (Sun to Sat)
-          _buildWeekdayStrip(isDark, today),
+          _buildWeekdayStrip(isDark, today, weekStartDay),
           const SizedBox(height: 8),
 
           Divider(
@@ -309,18 +305,23 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 
-  Widget _buildWeekdayStrip(bool isDark, DateTime today) {
-    // Current week starting from Sunday
-    final currentWeekday = today.weekday % 7;
-    final thisSunday = today.subtract(Duration(days: currentWeekday));
-    const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  Widget _buildWeekdayStrip(
+    bool isDark,
+    DateTime today,
+    int weekStartDay,
+  ) {
+    final daysFromWeekStart = (today.weekday - weekStartDay + 7) % 7;
+    final weekStart = today.subtract(Duration(days: daysFromWeekStart));
+    final dayLabels = weekStartDay == DateTime.monday
+        ? const ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+        : const ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: List.generate(7, (i) {
-          final dayDate = thisSunday.add(Duration(days: i));
+          final dayDate = weekStart.add(Duration(days: i));
           final isSelected = dayDate.year == _selectedDay.year &&
               dayDate.month == _selectedDay.month &&
               dayDate.day == _selectedDay.day;
