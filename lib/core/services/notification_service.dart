@@ -18,6 +18,8 @@ class NotificationService {
   static bool _initialized = false;
   static bool _timezoneReady = false;
   static String? _lastTimerState;
+  static DateTime? _lastTimerPermissionCheckAt;
+  static const _timerPermissionRecheckInterval = Duration(seconds: 10);
   static String? _pendingAction;
   static Future<void> Function(String action)? _actionHandler;
 
@@ -100,14 +102,27 @@ class NotificationService {
       }
       return;
     }
-    // Check the OS permission before consulting the active-state cache. Android
-    // can revoke permission outside the app, which removes the notification;
-    // clearing the cache lets a later sync retry after permission is restored.
+
+    // Timer state emits four times per second. Recheck OS permission at a
+    // bounded interval so external permission changes are detected without
+    // issuing a platform-channel request on every ticker update.
+    final now = DateTime.now();
+    final deniedSignature = 'permission-denied:$signature';
+    final hasActiveNotification = _lastTimerState == signature;
+    final hasDeniedCache = _lastTimerState == deniedSignature;
+    final permissionCheckDue = !hasActiveNotification &&
+            !hasDeniedCache ||
+        _lastTimerPermissionCheckAt == null ||
+        now.difference(_lastTimerPermissionCheckAt!) >=
+            _timerPermissionRecheckInterval;
+    if (!permissionCheckDue) return;
+
+    _lastTimerPermissionCheckAt = now;
     if (await plugin.areNotificationsEnabled() == false) {
-      _lastTimerState = null;
+      _lastTimerState = deniedSignature;
       return;
     }
-    if (_lastTimerState == signature) return;
+    if (hasActiveNotification) return;
 
     final running = state.status == StopwatchStatus.running;
     final project = session.subjectId?.trim().isNotEmpty == true
