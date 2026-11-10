@@ -136,7 +136,7 @@ jobs:
         run: |
           set -u
           log_file="$RUNNER_TEMP/android-build.log"
-          if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" || "$GITHUB_REF" == "refs/heads/main" ]]; then
             SOURCE_VERSION="$(sed -n 's/^version: *//p' pubspec.yaml | head -n 1)"
           else
             SOURCE_VERSION="${GITHUB_REF_NAME#release/}"
@@ -177,7 +177,7 @@ jobs:
       - name: Package Release Assets & Compute Checksum
         run: |
           APK_DIR="build/app/outputs/flutter-apk"
-          if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" || "$GITHUB_REF" == "refs/heads/main" ]]; then
             SOURCE_VERSION="$(sed -n 's/^version: *//p' pubspec.yaml | head -n 1)"
           else
             SOURCE_VERSION="${GITHUB_REF_NAME#release/}"
@@ -233,7 +233,7 @@ jobs:
         run: dart run build_runner build
 
       - name: Build unsigned iOS Simulator app
-        run: flutter build ios --simulator --no-codesign --release --no-pub
+        run: flutter build ios --simulator --no-codesign --debug --no-pub
 
       - name: Package generated iOS project and simulator app
         run: |
