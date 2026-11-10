@@ -7,6 +7,17 @@ import 'package:http/testing.dart';
 import 'package:crypto/crypto.dart';
 import 'package:pageclock/features/app_update/apk_downloader.dart';
 
+class _StreamedBodyClient extends http.BaseClient {
+  final Stream<List<int>> body;
+
+  _StreamedBodyClient(this.body);
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    return http.StreamedResponse(body, 200);
+  }
+}
+
 class _OversizedContentLengthClient extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
@@ -163,6 +174,40 @@ void main() {
         ),
         throwsA(isA<HttpException>()),
       );
+    });
+
+    test('rejects streamed APK overflow without Content-Length and deletes the partial file', () async {
+      final before = await Directory.systemTemp
+          .list()
+          .where((entity) => entity.path.split(Platform.pathSeparator).last.startsWith('pageclock_update_'))
+          .map((entity) => entity.path)
+          .toSet();
+
+      final client = _StreamedBodyClient(
+        Stream<List<int>>.fromIterable([
+          utf8.encode('12345678'),
+          utf8.encode('9'),
+        ]),
+      );
+      final downloader = ApkDownloader.forTesting(
+        client: client,
+        maxApkBytes: 8,
+      );
+
+      await expectLater(
+        downloader.downloadAndVerifyApk(
+          url: 'https://github.com/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
+          expectedSha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+        ),
+        throwsA(isA<HttpException>()),
+      );
+
+      final after = await Directory.systemTemp
+          .list()
+          .where((entity) => entity.path.split(Platform.pathSeparator).last.startsWith('pageclock_update_'))
+          .map((entity) => entity.path)
+          .toSet();
+      expect(after.difference(before), isEmpty);
     });
 
     test('rejects an APK whose declared content length exceeds the safety limit', () async {
