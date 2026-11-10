@@ -198,10 +198,25 @@ class AppUpdateService {
         return null;
       }
 
-      final body = await response.stream
-          .bytesToString()
-          .timeout(const Duration(seconds: 5));
-      return RegExp(r'[A-Fa-f0-9]{64}').firstMatch(body)?.group(0);
+      final declaredLength =
+          int.tryParse(response.headers['content-length'] ?? '');
+      if (declaredLength != null && declaredLength > 4096) {
+        await response.stream.drain<void>();
+        return null;
+      }
+
+      final body = StringBuffer();
+      var receivedBytes = 0;
+      await for (final chunk in response.stream.timeout(
+        const Duration(seconds: 5),
+      )) {
+        receivedBytes += chunk.length;
+        if (receivedBytes > 4096) return null;
+        body.write(utf8.decode(chunk, allowMalformed: true));
+      }
+      return RegExp(r'[A-Fa-f0-9]{64}')
+          .firstMatch(body.toString())
+          ?.group(0);
     }
   }
 
