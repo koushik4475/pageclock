@@ -67,3 +67,14 @@ Consent records are append-only. A withdrawal must be recorded as a new row with
 ## 6. Before public launch
 
 This repository supplies the app UI, SQL migrations and Edge Function source. It does not create your Supabase project, configure your SMTP sender/domain, set production redirect/deep-link domains, provision the first administrator or deploy hosting. Complete and verify those owner-controlled steps, then test signup, verification, sign-in, password recovery, account deletion, non-admin denial and admin-only directory access in a staging project before public registration.
+
+## 7. Host the standalone web admin portal
+
+The static portal source is in `admin-portal/`.
+
+1. Replace the placeholders in `admin-portal/config.js` with the Supabase project URL and public anon/publishable key. The key is public by design; RLS is the access-control boundary.
+2. Publish the contents of `admin-portal/` to a static HTTPS host (for example, a dedicated static site on your chosen hosting provider).
+3. Add the hosted portal origin to Supabase Authentication → URL Configuration → Redirect URLs if you use auth email flows from that origin.
+4. Sign in using the first administrator account. The portal verifies the `admin_roles` row before displaying the directory; the database RLS policies independently enforce access.
+
+The standalone portal is source-complete but is not deployed by this repository change. Configure hosting, a production domain and the project key before sharing its URL. It is a read-only directory in this release; it does not expose reading data or provide destructive client controls.
