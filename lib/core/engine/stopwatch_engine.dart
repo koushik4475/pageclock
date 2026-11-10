@@ -45,26 +45,29 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
   Timer? _ticker;
   static const _uuid = Uuid();
 
+  late final Future<void> _restoreFuture;
+  bool _startInProgress = false;
+
   StopwatchNotifier(this._repository)
       : super(const StopwatchState(status: StopwatchStatus.idle)) {
-    _restoreActiveSession();
+    _restoreFuture = _restoreActiveSession();
   }
 
   Future<void> _restoreActiveSession() async {
     final active = await _repository.getActiveSession();
-    if (active != null) {
-      final nowUtc = DateTime.now().toUtc().millisecondsSinceEpoch;
-      final elapsed = active.calculateCurrentDurationMs(nowUtc);
-      final isPaused = active.pausedAtUtc != null;
-      state = StopwatchState(
-        status: isPaused ? StopwatchStatus.paused : StopwatchStatus.running,
-        currentSession: active,
-        pauseTimestampUtc: active.pausedAtUtc,
-        elapsedMs: elapsed,
-      );
-      if (!isPaused) {
-        _startTicker();
-      }
+    if (!mounted || active == null) return;
+
+    final nowUtc = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final elapsed = active.calculateCurrentDurationMs(nowUtc);
+    final isPaused = active.pausedAtUtc != null;
+    state = StopwatchState(
+      status: isPaused ? StopwatchStatus.paused : StopwatchStatus.running,
+      currentSession: active,
+      pauseTimestampUtc: active.pausedAtUtc,
+      elapsedMs: elapsed,
+    );
+    if (!isPaused) {
+      _startTicker();
     }
   }
 
@@ -80,46 +83,58 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
   }
 
   Future<void> start({String? subjectId, String? note}) async {
-    // If already running, ignore
-    if (state.status == StopwatchStatus.running) return;
+    // Do not create a new row until the persisted active session has been
+    // restored. Otherwise a fast first tap after cold launch can orphan a
+    // second active session while the async restore later replaces UI state.
+    await _restoreFuture;
+    if (_startInProgress) return;
+    _startInProgress = true;
+    try {
+      // If already running, ignore
+      if (state.status == StopwatchStatus.running) return;
 
-    // If currently paused, resume existing session instead of orphaning it
-    if (state.status == StopwatchStatus.paused && state.currentSession != null) {
-      await resume();
-      return;
+      // If currently paused, resume existing session instead of orphaning it
+      if (state.status == StopwatchStatus.paused && state.currentSession != null) {
+        await resume();
+        return;
+      }
+
+      final nowUtc = DateTime.now().toUtc().millisecondsSinceEpoch;
+      final tzOffset = DateTime.now().timeZoneOffset.inMinutes;
+
+      final session = ReadingSession(
+        id: _uuid.v4(),
+        startedAtUtc: nowUtc,
+        endedAtUtc: null,
+        pausedAtUtc: null,
+        pausedTotalMs: 0,
+        durationMs: 0,
+        tzOffsetMin: tzOffset,
+        subjectId: subjectId,
+        note: note,
+        source: 'timer',
+        deviceId: 'local',
+        createdAt: nowUtc,
+        updatedAt: nowUtc,
+      );
+
+      await _repository.saveSession(session);
+      if (!mounted) return;
+
+      state = StopwatchState(
+        status: StopwatchStatus.running,
+        currentSession: session,
+        elapsedMs: 0,
+      );
+
+      _startTicker();
+    } finally {
+      _startInProgress = false;
     }
-
-    final nowUtc = DateTime.now().toUtc().millisecondsSinceEpoch;
-    final tzOffset = DateTime.now().timeZoneOffset.inMinutes;
-
-    final session = ReadingSession(
-      id: _uuid.v4(),
-      startedAtUtc: nowUtc,
-      endedAtUtc: null,
-      pausedAtUtc: null,
-      pausedTotalMs: 0,
-      durationMs: 0,
-      tzOffsetMin: tzOffset,
-      subjectId: subjectId,
-      note: note,
-      source: 'timer',
-      deviceId: 'local',
-      createdAt: nowUtc,
-      updatedAt: nowUtc,
-    );
-
-    await _repository.saveSession(session);
-
-    state = StopwatchState(
-      status: StopwatchStatus.running,
-      currentSession: session,
-      elapsedMs: 0,
-    );
-
-    _startTicker();
   }
 
   Future<void> pause() async {
+    await _restoreFuture;
     if (state.status != StopwatchStatus.running || state.currentSession == null) return;
 
     _ticker?.cancel();
@@ -139,6 +154,7 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
   }
 
   Future<void> resume() async {
+    await _restoreFuture;
     if (state.status != StopwatchStatus.paused || state.currentSession == null) return;
 
     final nowUtc = DateTime.now().toUtc().millisecondsSinceEpoch;
@@ -164,6 +180,7 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
   }
 
   Future<ReadingSession?> stop({int minSessionDurationMs = 10000, bool forceSave = false}) async {
+    await _restoreFuture;
     if (state.currentSession == null) return null;
 
     _ticker?.cancel();
@@ -202,6 +219,7 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
 
   /// Discards the active session without saving it as a completed entry.
   Future<void> cancel() async {
+    await _restoreFuture;
     _ticker?.cancel();
     final session = state.currentSession;
     if (session != null) {
