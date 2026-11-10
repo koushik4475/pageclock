@@ -76,7 +76,7 @@ void main() {
 
       expect(
         () async => await downloader.downloadAndVerifyApk(
-          url: 'https://example.com/app.apk',
+          url: 'https://github.com/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
           expectedSha256: '0000000000000000000000000000000000000000000000000000000000000000',
         ),
         throwsA(isA<ChecksumMismatchException>()),
@@ -92,7 +92,7 @@ void main() {
 
       expect(
         () async => downloader.downloadAndVerifyApk(
-          url: 'https://example.com/app.apk',
+          url: 'https://github.com/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
           expectedSha256: null,
         ),
         throwsA(isA<StateError>()),
@@ -112,7 +112,7 @@ void main() {
 
       expect(
         () async => downloader.downloadAndVerifyApk(
-          url: 'https://example.com/app.apk',
+          url: 'https://github.com/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
           expectedSha256:
               '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
         ),
@@ -120,5 +120,54 @@ void main() {
       );
     });
 
+
+    test('rejects an APK URL on an untrusted HTTPS host before network access', () async {
+      var requestStarted = false;
+      final client = MockClient((request) async {
+        requestStarted = true;
+        return http.Response('unexpected', 200);
+      });
+
+      expect(
+        () => ApkDownloader(client: client).downloadAndVerifyApk(
+          url: 'https://attacker.example/app.apk',
+          expectedSha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+        ),
+        throwsA(isA<HttpException>()),
+      );
+      expect(requestStarted, isFalse);
+    });
+
+    test('rejects redirects to untrusted HTTPS hosts', () async {
+      final client = MockClient((request) async => http.Response(
+        '',
+        302,
+        headers: {'location': 'https://attacker.example/payload.apk'},
+      ));
+
+      expect(
+        () => ApkDownloader(client: client).downloadAndVerifyApk(
+          url: 'https://github.com/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
+          expectedSha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+        ),
+        throwsA(isA<HttpException>()),
+      );
+    });
+
+    test('rejects an APK whose declared content length exceeds the safety limit', () async {
+      final client = MockClient((request) async => http.Response(
+        '',
+        200,
+        headers: {'content-length': (ApkDownloader.maxApkBytes + 1).toString()},
+      ));
+
+      expect(
+        () => ApkDownloader(client: client).downloadAndVerifyApk(
+          url: 'https://github.com/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
+          expectedSha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+        ),
+        throwsA(isA<HttpException>()),
+      );
+    });
   });
 }
