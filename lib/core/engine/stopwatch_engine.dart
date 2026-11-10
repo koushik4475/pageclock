@@ -56,19 +56,18 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
   Future<void> _restoreActiveSession() async {
     final active = await _repository.getActiveSession();
     if (!mounted || active == null) return;
-    {
-      final nowUtc = DateTime.now().toUtc().millisecondsSinceEpoch;
-      final elapsed = active.calculateCurrentDurationMs(nowUtc);
-      final isPaused = active.pausedAtUtc != null;
-      state = StopwatchState(
-        status: isPaused ? StopwatchStatus.paused : StopwatchStatus.running,
-        currentSession: active,
-        pauseTimestampUtc: active.pausedAtUtc,
-        elapsedMs: elapsed,
-      );
-      if (!isPaused) {
-        _startTicker();
-      }
+
+    final nowUtc = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final elapsed = active.calculateCurrentDurationMs(nowUtc);
+    final isPaused = active.pausedAtUtc != null;
+    state = StopwatchState(
+      status: isPaused ? StopwatchStatus.paused : StopwatchStatus.running,
+      currentSession: active,
+      pauseTimestampUtc: active.pausedAtUtc,
+      elapsedMs: elapsed,
+    );
+    if (!isPaused) {
+      _startTicker();
     }
   }
 
