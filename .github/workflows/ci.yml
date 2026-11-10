@@ -79,7 +79,8 @@ jobs:
           compression-level: 1
 
   android-apk:
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
+    # Build Android on PRs as well as protected release refs; PR builds use debug signing.
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
     name: Build Android release APK
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -199,6 +200,55 @@ jobs:
           path: build/app/outputs/flutter-apk/PageClock-*.apk*
           if-no-files-found: error
           compression-level: 0
+
+
+  ios-simulator:
+    name: Build iOS Simulator App
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.9'
+          cache: true
+          pub-cache: true
+
+      # The repository currently contains the shared Flutter source but no
+      # generated iOS host project. Generate the standard Runner/Xcode host
+      # project in the clean macOS runner before compiling it.
+      - name: Generate iOS host project
+        run: flutter create --platforms=ios --org com.example --project-name pageclock .
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run code generation (Drift / build_runner)
+        run: dart run build_runner build
+
+      - name: Build unsigned iOS Simulator app
+        run: flutter build ios --simulator --no-codesign --release --no-pub
+
+      - name: Package generated iOS project and simulator app
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent ios "$RUNNER_TEMP/pageclock-ios-project.zip"
+          ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app "$RUNNER_TEMP/pageclock-ios-simulator-app.zip"
+
+      - name: Upload iOS build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pageclock-ios-simulator
+          path: |
+            ${{ runner.temp }}/pageclock-ios-project.zip
+            ${{ runner.temp }}/pageclock-ios-simulator-app.zip
+          if-no-files-found: error
+          compression-level: 1
 
   publish-release:
     name: Publish GitHub Release

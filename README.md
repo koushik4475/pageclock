@@ -83,11 +83,33 @@ Paste the output into GitHub secret `ANDROID_KEYSTORE_BASE64`.
 
 ---
 
-### 2. iOS Installation (iPhone & iPad)
-- **Free Standalone PWA:**
-  1. Open the hosted web application in Safari on iOS.
-  2. Tap **Share** -> **Add to Home Screen**.
-  3. Launches full-screen as a standalone application.
+### 2. iOS (iPhone & iPad)
+
+PageClock uses the same Flutter application code on iOS and Android. The iOS
+Xcode host project is generated and compiled by the macOS CI workflow because
+this repository previously did not include an `ios/` host project.
+
+- Every pull request builds an **unsigned iOS Simulator app** on macOS.
+- The workflow uploads both the simulator app and generated Xcode project as
+  the `pageclock-ios-simulator` artifact.
+- A simulator build is for automated validation; it cannot be installed on a
+  physical iPhone.
+- Physical-device, TestFlight, and App Store distribution require an Apple
+  Developer account, signing certificate, provisioning profile, and App Store
+  Connect setup. No Apple credentials are stored in this repository.
+- iOS updates are distributed through TestFlight/App Store. The Android APK
+  updater is deliberately disabled on iOS.
+
+To build locally on a Mac with Xcode installed:
+
+```bash
+flutter create --platforms=ios --org com.example --project-name pageclock .
+flutter pub get
+dart run build_runner build
+flutter build ios --simulator --no-codesign
+```
+
+
 
 ---
 

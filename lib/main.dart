@@ -260,7 +260,9 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
   }
 
   void _checkAutoUpdate() async {
-    if (kIsWeb) return;
+    // GitHub Releases distribute Android APKs only. iOS updates must be
+    // delivered through the App Store/TestFlight, never through the APK flow.
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
     try {
       final active = await ref.read(sessionRepositoryProvider).getActiveSession();
       if (active != null) return;
