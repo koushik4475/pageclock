@@ -177,9 +177,9 @@ void main() {
           return http.Response(
             '',
             302,
-            headers: {'location': 'https://s3.amazonaws.com/github-releases/app.apk'},
+            headers: {'location': 'https://release-assets.githubusercontent.com/github-releases/app.apk'},
           );
-        } else if (url == 'https://s3.amazonaws.com/github-releases/app.apk') {
+        } else if (url == 'https://release-assets.githubusercontent.com/github-releases/app.apk') {
           return http.Response.bytes(
             apkBytes,
             200,
