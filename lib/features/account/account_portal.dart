@@ -133,5 +133,5 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const Card(child: ListTile(leading: Icon(Icons.privacy_tip_outlined), title: Text('Privacy-safe administration'),
             subtitle: Text('Only account metadata is shown. Personal reading sessions and notes are not exposed.'))),
           if (error != null) Text(error!),
-        ]);
+        ]));
 }
