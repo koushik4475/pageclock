@@ -1,85 +1,124 @@
 # PageClock Product QA Review and Roadmap
 
-Review date: 9 November 2026
+Review date: 10 November 2026  
+Reviewed main commit: `8821332eef9564714cd1b63270bd1ffbe9482e0e`  
+Latest published release: `v1.0.0+122`
 
-## Product assessment
+## Current product baseline
 
-PageClock has the foundations of an offline-first focus tracker: timer and Pomodoro modes, a fullscreen flip clock, calendar timeline, reports, local persistence, backup/export, themes, and Android update support.
+PageClock is an offline-first personal reading/focus tracker. The current main branch includes:
 
-The code review found important gaps between the intended product experience and the implemented workflows. This review is based on repository code and automated CI evidence; physical-device and hosted-browser exploratory testing are still required.
+- A persistent stopwatch with start, pause, resume, stop, active-session recovery and a minimum-duration prompt.
+- Manual time-entry creation and a fixed project picker.
+- Pomodoro focus/break intervals, configurable focus duration, break settings and completion notifications.
+- A fullscreen flip clock / ambient focus screen.
+- Eleven locally persisted themes.
+- A 24-hour calendar timeline and reports with filters, project/category breakdowns, heatmap and PDF export.
+- Local settings, daily focus goal, running-timer notification, Pomodoro notifications and scheduled daily reminders.
+- SQLite/Drift persistence on native platforms and a separate web persistence implementation.
+- CSV export, JSON v2 backup, JSON/CSV import and destructive reset controls.
+- Android GitHub Releases update checks, mandatory SHA-256 verification and a user-mediated share-sheet installer handoff.
 
-## Addressed in the current QA hardening change
+The latest main-branch workflow (run [42634687436](https://github.com/koushik4475/pageclock/actions/runs/42634687436)) completed successfully, and the release workflow (run [42634768498](https://github.com/koushik4475/pageclock/actions/runs/42634768498)) published [v1.0.0+122](https://github.com/koushik4475/pageclock/releases/tag/v1.0.0%2B122) with an APK and SHA-256 sidecar. These are CI/release facts, not proof of physical-device installation, Play Protect acceptance, notification delivery or upgrade continuity.
 
-- Replaced the hard-coded Today sample entry with persisted sessions and an empty state.
-- Connected timer descriptions and project labels to saved sessions, and restored the last selected project and timer mode.
-- Applied the minimum-session setting with explicit save/discard/continue choices.
-- Applied the configured Pomodoro focus duration and added long-break interval and auto-start controls.
-- Made date, time, duration, week-start and haptic settings effective in key timer/calendar/report workflows.
-- Added a database migration for the paused timestamp column.
-- Isolated native Drift/SQLite behind conditional imports so web builds do not compile native FFI code.
-- Added strict SHA-256 and HTTPS checks to APK update downloads.
-- Enabled CI analysis, tests, web compilation and Android release compilation without masking build/code-generation failures.
+## Findings from the current source review
 
-## Product gaps still requiring a planned feature release
+### P1 — Subject/project management is incomplete
 
-### P1 — Project and subject management
+The timer still uses a hard-coded five-item `_availableProjects` list. A `Subjects` table exists in the database, but the current repository contract has no subject CRUD API and the UI has no create, rename, recolour, archive or delete flow.
 
-The timer still offers a fixed in-code list of projects. The database has a Subject model/table, but there is no complete user workflow to create, rename, recolour, archive or delete subjects. JSON backup currently emits an empty subjects collection, and import does not restore subject records.
+The JSON v2 exporter accepts a `subjects` collection but the Settings screen calls it without one, so it exports an empty list. The parser can read subjects, but the import handler currently imports sessions/settings only and ignores `parsed.subjects`.
 
-Plan:
-1. Add a subject repository contract for native and web storage.
-2. Add a subject-management screen and create/edit/archive flows.
-3. Replace hard-coded project choices in the timer with persisted subjects.
-4. Include subject records in JSON export/import, with duplicate and conflict rules.
-5. Test migration, web/native persistence and backup round-trips.
+**Recommendation:** implement a small local subject repository and management flow, then wire the timer picker and JSON backup round-trip to it. Keep it fully offline; do not add accounts or cloud sync.
 
-### P1 — Individual time-entry management
+### P1 — Historical time-entry correction is missing
 
-Users can add manual entries and clear all sessions, but cannot edit or delete one historical entry from the product UI.
+The UI can create manual entries and clear all sessions, but it does not expose a complete edit/delete/undo workflow for one historical entry. This makes correction of an accidental duration, description or project difficult.
 
-Plan:
-1. Add entry detail/edit UI for description, subject, start/end and duration.
-2. Add single-entry soft delete with undo.
-3. Ensure changes update calendar, totals, streaks, heatmap and PDF reports.
-4. Validate negative/zero durations, overlapping timestamps and cross-midnight entries.
+**Recommendation:** add a focused entry detail sheet with edit and soft-delete/undo. Validate zero/negative duration, end-before-start, cross-midnight entries and timezone changes.
 
-### P1 — Notifications and background tracking
+### P1 — APK updater origin and size hardening is still pending
 
-Settings contain reminder and running-timer-notification fields, but there is no notification service or end-to-end platform implementation. A timer that only continues inside the app process is not equivalent to a robust background timer.
+The current main-branch downloader requires a valid SHA-256 and HTTPS, but it accepts any HTTPS host and has no maximum streamed download size. Open draft PR [#21](https://github.com/koushik4475/pageclock/pull/21) adds an exact GitHub release-host allowlist and a 200 MiB cap, with passing PR CI. Because this changes a security boundary, it remains pending explicit maintainer/security review and must not be auto-merged by the maintenance loop.
 
-Plan:
-1. Define Android notification permission and channel behaviour.
-2. Add an ongoing notification with elapsed time and pause/stop deep links.
-3. Add opt-in daily reminders with a user-controlled reminder time and quiet hours.
-4. Persist timer state and reconcile it after process death, reboot and timezone changes.
-5. Document web limitations rather than displaying non-functional switches.
+The current installer intentionally avoids `REQUEST_INSTALL_PACKAGES` and hands the already-verified APK to the Android share sheet. This is safer than silently granting PageClock permission to install unknown apps, but the real save-to-Downloads/open-installer sequence still needs device verification.
 
-### P2 — Data portability and recovery
+### P1 — Android signing, Play Protect and foreground-service acceptance need device/console evidence
 
-The backup flow needs broader coverage for subjects and settings, plus stronger tests for old schema versions, malformed records and partial imports.
+The release workflow successfully built and published the latest APK, but the repository review did not independently compare the APK signing-certificate fingerprint against earlier releases. Keep the existing application ID (`com.example.pageclock`) and release keystore continuity intact; changing either can break install-over-existing-app updates.
 
-Plan:
-1. Version the backup schema and document compatibility rules.
-2. Export/import sessions, subjects and settings together.
-3. Validate rows before writing and report skipped/invalid records.
-4. Use a transactional import so failed imports cannot leave half-restored data.
+The manifest declares an Android `specialUse` foreground service with a user-started focus-timer explanation. For Android 14+ and Google Play distribution, this must be supported by an accurate Play Console foreground-service declaration and a demonstration video. The timer notification must remain user-visible, stoppable and limited to the active user-started focus session.
 
-### P2 — Accessibility and usability
+### P2 — Backup recovery needs complete, atomic round-trips
 
-Plan:
-1. Add semantic labels and minimum touch targets for icon-only actions.
-2. Verify text scaling, landscape layouts, tablets and keyboard navigation.
-3. Add onboarding and clear first-run empty states.
-4. Add localization coverage and verify date/time formatting across locales.
+JSON v2 currently handles sessions and settings but does not round-trip subjects. Import writes sessions one by one before asking whether to restore settings; there is no transaction/rollback boundary for the whole restore. A malformed or interrupted import can therefore leave a partial restore.
 
-## Release acceptance gates
+**Recommendation:** validate the complete payload first, preview counts and conflicts, then apply sessions, subjects and optional settings transactionally. Preserve legacy v1 JSON and CSV compatibility.
 
-- `flutter analyze --no-fatal-infos` reports no errors or warnings.
-- `flutter test` passes, including storage, timer lifecycle, migration, import/export and update-integrity tests.
-- Web release build and Android release APK build both pass.
-- A physical Android smoke test covers cold launch, timer start/pause/resume/stop, process termination/recovery, notification permission, APK update permission, and install-over-existing-app.
-- A hosted web smoke test covers local persistence, reload recovery, timer workflows, reports, calendar, file import/export and responsive layouts.
+### P2 — Accessibility and responsive QA are not complete
 
-## Explicitly not claimed by this source-level review
+Source code contains responsive width constraints in several dialogs, but no hosted-browser end-to-end run or physical tablet/phone accessibility sign-off was found in the latest CI evidence.
 
-The automated workflow cannot prove real Android installer behaviour, notification delivery while backgrounded, iOS behaviour or usability on physical screen sizes. Those require device/browser execution and should remain visible QA sign-off items.
+**Recommendation:** add semantic labels and minimum touch targets for icon-only controls; verify large text, landscape, narrow web widths, keyboard navigation and screen-reader order.
+
+## Prioritized feature-gap shortlist
+
+| Priority | Candidate | User value | Scope | Offline/privacy impact | Evidence / decision |
+|---|---|---|---|---|---|
+| P1 | Subject CRUD + subject-aware backup | Replace the fixed project list with the user's own reading/work categories; prevent orphaned subject references | Medium | Local-only; no additional collection or network | Existing Subjects table is unused by the UI and backup handler |
+| P1 | Edit/delete one time entry with undo | Correct accidental or misclassified sessions without wiping history | Medium | Local-only; use existing soft-delete metadata | Current UI has manual add and bulk clear, not single-entry correction |
+| P1 | APK host allowlist + streamed size cap | Reduce malicious redirect and unbounded-download exposure | Small/medium | No new personal data; network remains GitHub-only | Draft security PR #21; require maintainer review before merge |
+| P1 | Physical Android release/update smoke suite | Catch Play Protect, signing, notification, FileProvider and installer handoff failures | Medium QA effort | Device-local test; no telemetry required | CI cannot prove device installer or Play Protect behaviour |
+| P2 | Transactional backup preview/restore | Make recovery predictable and prevent partial imports | Medium | Local-only; no cloud backup | Current import is sequential and omits subjects |
+| P2 | Accessibility and responsive polish | Improve usability across font scales, tablets and keyboard/screen-reader users | Medium | No privacy impact | Needs browser/device exploration beyond compilation |
+| P3 | Optional native iOS distribution | Reach iPhone/iPad users | Large | App Store/TestFlight distribution; no new data required | Draft PR #22 is not ready: see current CI blockers below; requires explicit product approval before expanding scope |
+
+Do not add activity surveillance, automatic app/site monitoring, team administration, cloud sync, social feeds or AI-generated productivity scoring without explicit product approval. These would add complexity and/or undermine PageClock's offline-first privacy position.
+
+## 2026 competitor/product evidence
+
+The useful patterns are lightweight organization, reliable time data and understandable history—not copying enterprise feature breadth:
+
+- [Toggl Product Hub — 20 October 2026](https://toggl.com/product/toggl-flagship-product) describes a broader planning experience with a visual calendar, capacity/workload views and project dashboards, while confirming Toggl Track remains supported. PageClock should borrow only the clarity of project context and progress summaries, not team capacity administration.
+- [Toggl Product Hub release feed](https://toggl.com/product) lists October/November 2026 work including role-based time classification, activity-derived draft logs and shareable reports. Activity-derived logs are deliberately not recommended for PageClock because they introduce monitoring/privacy complexity.
+- [Clockify changelog](https://clockify.me/help/whats-new) documents 2026 improvements around consistent duration modes, timezone-aware aggregation, offline operation and timer start/stop behaviour. PageClock already prioritizes offline use; the relevant takeaway is stronger timezone and duration correctness tests.
+- [Forest on the App Store](https://apps.apple.com/in/app/forest-focus-for-productivity/id866450515) highlights custom tags, weekly/monthly/yearly focus history, milestones and visual progress. PageClock can adopt the useful low-friction parts—custom subjects/tags and clearer history—without adding gamified social mechanics.
+
+## Android policy and release checks
+
+- [Android foreground-service type requirements](https://developer.android.com/about/versions/14/changes/fgs-types-required) require an appropriate service type and permission for Android 14+.
+- [Google Play foreground-service policy](https://support.google.com/googleplay/android-developer/answer/18265346?hl=en) requires a core, user-beneficial, user-initiated/perceptible and stoppable use case.
+- [Google Play foreground-service declaration guidance](https://support.google.com/googleplay/android-developer/answer/13392821?hl=en-GB) calls for a description, user-impact explanation and demonstration video for each declared type.
+- [Android notification runtime permission guidance](https://developer.android.com/develop/ui/compose/notifications/notification-permission) explains the Android 13+ permission flow and why denied notifications affect what users see.
+
+Keep SHA-256 verification mandatory, preserve the signing key and application ID, use HTTPS only, and never bypass Play Protect or signing checks.
+
+## Open pull-request triage at review time
+
+- [#20 — Node 24 GitHub Actions upgrades](https://github.com/koushik4475/pageclock/pull/20): draft; its web PR checks pass, but the PR run does not exercise Android artifact upload/download or release publishing. Third-party action and release-token changes require maintainer supply-chain review.
+- [#21 — APK download hardening](https://github.com/koushik4475/pageclock/pull/21): draft; web analysis/tests/build pass. Security-boundary change; keep pending manual review.
+- [#22 — Native iOS and mobile CI](https://github.com/koushik4475/pageclock/pull/22): draft; current run fails because PR refs are parsed as release versions in the Android job and Flutter rejects `--release` for iOS Simulator builds. More seriously, the PR-enabled Android job receives release keystore secrets; PR validation must use debug signing and must never receive production signing credentials. This PR must not merge until fixed and explicitly approved.
+- Timer restoration race fix is tracked separately in [#23](https://github.com/koushik4475/pageclock/pull/23); merge only after its complete checks pass.
+
+## QA evidence and remaining sign-off
+
+Repository governance finding: GitHub currently reports `main` as unprotected, with required status-check enforcement off. CI is running, but GitHub does not enforce it as a merge gate. Maintainers should consider enabling required analysis/test/build checks and preventing force-pushes; this review does not change repository protection settings.
+
+Latest successful release evidence:
+
+- Main push run [42634687436](https://github.com/koushik4475/pageclock/actions/runs/42634687436): analysis, tests, web build and Android main-branch workflow completed successfully.
+- Release run [42634768498](https://github.com/koushik4475/pageclock/actions/runs/42634768498): Android release APK build, checksum packaging and GitHub release publication completed successfully.
+- Latest release [v1.0.0+122](https://github.com/koushik4475/pageclock/releases/tag/v1.0.0%2B122) contains the APK and matching `.sha256` sidecar. GitHub exposes a SHA-256 digest for the APK asset; the APK bytes were not independently downloaded and re-hashed in this source review.
+
+Automated tests cover version comparison, release metadata/checksum parsing, redirect/checksum behaviour, eleven theme palettes and contrast, selected button flows, settings persistence, JSON/CSV round-trips, reports/statistics and update pressure. The newly opened timer restoration regression PR adds delayed-restore and concurrent-start tests.
+
+Still required on real Android hardware:
+
+1. Cold launch with and without an active session; start, pause, resume, stop and process-kill recovery.
+2. Android 13+ notification permission granted/denied/re-enabled; ongoing timer notification actions; reminder delivery after reboot/timezone change.
+3. Install-over-existing-app and signing-certificate continuity; Play Protect scan and installer handoff from the verified APK.
+4. Update check, redirect restrictions, checksum failure, cancellation, low storage and retry behaviour.
+5. All eleven themes, large font scale, landscape and narrow-screen layouts.
+6. Backup export, destructive import/restore, malformed backup and recovery from interruption.
+
+A successful Flutter build is not a physical-device test. No Play Protect approval, real installer launch, physical notification delivery, iOS device run or hosted-browser end-to-end pass is claimed by this review.
