@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'update_model.dart';
+import 'apk_downloader.dart';
 import 'version_comparator.dart';
 
 class UpdateCheckResult {
@@ -109,18 +110,12 @@ class AppUpdateService {
 
       final release = AppReleaseInfo.fromJson(data);
 
-      // Fetch external SHA-256 asset if available and not in body
+      // Fetch an older-release checksum sidecar only from trusted GitHub
+      // asset hosts, validating every redirect before following it.
       String? sha256 = release.expectedSha256;
       if (sha256 == null && release.sha256DownloadUrl != null) {
         try {
-          final shaRes = await _client.get(Uri.parse(release.sha256DownloadUrl!))
-              .timeout(const Duration(seconds: 5));
-          if (shaRes.statusCode == 200) {
-            final match = RegExp(r'[A-Fa-f0-9]{64}').firstMatch(shaRes.body);
-            if (match != null) {
-              sha256 = match.group(0);
-            }
-          }
+          sha256 = await _fetchTrustedSha256(release.sha256DownloadUrl!);
         } catch (_) {}
       }
 
@@ -167,6 +162,46 @@ class AppUpdateService {
         latestVersion: currentVersion,
         errorMessage: 'Network error while checking updates: $e',
       );
+    }
+  }
+
+  Future<String?> _fetchTrustedSha256(String url) async {
+    var currentUri = Uri.tryParse(url);
+    if (currentUri == null || !ApkDownloader.isTrustedDownloadUri(currentUri)) {
+      return null;
+    }
+
+    var redirects = 0;
+    while (true) {
+      final request = http.Request('GET', currentUri)..followRedirects = false;
+      final response = await _client
+          .send(request)
+          .timeout(const Duration(seconds: 5));
+
+      if (response.statusCode >= 300 &&
+          response.statusCode < 400 &&
+          response.headers.containsKey('location')) {
+        final location = response.headers['location']!;
+        final redirectedUri = currentUri.resolve(location);
+        await response.stream.drain<void>();
+        if (!ApkDownloader.isTrustedDownloadUri(redirectedUri)) {
+          return null;
+        }
+        currentUri = redirectedUri;
+        redirects++;
+        if (redirects > 8) return null;
+        continue;
+      }
+
+      if (response.statusCode != 200) {
+        await response.stream.drain<void>();
+        return null;
+      }
+
+      final body = await response.stream
+          .bytesToString()
+          .timeout(const Duration(seconds: 5));
+      return RegExp(r'[A-Fa-f0-9]{64}').firstMatch(body)?.group(0);
     }
   }
 
