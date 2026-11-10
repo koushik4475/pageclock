@@ -79,5 +79,40 @@ void main() {
       expect(notifier.state.currentSession?.id, activeSessions.single.id);
       notifier.dispose();
     });
+
+    test('start, pause, resume and stop persist one completed session', () async {
+      final repository = InMemorySessionRepository([]);
+      final notifier = StopwatchNotifier(repository);
+
+      await notifier.start(subjectId: 'Reading', note: 'Chapter 4');
+      expect(notifier.state.status, StopwatchStatus.running);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      await notifier.pause();
+      expect(notifier.state.status, StopwatchStatus.paused);
+      final pausedAt = notifier.state.currentSession?.pausedAtUtc;
+      expect(pausedAt, isNotNull);
+      await Future<void>.delayed(const Duration(milliseconds: 25));
+
+      await notifier.resume();
+      expect(notifier.state.status, StopwatchStatus.running);
+      expect(notifier.state.currentSession?.pausedAtUtc, isNull);
+      expect(notifier.state.currentSession!.pausedTotalMs, greaterThan(0));
+
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      final finished = await notifier.stop(minSessionDurationMs: 0);
+
+      expect(finished, isNotNull);
+      expect(finished!.endedAtUtc, isNotNull);
+      expect(finished.durationMs, greaterThan(0));
+      expect(notifier.state.status, StopwatchStatus.idle);
+
+      final saved = await repository.getAllSessions();
+      expect(saved, hasLength(1));
+      expect(saved.single.id, finished.id);
+      expect(saved.single.durationMs, finished.durationMs);
+      expect(saved.single.pausedTotalMs, finished.pausedTotalMs);
+      notifier.dispose();
+    });
   });
 }
