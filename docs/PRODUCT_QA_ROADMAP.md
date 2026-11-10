@@ -102,6 +102,8 @@ Keep SHA-256 verification mandatory, preserve the signing key and application ID
 
 ## QA evidence and remaining sign-off
 
+Repository governance finding: GitHub currently reports `main` as unprotected, with required status-check enforcement off. CI is running, but GitHub does not enforce it as a merge gate. Maintainers should consider enabling required analysis/test/build checks and preventing force-pushes; this review does not change repository protection settings.
+
 Latest successful release evidence:
 
 - Main push run [42634687436](https://github.com/koushik4475/pageclock/actions/runs/42634687436): analysis, tests, web build and Android main-branch workflow completed successfully.
