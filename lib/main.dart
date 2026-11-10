@@ -260,7 +260,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
   }
 
   void _checkAutoUpdate() async {
-    if (kIsWeb) return;
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
     try {
       final active = await ref.read(sessionRepositoryProvider).getActiveSession();
       if (active != null) return;
@@ -275,7 +275,9 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isWide = MediaQuery.of(context).size.width >= 800;
+    final availableWidth = MediaQuery.sizeOf(context).width;
+    final useExpandedSidebar = availableWidth >= 1024;
+    final useNavigationRail = availableWidth >= 600 && availableWidth < 1024;
     final currentIndex = ref.watch(mainTabNavigationIndexProvider);
     final sessionsAsync = ref.watch(sessionsStreamProvider);
     final sessions = sessionsAsync.value ?? [];
@@ -290,10 +292,11 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
       const TogglSettingsScreen(),
     ];
 
-    if (isWide) {
+    if (useExpandedSidebar) {
       return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        body: Row(
+        body: SafeArea(
+          child: Row(
           children: [
             Container(
               width: 230,
@@ -400,10 +403,69 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
             ),
           ],
         ),
+        ),
       );
     }
 
-    // Mobile Bottom Navigation Bar matching Toggl Track UI
+    if (useNavigationRail) {
+      return Scaffold(
+        backgroundColor: isSpecial1
+            ? Special1Palette.background
+            : (isDark ? const Color(0xFF0F0B15) : AppColors.bgLight),
+        body: SafeArea(
+          child: Row(
+            children: [
+              NavigationRail(
+                selectedIndex: currentIndex,
+                onDestinationSelected: (index) => ref
+                    .read(mainTabNavigationIndexProvider.notifier)
+                    .state = index,
+                labelType: NavigationRailLabelType.all,
+                backgroundColor: colorScheme.surface,
+                selectedIconTheme: IconThemeData(color: colorScheme.primary),
+                unselectedIconTheme:
+                    IconThemeData(color: colorScheme.onSurfaceVariant),
+                destinations: const [
+                  NavigationRailDestination(
+                    icon: Icon(Icons.access_time_rounded),
+                    selectedIcon: Icon(Icons.access_time_filled_rounded),
+                    label: Text('Timer'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.calendar_today_outlined),
+                    selectedIcon: Icon(Icons.calendar_today_rounded),
+                    label: Text('Calendar'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.bar_chart_outlined),
+                    selectedIcon: Icon(Icons.bar_chart_rounded),
+                    label: Text('Reports'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.settings_outlined),
+                    selectedIcon: Icon(Icons.settings_rounded),
+                    label: Text('Settings'),
+                  ),
+                ],
+              ),
+              VerticalDivider(
+                width: 1,
+                thickness: 1,
+                color: colorScheme.outline,
+              ),
+              Expanded(
+                child: IndexedStack(
+                  index: currentIndex,
+                  children: screens,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Compact phones and narrow iPad multitasking windows use bottom navigation.
     return Scaffold(
       backgroundColor: isSpecial1
           ? Special1Palette.background

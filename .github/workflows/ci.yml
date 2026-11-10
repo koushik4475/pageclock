@@ -124,13 +124,13 @@ jobs:
             echo "::error::pubspec.yaml must provide a stable semantic version (for example 1.0.1)."
             exit 1
           fi
-          flutter build apk --release --target-platform=android-arm64 --build-name="$VERSION_NAME" --build-number="$BUILD_NUMBER" --android-skip-build-dependency-validation --no-pub
+          flutter build apk --debug --target-platform=android-arm64 --build-name="$VERSION_NAME" --build-number="$BUILD_NUMBER" --android-skip-build-dependency-validation --no-pub
 
       - name: Upload Android PR APK
         uses: actions/upload-artifact@v4
         with:
           name: pageclock-android-pr
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           compression-level: 0
 
@@ -279,7 +279,7 @@ jobs:
       # generated iOS host project. Generate the standard Runner/Xcode host
       # project in the clean macOS runner before compiling it.
       - name: Generate iOS host project
-        run: flutter create --platforms=ios --org com.example --project-name pageclock .
+        run: flutter create --platforms=ios,macos --org com.example --project-name pageclock .
 
       - name: Install dependencies
         run: flutter pub get
@@ -302,6 +302,47 @@ jobs:
           path: |
             ${{ runner.temp }}/pageclock-ios-project.zip
             ${{ runner.temp }}/pageclock-ios-simulator-app.zip
+          if-no-files-found: error
+          compression-level: 1
+
+  macos-desktop:
+    name: Build macOS Desktop App
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.9'
+          cache: true
+          pub-cache: true
+
+      - name: Generate macOS host project
+        run: flutter create --platforms=macos --org com.example --project-name pageclock .
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run code generation (Drift / build_runner)
+        run: dart run build_runner build
+
+      - name: Build unsigned macOS desktop app
+        run: flutter build macos --debug --no-pub
+
+      - name: Package macOS app
+        run: ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Debug/pageclock.app "$RUNNER_TEMP/pageclock-macos-debug-app.zip"
+
+      - name: Upload macOS build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pageclock-macos-desktop
+          path: ${{ runner.temp }}/pageclock-macos-debug-app.zip
           if-no-files-found: error
           compression-level: 1
 
