@@ -166,10 +166,12 @@ class AppUpdateService {
   }
 
   Future<String?> _fetchTrustedSha256(String url) async {
-    var currentUri = Uri.tryParse(url);
-    if (currentUri == null || !ApkDownloader.isTrustedDownloadUri(currentUri)) {
+    final parsedUri = Uri.tryParse(url);
+    if (parsedUri == null ||
+        !ApkDownloader.isTrustedDownloadUri(parsedUri)) {
       return null;
     }
+    var currentUri = parsedUri;
 
     var redirects = 0;
     while (true) {
