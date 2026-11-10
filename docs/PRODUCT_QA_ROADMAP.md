@@ -112,7 +112,7 @@ The useful patterns are lightweight organization, reliable time data and underst
 
 Keep SHA-256 verification mandatory, preserve the signing key and application ID, use HTTPS only, and never bypass Play Protect or signing checks.
 
-## Open pull-request triage at review time
+## Pull-request triage at review time
 
 - [#20 — Node 24 GitHub Actions upgrades](https://github.com/koushik4475/pageclock/pull/20): draft; the web PR workflow passes. All five third-party action commit SHAs in the branch are GitHub-verified, but the PR run does not exercise Android artifact upload/download or the release publisher. The publisher token input and action supply-chain change require maintainer review before making it ready.
 - [#21 — APK download hardening](https://github.com/koushik4475/pageclock/pull/21): draft; current head `7146670764ce92c9b3405b74138b5399e7a37a98` passed [run #145](https://github.com/koushik4475/pageclock/actions/runs/42799939532), including analysis, 60 tests and web build. Android release build is skipped. Keep draft pending explicit security review because it changes the updater's trust boundary.
