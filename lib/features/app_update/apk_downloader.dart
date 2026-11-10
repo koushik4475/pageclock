@@ -49,10 +49,10 @@ class ApkDownloader {
   })  : _client = client ?? http.Client(),
         _maxApkBytes = maxApkBytes;
 
-  static bool _isTrustedDownloadUri(Uri uri) {
+  static bool isTrustedDownloadUri(Uri uri) {
     return uri.scheme == 'https' &&
         uri.userInfo.isEmpty &&
-        (uri.port == 443) &&
+        uri.port == 443 &&
         _trustedHosts.contains(uri.host.toLowerCase());
   }
 
@@ -69,7 +69,7 @@ class ApkDownloader {
     }
 
     final parsedUri = Uri.tryParse(url);
-    if (parsedUri == null || !_isTrustedDownloadUri(parsedUri)) {
+    if (parsedUri == null || !isTrustedDownloadUri(parsedUri)) {
       throw HttpException('APK downloads must use HTTPS from an approved GitHub release host.');
     }
     Uri currentUri = parsedUri;
@@ -84,7 +84,7 @@ class ApkDownloader {
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.containsKey('location')) {
         final location = response.headers['location']!;
         final redirectedUri = currentUri.resolve(location);
-        if (!_isTrustedDownloadUri(redirectedUri)) {
+        if (!isTrustedDownloadUri(redirectedUri)) {
           throw HttpException('APK download redirect points to an untrusted host or scheme.');
         }
         currentUri = redirectedUri;
