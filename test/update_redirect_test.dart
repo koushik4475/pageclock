@@ -7,6 +7,17 @@ import 'package:http/testing.dart';
 import 'package:crypto/crypto.dart';
 import 'package:pageclock/features/app_update/apk_downloader.dart';
 
+class _OversizedContentLengthClient extends http.BaseClient {
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    return http.StreamedResponse(
+      const Stream<List<int>>.empty(),
+      200,
+      contentLength: ApkDownloader.maxApkBytes + 1,
+    );
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -155,11 +166,7 @@ void main() {
     });
 
     test('rejects an APK whose declared content length exceeds the safety limit', () async {
-      final client = MockClient((request) async => http.Response(
-        '',
-        200,
-        headers: {'content-length': (ApkDownloader.maxApkBytes + 1).toString()},
-      ));
+      final client = _OversizedContentLengthClient();
 
       expect(
         () => ApkDownloader(client: client).downloadAndVerifyApk(
