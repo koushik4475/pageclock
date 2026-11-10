@@ -292,27 +292,30 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
             ),
             const SizedBox(height: 24),
 
-            // APP UPDATES
-            _buildSectionHeader('APP UPDATES', isDark),
-            _buildCard(
-              isDark,
-              [
-                _buildTile(
-                  title: 'Check for updates',
-                  subtitle: _checkingForUpdates
-                      ? 'Checking GitHub Releases...'
-                      : (_updateStatus ?? 'Installed version • Check for the latest release'),
-                  isDark: isDark,
-                  onTap: _checkingForUpdates ? () {} : () => _checkForUpdates(context),
-                ),
-                if (_checkingForUpdates)
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(16, 0, 16, 14),
-                    child: LinearProgressIndicator(minHeight: 2),
+            // APK self-updates are Android-only. Apple platforms update through
+            // their native distribution channels instead.
+            if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
+              _buildSectionHeader('APP UPDATES', isDark),
+              _buildCard(
+                isDark,
+                [
+                  _buildTile(
+                    title: 'Check for updates',
+                    subtitle: _checkingForUpdates
+                        ? 'Checking GitHub Releases...'
+                        : (_updateStatus ?? 'Installed version • Check for the latest release'),
+                    isDark: isDark,
+                    onTap: _checkingForUpdates ? () {} : () => _checkForUpdates(context),
                   ),
-              ],
-            ),
-            const SizedBox(height: 24),
+                  if (_checkingForUpdates)
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(16, 0, 16, 14),
+                      child: LinearProgressIndicator(minHeight: 2),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 24),
+            ],
 
             // NOTIFICATIONS
             _buildSectionHeader('NOTIFICATIONS', isDark),
