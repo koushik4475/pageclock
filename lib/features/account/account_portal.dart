@@ -147,7 +147,7 @@ class _AccountHomeScreenState extends State<AccountHomeScreen> {
       await Supabase.instance.client.auth.signOut();
       if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     } on FunctionException catch (e) {
-      if (mounted) setState(() => message = 'Account deletion failed (${e.status ?? 'network error'}). Please try again or contact support.');
+      if (mounted) setState(() => message = 'Account deletion failed (${e.status}). Please try again or contact support.');
     } catch (_) {
       if (mounted) setState(() => message = 'Account deletion failed. Please try again or contact support.');
     } finally {
