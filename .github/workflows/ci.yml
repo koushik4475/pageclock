@@ -229,7 +229,7 @@ jobs:
           echo "tag_name=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           tag_name: ${{ steps.release_tag.outputs.tag_name }}
           name: "PageClock Release ${{ steps.release_tag.outputs.tag_name }}"
@@ -250,5 +250,4 @@ jobs:
           files: |
             artifacts/apk/*.apk
             artifacts/apk/*.sha256
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
