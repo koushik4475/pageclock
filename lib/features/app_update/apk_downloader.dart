@@ -36,8 +36,18 @@ class ApkDownloader {
   };
 
   final http.Client _client;
+  final int _maxApkBytes;
 
-  ApkDownloader({http.Client? client}) : _client = client ?? http.Client();
+  ApkDownloader({http.Client? client})
+      : _client = client ?? http.Client(),
+        _maxApkBytes = maxApkBytes;
+
+  /// Allows focused boundary tests without streaming a full 200 MiB fixture.
+  ApkDownloader.forTesting({
+    http.Client? client,
+    required int maxApkBytes,
+  })  : _client = client ?? http.Client(),
+        _maxApkBytes = maxApkBytes;
 
   static bool _isTrustedDownloadUri(Uri uri) {
     return uri.scheme == 'https' &&
@@ -92,7 +102,7 @@ class ApkDownloader {
     }
 
     final totalBytes = response.contentLength ?? -1;
-    if (totalBytes > maxApkBytes) {
+    if (totalBytes > _maxApkBytes) {
       throw HttpException('APK exceeds the maximum allowed download size.');
     }
     final tempDir = await getTemporaryDirectory();
@@ -113,7 +123,7 @@ class ApkDownloader {
         }
 
         receivedBytes += chunk.length;
-        if (receivedBytes > maxApkBytes) {
+        if (receivedBytes > _maxApkBytes) {
           throw HttpException('APK exceeds the maximum allowed download size.');
         }
         sink.add(chunk);
