@@ -28,9 +28,23 @@ class ChecksumMismatchException implements Exception {
 }
 
 class ApkDownloader {
+  static const int maxApkBytes = 200 * 1024 * 1024;
+  static const Set<String> _trustedHosts = {
+    'github.com',
+    'objects.githubusercontent.com',
+    'release-assets.githubusercontent.com',
+  };
+
   final http.Client _client;
 
   ApkDownloader({http.Client? client}) : _client = client ?? http.Client();
+
+  static bool _isTrustedDownloadUri(Uri uri) {
+    return uri.scheme == 'https' &&
+        uri.userInfo.isEmpty &&
+        (uri.port == 443) &&
+        _trustedHosts.contains(uri.host.toLowerCase());
+  }
 
   /// Downloads an APK from [url], verifies [expectedSha256] if provided,
   /// and emits progress on [onProgress]. Supports HTTP redirects (e.g. 302/301).
@@ -44,10 +58,11 @@ class ApkDownloader {
       throw StateError('A valid SHA-256 checksum is required before installing an APK.');
     }
 
-    Uri currentUri = Uri.parse(url);
-    if (currentUri.scheme != 'https') {
-      throw HttpException('APK downloads must use HTTPS.');
+    final parsedUri = Uri.tryParse(url);
+    if (parsedUri == null || !_isTrustedDownloadUri(parsedUri)) {
+      throw HttpException('APK downloads must use HTTPS from an approved GitHub release host.');
     }
+    Uri currentUri = parsedUri;
     http.StreamedResponse response;
     int redirects = 0;
 
@@ -58,10 +73,11 @@ class ApkDownloader {
 
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.containsKey('location')) {
         final location = response.headers['location']!;
-        currentUri = currentUri.resolve(location);
-        if (currentUri.scheme != 'https') {
-          throw HttpException('APK download redirects must remain on HTTPS.');
+        final redirectedUri = currentUri.resolve(location);
+        if (!_isTrustedDownloadUri(redirectedUri)) {
+          throw HttpException('APK download redirect points to an untrusted host or scheme.');
         }
+        currentUri = redirectedUri;
         redirects++;
         if (redirects > 8) {
           throw HttpException('Too many HTTP redirects when downloading APK.');
@@ -76,6 +92,9 @@ class ApkDownloader {
     }
 
     final totalBytes = response.contentLength ?? -1;
+    if (totalBytes > maxApkBytes) {
+      throw HttpException('APK exceeds the maximum allowed download size.');
+    }
     final tempDir = await getTemporaryDirectory();
     final fileName = 'pageclock_update_${DateTime.now().millisecondsSinceEpoch}.apk';
     final targetFile = File(p.join(tempDir.path, fileName));
@@ -93,8 +112,11 @@ class ApkDownloader {
           throw Exception('Download cancelled by user.');
         }
 
-        sink.add(chunk);
         receivedBytes += chunk.length;
+        if (receivedBytes > maxApkBytes) {
+          throw HttpException('APK exceeds the maximum allowed download size.');
+        }
+        sink.add(chunk);
 
         if (onProgress != null && totalBytes > 0) {
           onProgress(DownloadProgress(
