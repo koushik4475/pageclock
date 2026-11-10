@@ -32,7 +32,13 @@ final sessionsStreamProvider = StreamProvider<List<ReadingSession>>((ref) {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (isSupabaseConfigured) {
-    await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+    try {
+      await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseAnonKey);
+      supabaseInitialized = true;
+    } catch (_) {
+      // Account services are optional; preserve offline startup on backend failure.
+      supabaseInitialized = false;
+    }
   }
   final prefs = await SharedPreferences.getInstance();
   await NotificationService.initialize();
