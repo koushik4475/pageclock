@@ -161,7 +161,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                 subtitle: 'Restricted to authorised administrators',
                 isDark: isDark,
                 onTap: () {
-                  if (!isSupabaseConfigured) {
+                  if (!isSupabaseAvailable) {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Configure Supabase to enable the admin dashboard.')));
                     return;
                   }
