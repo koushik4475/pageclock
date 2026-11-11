@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -474,50 +475,82 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
         index: currentIndex,
         children: screens,
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          border: Border(
-            top: BorderSide(
-              color: colorScheme.outline,
-              width: 1,
+      bottomNavigationBar: defaultTargetPlatform == TargetPlatform.iOS
+          ? CupertinoTabBar(
+              currentIndex: currentIndex,
+              onTap: (index) => ref
+                  .read(mainTabNavigationIndexProvider.notifier)
+                  .state = index,
+              backgroundColor: colorScheme.surface.withOpacity(0.96),
+              activeColor: colorScheme.primary,
+              inactiveColor: colorScheme.onSurfaceVariant,
+              border: Border(
+                top: BorderSide(color: colorScheme.outlineVariant, width: 0.5),
+              ),
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(CupertinoIcons.timer),
+                  activeIcon: Icon(CupertinoIcons.timer_fill),
+                  label: 'Timer',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(CupertinoIcons.calendar),
+                  activeIcon: Icon(CupertinoIcons.calendar_today),
+                  label: 'Calendar',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(CupertinoIcons.chart_bar),
+                  activeIcon: Icon(CupertinoIcons.chart_bar_fill),
+                  label: 'Reports',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(CupertinoIcons.settings),
+                  activeIcon: Icon(CupertinoIcons.settings_solid),
+                  label: 'Settings',
+                ),
+              ],
+            )
+          : BottomNavigationBar(
+              currentIndex: currentIndex,
+              onTap: (index) => ref
+                  .read(mainTabNavigationIndexProvider.notifier)
+                  .state = index,
+              backgroundColor: colorScheme.surface,
+              elevation: 0,
+              type: BottomNavigationBarType.fixed,
+              selectedItemColor: colorScheme.primary,
+              unselectedItemColor: colorScheme.onSurfaceVariant,
+              selectedLabelStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.access_time_rounded),
+                  activeIcon: Icon(Icons.access_time_filled_rounded),
+                  label: 'Timer',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.calendar_today_outlined),
+                  activeIcon: Icon(Icons.calendar_today_rounded),
+                  label: 'Calendar',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.bar_chart_outlined),
+                  activeIcon: Icon(Icons.bar_chart_rounded),
+                  label: 'Reports',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.settings_outlined),
+                  activeIcon: Icon(Icons.settings_rounded),
+                  label: 'Settings',
+                ),
+              ],
             ),
-          ),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: currentIndex,
-          onTap: (idx) => ref.read(mainTabNavigationIndexProvider.notifier).state = idx,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: colorScheme.primary,
-          unselectedItemColor: colorScheme.onSurfaceVariant,
-          selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-          unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.access_time_rounded),
-              activeIcon: Icon(Icons.access_time_filled_rounded),
-              label: 'Timer',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_today_outlined),
-              activeIcon: Icon(Icons.calendar_today_rounded),
-              label: 'Calendar',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart_outlined),
-              activeIcon: Icon(Icons.bar_chart_rounded),
-              label: 'Reports',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined),
-              activeIcon: Icon(Icons.settings_rounded),
-              label: 'Settings',
-            ),
-          ],
-        ),
-      ),
     );
   }
 
