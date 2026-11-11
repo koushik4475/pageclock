@@ -279,7 +279,7 @@ jobs:
       # identifier. This repo keeps Flutter source canonical; the generated
       # Runner project is packaged as a build artifact for signing/release work.
       - name: Generate iOS host project
-        run: flutter create --platforms=ios,macos --org com.pageclock --project-name app .
+        run: flutter create --platforms=ios,macos --org com --project-name pageclock .
 
       - name: Install dependencies
         run: flutter pub get
