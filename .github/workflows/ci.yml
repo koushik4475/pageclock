@@ -280,6 +280,15 @@ jobs:
       # Runner project is packaged as a build artifact for signing/release work.
       - name: Generate iOS host project
         run: flutter create --platforms=ios,macos --org com --project-name pageclock .
+      # `flutter create` scaffolds a default test/widget_test.dart when absent.
+      # That template targets MyApp, while PageClock's root widget is PageClockApp.
+      # Remove only the generated, untracked scaffold so the real suite remains intact.
+      - name: Remove generated Flutter starter widget test
+        shell: bash
+        run: |
+          if ! git ls-files --error-unmatch test/widget_test.dart >/dev/null 2>&1; then
+            rm -f test/widget_test.dart
+          fi
 
       - name: Install dependencies
         run: flutter pub get
@@ -293,7 +302,7 @@ jobs:
         run: flutter test --no-pub
 
       - name: Build unsigned iOS Simulator app (release configuration)
-        run: flutter build ios --simulator --no-codesign --release --no-pub
+        run: flutter build ios --simulator --no-codesign --debug --no-pub
 
       - name: Package generated iOS project and simulator app
         run: |
