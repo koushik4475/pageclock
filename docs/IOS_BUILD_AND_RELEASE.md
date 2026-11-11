@@ -2,7 +2,7 @@
 
 ## Current iOS build
 
-PageClock uses the shared Flutter application code. The iOS Runner/Xcode host project is generated in CI and attached to the **Build iOS Simulator App** workflow as the `pageclock-ios-simulator` artifact. The generated bundle identifier is `com.pageclock.app`.
+PageClock uses the shared Flutter application code. The iOS Runner/Xcode host project is generated in CI and attached to the **Build iOS Simulator App** workflow as the `pageclock-ios-simulator` artifact. The generated bundle identifier is `com.pageclock`.
 
 The iOS CI job:
 - Resolves Flutter dependencies and runs Drift code generation.
@@ -16,7 +16,7 @@ A simulator build is not a signed iPhone install or an App Store release.
 
 1. Download and extract the `pageclock-ios-simulator` artifact from a successful GitHub Actions run.
 2. For a physical-device build, generate or retain the iOS host project and open `ios/Runner.xcworkspace` in Xcode.
-3. In **Signing & Capabilities**, select the Apple Developer Team and confirm the bundle identifier `com.pageclock.app`.
+3. In **Signing & Capabilities**, select the Apple Developer Team and confirm the bundle identifier `com.pageclock`.
 4. Connect an iPhone, select it as the run destination, and build/run from Xcode.
 5. Test notification permission, background/foreground timer recovery, haptics, file export/share, and local database persistence on a physical device.
 
