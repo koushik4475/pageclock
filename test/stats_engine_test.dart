@@ -86,5 +86,30 @@ void main() {
       expect(trend.currentWeekHours, equals(8.0));
       expect(trend.lastWeekHours, equals(6.0));
     });
+
+    test('Empty and negative windows return safe zero values', () {
+      final today = DateTime(2026, 11, 12);
+      final dailyTotals = <DateTime, int>{today: 42};
+
+      for (final windowDays in [0, -1, -30]) {
+        final consistency = StatsEngine.calculateConsistency(
+          dailyTotals: dailyTotals,
+          today: today,
+          windowDays: windowDays,
+        );
+        expect(consistency.totalDaysInWindow, equals(0));
+        expect(consistency.activeDays, equals(0));
+        expect(consistency.percentage, equals(0.0));
+
+        expect(
+          StatsEngine.calculateVariability(
+            dailyTotals: dailyTotals,
+            today: today,
+            windowDays: windowDays,
+          ),
+          equals(0.0),
+        );
+      }
+    });
   });
 }
