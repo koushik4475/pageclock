@@ -51,6 +51,49 @@ void main() {
       expect(imported[1].source, equals('manual'));
     });
 
+    test('CSV export and import preserve a currently paused session', () {
+      final pausedAt = 1700176400000;
+      final pausedSession = ReadingSession(
+        id: 'session-paused',
+        startedAtUtc: 1700172800000,
+        pausedAtUtc: pausedAt,
+        pausedTotalMs: 5 * 60 * 1000,
+        durationMs: 0,
+        tzOffsetMin: 330,
+        subjectId: 'sub-deep-work',
+        note: 'Chapter 5',
+        source: 'timer',
+        deviceId: 'pixel-8',
+        createdAt: 1700172800000,
+        updatedAt: pausedAt,
+      );
+
+      final csv = SessionExportService.exportToCsv([pausedSession]);
+      final imported = SessionExportService.importFromCsv(csv);
+
+      expect(imported, hasLength(1));
+      expect(imported.single.pausedAtUtc, equals(pausedAt));
+      expect(imported.single.pausedTotalMs, equals(pausedSession.pausedTotalMs));
+      expect(imported.single.isPaused, isTrue);
+      expect(
+        imported.single.calculateCurrentDurationMs(pausedAt + 60 * 60 * 1000),
+        equals(pausedAt - pausedSession.startedAtUtc - pausedSession.pausedTotalMs),
+      );
+    });
+
+    test('CSV importer remains compatible with legacy 12-column exports', () {
+      const legacyCsv = 'id,started_at_utc,ended_at_utc,paused_total_ms,duration_ms,tz_offset_min,subject_id,note,source,device_id,created_at,updated_at\n'
+          'legacy-session,1700000000000,1700001800000,0,1800000,330,,,,local,1700000000000,1700001800000';
+
+      final imported = SessionExportService.importFromCsv(legacyCsv);
+
+      expect(imported, hasLength(1));
+      expect(imported.single.id, equals('legacy-session'));
+      expect(imported.single.endedAtUtc, equals(1700001800000));
+      expect(imported.single.pausedAtUtc, isNull);
+      expect(imported.single.durationMs, equals(1800000));
+    });
+
     test('JSON Export and Import roundtrip preserves all fields', () {
       final json = SessionExportService.exportToJson(sampleSessions);
       final imported = SessionExportService.importFromJson(json);
