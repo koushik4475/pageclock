@@ -82,7 +82,7 @@ void main() {
     });
 
     test('CSV importer remains compatible with legacy 12-column exports', () {
-      const legacyCsv = 'id,started_at_utc,ended_at_utc,paused_total_ms,duration_ms,tz_offset_min,subject_id,note,source,device_id,created_at,updated_at\n'
+      const legacyCsv = 'id,started_at_utc,ended_at_utc,paused_total_ms,duration_ms,tz_offset_min,subject_id,note,source,device_id,created_at,updated_at\r\n'
           'legacy-session,1700000000000,1700001800000,0,1800000,330,,,,local,1700000000000,1700001800000';
 
       final imported = SessionExportService.importFromCsv(legacyCsv);
