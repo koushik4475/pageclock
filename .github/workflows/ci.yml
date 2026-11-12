@@ -78,16 +78,14 @@ jobs:
           if-no-files-found: error
           compression-level: 1
 
-
-  # Compile Android on pull requests without exposing production signing secrets.
-  # This job uses Gradle's debug signing only and never publishes or uploads an APK.
+  # Pull-request builds deliberately have no release signing credentials in their
+  # job or step environment. The release variant falls back to Gradle debug
+  # signing when no release keystore is present.
   android-pr-build:
     if: github.event_name == 'pull_request'
-    name: Compile Android PR (debug signing only)
+    name: Build Android PR APK (debug signing only)
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    permissions:
-      contents: read
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -115,11 +113,30 @@ jobs:
       - name: Run code generation (Drift / build_runner)
         run: dart run build_runner build
 
-      - name: Build Android debug APK without release credentials
-        run: flutter build apk --debug --target-platform=android-arm64 --android-skip-build-dependency-validation --no-pub
+      - name: Build Android PR APK without release credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_VERSION="$(sed -n 's/^version: *//p' pubspec.yaml | head -n 1)"
+          VERSION_NAME="${SOURCE_VERSION%%+*}"
+          BUILD_NUMBER="${GITHUB_RUN_NUMBER}"
+          if [[ ! "$VERSION_NAME" =~ ^[0-9]+([.][0-9]+){2}$ ]]; then
+            echo "::error::pubspec.yaml must provide a stable semantic version (for example 1.0.1)."
+            exit 1
+          fi
+          flutter build apk --debug --target-platform=android-arm64 --build-name="$VERSION_NAME" --build-number="$BUILD_NUMBER" --android-skip-build-dependency-validation --no-pub
 
+      - name: Upload Android PR APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: pageclock-android-pr
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          compression-level: 0
+
+  # Production signing secrets are available only to trusted push/tag refs.
   android-apk:
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
     name: Build Android release APK
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -150,7 +167,7 @@ jobs:
       - name: Run code generation (Drift / build_runner)
         run: dart run build_runner build
 
-      - name: Setup Android Keystore (if secrets provided)
+      - name: Setup Android Keystore (required for release refs)
         id: setup_keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -162,7 +179,7 @@ jobs:
             echo "::error::Version-tag releases require ANDROID_KEYSTORE_BASE64."
             exit 1
           else
-            echo "No release keystore configured; non-release builds use Gradle debug signing."
+            echo "No release keystore configured; main-branch build uses Gradle debug signing."
           fi
 
       - name: Build Android Release APK (retry transient dependency/network failures only)
@@ -183,7 +200,7 @@ jobs:
           fi
           VERSION_NAME="${SOURCE_VERSION%%+*}"
           BUILD_NUMBER="${GITHUB_RUN_NUMBER}"
-          if [[ ! "$VERSION_NAME" =~ ^[0-9]+(\.[0-9]+){2}$ ]]; then
+          if [[ ! "$VERSION_NAME" =~ ^[0-9]+([.][0-9]+){2}$ ]]; then
             echo "::error::Build ref or pubspec.yaml must provide a stable semantic version (for example 1.0.1)."
             exit 1
           fi
@@ -240,11 +257,114 @@ jobs:
           if-no-files-found: error
           compression-level: 0
 
+  ios-simulator:
+    name: Build iOS Simulator App
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.9'
+          cache: true
+          pub-cache: true
+
+      # Generate the native Xcode host project with a production-owned bundle
+      # identifier. This repo keeps Flutter source canonical; the generated
+      # Runner project is packaged as a build artifact for signing/release work.
+      - name: Generate iOS host project
+        run: flutter create --platforms=ios,macos --org com --project-name pageclock .
+      # `flutter create` scaffolds a default test/widget_test.dart when absent.
+      # That template targets MyApp, while PageClock's root widget is PageClockApp.
+      # Remove only the generated, untracked scaffold so the real suite remains intact.
+      - name: Remove generated Flutter starter widget test
+        shell: bash
+        run: |
+          if ! git ls-files --error-unmatch test/widget_test.dart >/dev/null 2>&1; then
+            rm -f test/widget_test.dart
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run code generation (Drift / build_runner)
+        run: dart run build_runner build
+
+      # Run the complete regression and pressure suite on macOS as well as Linux.
+      # This catches platform-dependent plugin, file-system and timing issues.
+      - name: Run Flutter regression and pressure tests on macOS
+        run: flutter test --no-pub
+
+      - name: Build unsigned iOS Simulator app (release configuration)
+        run: flutter build ios --simulator --no-codesign --debug --no-pub
+
+      - name: Package generated iOS project and simulator app
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent ios "$RUNNER_TEMP/pageclock-ios-project.zip"
+          ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app "$RUNNER_TEMP/pageclock-ios-simulator-app.zip"
+
+      - name: Upload iOS build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pageclock-ios-simulator
+          path: |
+            ${{ runner.temp }}/pageclock-ios-project.zip
+            ${{ runner.temp }}/pageclock-ios-simulator-app.zip
+          if-no-files-found: error
+          compression-level: 1
+
+  macos-desktop:
+    name: Build macOS Desktop App
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.9'
+          cache: true
+          pub-cache: true
+
+      - name: Generate macOS host project
+        run: flutter create --platforms=macos --org com.example --project-name pageclock .
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run code generation (Drift / build_runner)
+        run: dart run build_runner build
+
+      - name: Build unsigned macOS desktop app
+        run: flutter build macos --debug --no-pub
+
+      - name: Package macOS app
+        run: ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Debug/pageclock.app "$RUNNER_TEMP/pageclock-macos-debug-app.zip"
+
+      - name: Upload macOS build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pageclock-macos-desktop
+          path: ${{ runner.temp }}/pageclock-macos-debug-app.zip
+          if-no-files-found: error
+          compression-level: 1
+
   publish-release:
     name: Publish GitHub Release
     permissions:
       contents: write
-    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: [ verify-and-web, android-apk ]
     runs-on: ubuntu-latest
     steps:
