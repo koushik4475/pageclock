@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <meta name="description" content="PageClock administrator portal">
+  <title>PageClock Admin</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar"><div class="brand"><span class="mark">P</span><span>PageClock <small>ADMIN</small></span></div><button id="signout" class="quiet hidden">Sign out</button></header>
+    <section id="login" class="panel login-panel">
+      <h1>Administrator sign in</h1><p>Sign in with an account that has an authorised PageClock admin role.</p>
+      <form id="login-form">
+        <label>Email<input id="email" type="email" autocomplete="username" required></label>
+        <label>Password<input id="password" type="password" autocomplete="current-password" required></label>
+        <button type="submit">Sign in</button>
+      </form>
+      <p id="login-error" class="error" role="alert"></p>
+    </section>
+    <section id="dashboard" class="hidden">
+      <div class="heading"><div><h1>Client directory</h1><p>Account metadata only. Reading sessions and notes are not collected.</p></div><span id="loaded-count" class="count">0 loaded</span></div>
+      <section class="panel">
+        <div class="toolbar"><input id="search" type="search" placeholder="Search by email" aria-label="Search clients by email"><button id="search-button" class="secondary">Search</button></div>
+        <p id="status" class="muted" role="status"></p>
+        <div class="table-wrap"><table><thead><tr><th>Client</th><th>Email</th><th>Registered</th></tr></thead><tbody id="clients"></tbody></table></div>
+        <button id="load-more" class="secondary hidden">Load more</button>
+      </section>
+      <p class="footnote">Access is enforced by Supabase row-level security. This portal never requests reading history, notes, location or behavioural telemetry.</p>
+    </section>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

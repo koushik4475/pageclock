@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../account/account_portal.dart';
 import '../../core/engine/stopwatch_engine.dart';
 import '../../core/navigation/main_tab_navigation.dart';
 import '../../core/models/reading_session.dart';
@@ -143,6 +144,31 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 24),
+
+            // ACCOUNT & ADMIN
+            _buildSectionHeader('ACCOUNT & ADMIN', isDark),
+            _buildCard(isDark, [
+              _buildTile(
+                title: 'PageClock account',
+                subtitle: 'Optional sign in, sign up and account settings',
+                isDark: isDark,
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AccountPortalScreen())),
+              ),
+              _buildDivider(isDark),
+              _buildTile(
+                title: 'Admin dashboard',
+                subtitle: 'Restricted to authorised administrators',
+                isDark: isDark,
+                onTap: () {
+                  if (!isSupabaseAvailable) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Configure Supabase to enable the admin dashboard.')));
+                    return;
+                  }
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminDashboardScreen()));
+                },
+              ),
+            ]),
             const SizedBox(height: 24),
 
             // YOUR PROFILE Section

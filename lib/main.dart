@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'features/account/account_portal.dart';
 
 import 'core/models/reading_session.dart';
 import 'core/navigation/main_tab_navigation.dart';
@@ -29,6 +31,15 @@ final sessionsStreamProvider = StreamProvider<List<ReadingSession>>((ref) {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (isSupabaseConfigured) {
+    try {
+      await Supabase.initialize(url: supabaseUrl, publishableKey: supabaseAnonKey);
+      supabaseInitialized = true;
+    } catch (_) {
+      // Account services are optional; preserve offline startup on backend failure.
+      supabaseInitialized = false;
+    }
+  }
   final prefs = await SharedPreferences.getInstance();
   await NotificationService.initialize();
 
