@@ -85,13 +85,16 @@ class ClockFaceView extends StatelessWidget {
         ],
       );
     } else if (styleId == 'mac_flip') {
-      face = Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _flipCard(leftText, foreground, compact),
-          Padding(padding: EdgeInsets.symmetric(horizontal: compact ? 3 : 12), child: Text(':', style: TextStyle(color: foreground, fontSize: compact ? 22 : 72))),
-          _flipCard(rightText, foreground, compact),
-        ],
+      face = FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _flipCard(leftText, foreground, compact),
+            Padding(padding: EdgeInsets.symmetric(horizontal: compact ? 3 : 12), child: Text(':', style: TextStyle(color: foreground, fontSize: compact ? 22 : 72))),
+            _flipCard(rightText, foreground, compact),
+          ],
+        ),
       );
     } else {
       final glow = styleId == 'nixie' || styleId == 'neon';
