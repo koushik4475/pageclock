@@ -6,6 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 @immutable
 class AppSettings {
   final String themeId; // 'default_dark', 'default_light', 'special1'
+  final String clockStyleId;
+  final String clockAccentColor;
+  final bool clockShowSeconds;
+  final bool clockShowDate;
   final int dailyGoalMinutes;
   final int streakThresholdMinutes;
   final int consistencyWindowDays; // 7, 30, 90
@@ -36,6 +40,10 @@ class AppSettings {
 
   const AppSettings({
     this.themeId = 'default_dark',
+    this.clockStyleId = 'mac_flip',
+    this.clockAccentColor = '#F5A623',
+    this.clockShowSeconds = false,
+    this.clockShowDate = true,
     this.dailyGoalMinutes = 30,
     this.streakThresholdMinutes = 10,
     this.consistencyWindowDays = 7,
@@ -67,6 +75,10 @@ class AppSettings {
 
   AppSettings copyWith({
     String? themeId,
+    String? clockStyleId,
+    String? clockAccentColor,
+    bool? clockShowSeconds,
+    bool? clockShowDate,
     int? dailyGoalMinutes,
     int? streakThresholdMinutes,
     int? consistencyWindowDays,
@@ -97,6 +109,10 @@ class AppSettings {
   }) {
     return AppSettings(
       themeId: themeId ?? this.themeId,
+      clockStyleId: clockStyleId ?? this.clockStyleId,
+      clockAccentColor: clockAccentColor ?? this.clockAccentColor,
+      clockShowSeconds: clockShowSeconds ?? this.clockShowSeconds,
+      clockShowDate: clockShowDate ?? this.clockShowDate,
       dailyGoalMinutes: dailyGoalMinutes ?? this.dailyGoalMinutes,
       streakThresholdMinutes: streakThresholdMinutes ?? this.streakThresholdMinutes,
       consistencyWindowDays: consistencyWindowDays ?? this.consistencyWindowDays,
@@ -130,6 +146,10 @@ class AppSettings {
   Map<String, dynamic> toJson() {
     return {
       'themeId': themeId,
+      'clockStyleId': clockStyleId,
+      'clockAccentColor': clockAccentColor,
+      'clockShowSeconds': clockShowSeconds,
+      'clockShowDate': clockShowDate,
       'dailyGoalMinutes': dailyGoalMinutes,
       'streakThresholdMinutes': streakThresholdMinutes,
       'consistencyWindowDays': consistencyWindowDays,
@@ -163,6 +183,10 @@ class AppSettings {
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     return AppSettings(
       themeId: json['themeId'] as String? ?? 'default_dark',
+      clockStyleId: json['clockStyleId'] as String? ?? 'mac_flip',
+      clockAccentColor: json['clockAccentColor'] as String? ?? '#F5A623',
+      clockShowSeconds: json['clockShowSeconds'] as bool? ?? false,
+      clockShowDate: json['clockShowDate'] as bool? ?? true,
       dailyGoalMinutes: (json['dailyGoalMinutes'] as num?)?.toInt() ?? 30,
       streakThresholdMinutes: (json['streakThresholdMinutes'] as num?)?.toInt() ?? 10,
       consistencyWindowDays: (json['consistencyWindowDays'] as num?)?.toInt() ?? 7,
