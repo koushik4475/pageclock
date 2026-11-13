@@ -119,6 +119,17 @@ class StatsEngine {
     int windowDays = 30,
     int thresholdMinutes = 10,
   }) {
+    // A non-positive window has no days to measure. Avoid returning a
+    // negative percentage for negative windows.
+    if (windowDays <= 0) {
+      return ConsistencyResult(
+        totalDaysInWindow: 0,
+        activeDays: 0,
+        percentage: 0.0,
+        thresholdMinutes: thresholdMinutes,
+      );
+    }
+
     final normalizedToday = DateTime(today.year, today.month, today.day);
     int activeDays = 0;
 
@@ -276,6 +287,10 @@ class StatsEngine {
     required DateTime today,
     int windowDays = 30,
   }) {
+    // There is no meaningful population variance for an empty window.
+    // Returning zero also avoids reducing an empty list and dividing by zero.
+    if (windowDays <= 0) return 0.0;
+
     final t = DateTime(today.year, today.month, today.day);
     final values = <int>[];
 
