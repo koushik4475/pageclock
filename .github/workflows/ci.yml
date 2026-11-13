@@ -182,6 +182,10 @@ jobs:
               echo "::error::Unsupported latest release tag: $LATEST_TAG"
               exit 1
             fi
+            if (( BUILD_NUMBER <= LATEST_BUILD )); then
+              echo "::error::Android versionCode must increase on every release. Candidate build $BUILD_NUMBER is not greater than latest build $LATEST_BUILD."
+              exit 1
+            fi
             if dpkg --compare-versions "$VERSION_NAME" lt "$LATEST_VERSION"; then
               echo "::error::Candidate $EXPECTED_TAG is older than latest release $LATEST_TAG."
               exit 1
@@ -414,8 +418,15 @@ jobs:
           CHECKSUM_VALUE="$(awk 'NR == 1 {print $1}' <<< "$CHECKSUM_CONTENT")"
           CHECKSUM_FILE="$(awk 'NR == 1 {print $2}' <<< "$CHECKSUM_CONTENT" | sed 's/^\*//')"
           NORMALIZED_CHECKSUM="$(printf '%s' "$CHECKSUM_VALUE" | tr '[:upper:]' '[:lower:]')"
+          PUBLISHED_APK="$RUNNER_TEMP/pageclock-published.apk"
+          curl --fail --location --silent --show-error "$APK_URL" --output "$PUBLISHED_APK"
+          DOWNLOADED_APK_SHA="$(sha256sum "$PUBLISHED_APK" | awk '{print $1}')"
           if [[ ! "$CHECKSUM_VALUE" =~ ^[A-Fa-f0-9]{64}$ || "$CHECKSUM_FILE" != "$EXPECTED_APK" ]]; then
             echo "::error::Published checksum is malformed or names a different APK."
+            exit 1
+          fi
+          if [[ "$DOWNLOADED_APK_SHA" != "$NORMALIZED_CHECKSUM" ]]; then
+            echo "::error::Downloaded published APK does not match its SHA-256 sidecar."
             exit 1
           fi
           if [[ -n "$APK_DIGEST" && "$APK_DIGEST" != "sha256:$NORMALIZED_CHECKSUM" ]]; then
