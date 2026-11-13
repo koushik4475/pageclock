@@ -88,8 +88,7 @@ tasks.register("verifyProductionReleaseSigning") {
 
 tasks.configureEach { task ->
     def taskName = task.name.toLowerCase()
-    if ((taskName.startsWith("assemble") || taskName.startsWith("bundle") || taskName.startsWith("package")) &&
-        taskName.contains("release")) {
+    if (task.name != "verifyProductionReleaseSigning" && taskName.contains("release")) {
         task.dependsOn("verifyProductionReleaseSigning")
     }
 }
