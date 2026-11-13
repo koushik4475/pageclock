@@ -63,7 +63,7 @@ class ApkDownloader {
         _trustedHosts.contains(uri.host.toLowerCase());
   }
 
-  /// Downloads an APK from [url], verifies [expectedSha256] if provided,
+  /// Downloads an APK from [url] and requires [expectedSha256] to verify it.
   /// and emits progress on [onProgress]. Supports HTTP redirects (e.g. 302/301).
   Future<File> downloadAndVerifyApk({
     required String url,
@@ -90,6 +90,7 @@ class ApkDownloader {
 
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.containsKey('location')) {
         final location = response.headers['location']!;
+        await response.stream.drain<void>();
         final redirectedUri = currentUri.resolve(location);
         if (!isTrustedDownloadUri(redirectedUri)) {
           throw HttpException('APK download redirect points to an untrusted host or scheme.');
