@@ -151,7 +151,7 @@ jobs:
       - name: Validate release version and latest published APK
         id: release_preflight
         env:
-          GH_TOKEN: ${ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
@@ -209,10 +209,10 @@ jobs:
 
       - name: Setup production Android keystore (mandatory; fail closed)
         env:
-          ANDROID_KEYSTORE_BASE64: ${ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         shell: bash
         run: |
           set -euo pipefail
@@ -228,15 +228,15 @@ jobs:
       - name: Build Android production APK (retry transient failures only)
         env:
           ANDROID_KEYSTORE_PATH: release.keystore
-          ANDROID_KEYSTORE_PASSWORD: ${ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         shell: bash
         run: |
           set -u
           LOG_FILE="$RUNNER_TEMP/android-build.log"
-          VERSION_NAME="${ steps.release_preflight.outputs.version_name }}"
-          BUILD_NUMBER="${ steps.release_preflight.outputs.build_number }}"
+          VERSION_NAME="${{ steps.release_preflight.outputs.version_name }}"
+          BUILD_NUMBER="${{ steps.release_preflight.outputs.build_number }}"
           for attempt in 1 2 3 4; do
             echo "Android production APK build attempt $attempt/4"
             if flutter build apk --release --target-platform=android-arm64 \
@@ -260,7 +260,7 @@ jobs:
 
       - name: Verify APK signature and application ID continuity
         env:
-          LATEST_APK_URL: ${ steps.release_preflight.outputs.latest_apk_url }}
+          LATEST_APK_URL: ${{ steps.release_preflight.outputs.latest_apk_url }}
         shell: bash
         run: |
           set -euo pipefail
@@ -298,7 +298,7 @@ jobs:
 
       - name: Package APK and matching SHA-256
         env:
-          RELEASE_TAG: ${ steps.release_preflight.outputs.release_tag }}
+          RELEASE_TAG: ${{ steps.release_preflight.outputs.release_tag }}
         shell: bash
         run: |
           set -euo pipefail
@@ -329,7 +329,7 @@ jobs:
       - name: Checkout exact main commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${ github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 1
       - name: Download signed APK and checksum
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -358,27 +358,27 @@ jobs:
       - name: Publish production GitHub Release
         uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
-          token: ${ secrets.GITHUB_TOKEN }}
-          tag_name: ${ steps.release_tag.outputs.tag_name }}
-          target_commitish: ${ github.sha }}
-          name: "PageClock Release ${ steps.release_tag.outputs.tag_name }}"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ steps.release_tag.outputs.tag_name }}
+          target_commitish: ${{ github.sha }}
+          name: "PageClock Release ${{ steps.release_tag.outputs.tag_name }}"
           body: |
-            Automatically built from successful main commit ${ github.sha }}.
+            Automatically built from successful main commit ${{ github.sha }}.
             The production APK passed analyzer, full Flutter tests, web build, release signing,
             signing-certificate continuity and application-ID continuity checks.
             Install only the APK accompanied by its matching SHA-256 checksum.
           draft: false
           prerelease: false
           files: |
-            artifacts/apk/${ steps.release_tag.outputs.apk_name }}
-            artifacts/apk/${ steps.release_tag.outputs.sha_name }}
+            artifacts/apk/${{ steps.release_tag.outputs.apk_name }}
+            artifacts/apk/${{ steps.release_tag.outputs.sha_name }}
       - name: Verify latest release, exact tag, commit, APK and checksum
         env:
-          GH_TOKEN: ${ secrets.GITHUB_TOKEN }}
-          EXPECTED_TAG: ${ steps.release_tag.outputs.tag_name }}
-          EXPECTED_APK: ${ steps.release_tag.outputs.apk_name }}
-          EXPECTED_SHA: ${ steps.release_tag.outputs.sha_name }}
-          EXPECTED_COMMIT: ${ github.sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_TAG: ${{ steps.release_tag.outputs.tag_name }}
+          EXPECTED_APK: ${{ steps.release_tag.outputs.apk_name }}
+          EXPECTED_SHA: ${{ steps.release_tag.outputs.sha_name }}
+          EXPECTED_COMMIT: ${{ github.sha }}
         shell: bash
         run: |
           set -euo pipefail
