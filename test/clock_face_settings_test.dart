@@ -32,6 +32,11 @@ void main() {
       expect(restored.clockShowDate, isTrue);
     });
 
+    test('parses accent colours and falls back safely for invalid values', () {
+      expect(ClockFaceView.colorFromHex('#FF5C8A').value, 0xFFFF5C8A);
+      expect(ClockFaceView.colorFromHex('invalid').value, 0xFFFFA623);
+    });
+
     test('offers ten distinct stable clock face IDs', () {
       expect(ClockFaceView.styleIds, hasLength(10));
       expect(ClockFaceView.styleIds.toSet(), hasLength(10));
