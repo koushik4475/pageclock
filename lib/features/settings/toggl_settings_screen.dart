@@ -397,8 +397,8 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                   onTap: () => _handleJsonExport(context),
                 ),
                 _buildDivider(isDark),
-                _buildTile(                  title: 'Export CSV',
-                  subtitle: 'Spreadsheet compatible data export',
+                _buildTile(
+                  title: 'Export CSV',                  subtitle: 'Spreadsheet compatible data export',
                   isDark: isDark,
                   onTap: () => _handleCsvExport(context),
                 ),
@@ -796,9 +796,9 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
 
   void _showStreakThresholdDialog(BuildContext context, AppSettings settings) {
     int selected = settings.streakThresholdMinutes;
-    showDialog(      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Streak Minimum Threshold'),
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(        title: const Text('Streak Minimum Threshold'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [5, 10, 15, 20, 30].map((m) {
@@ -1114,7 +1114,6 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                     )),
                     const SizedBox(height: 8),
                     ...ClockFaceView.styleIds.map((styleId) {
-                      final isSelected = selectedStyle == styleId;
                       return Card(
                         margin: const EdgeInsets.only(bottom: 6),
                         child: RadioListTile<String>(
@@ -1197,8 +1196,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('Cancel'),
-              ),
-              FilledButton(
+              ),              FilledButton(
                 onPressed: () async {
                   await ref.read(settingsProvider.notifier).update((current) => current.copyWith(
                     clockStyleId: selectedStyle,
@@ -1346,7 +1344,8 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
-          FilledButton(            onPressed: () {
+          FilledButton(
+            onPressed: () {
               final text = controller.text.trim();
               Navigator.pop(ctx);
               if (text.isNotEmpty) {
@@ -1597,8 +1596,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
   }
 
   Future<void> _showClockStudio(BuildContext context, AppSettings settings) async {
-    var selectedStyle = settings.clockStyleId;
-    var selectedAccent = settings.clockAccentColor;
+    var selectedStyle = settings.clockStyleId;    var selectedAccent = settings.clockAccentColor;
     var showSeconds = settings.clockShowSeconds;
     var showDate = settings.clockShowDate;
     const colors = ['#F5A623', '#FF5C8A', '#43D9AD', '#64B5FF', '#C084FC', '#F4F1E8', '#FF4D4D'];
@@ -1745,7 +1743,8 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: colors.surface,
-      shape: const RoundedRectangleBorder(        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (ctx) => SafeArea(
         child: ConstrainedBox(
