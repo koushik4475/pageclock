@@ -49,6 +49,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   int _pomodoroCompletedFocusSessions = 0;
   int _pomodoroBreakDurationMs = 0;
   int _pomodoroBreakRemainingMs = 0;
+  int? _pomodoroBreakEndsAtUtcMs;
   Timer? _pomodoroBreakTicker;
 
   final List<String> _availableProjects = const [
@@ -490,6 +491,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   void _startPomodoroBreak(BuildContext context) {
     if (!_isPomodoroBreak || _pomodoroBreakDurationMs <= 0) return;
     _pomodoroBreakTicker?.cancel();
+    // Use an absolute deadline so delayed callbacks (for example after the
+    // app resumes from the background) do not make the break run slow.
+    _pomodoroBreakEndsAtUtcMs ??= DateTime.now().toUtc().millisecondsSinceEpoch +
+        _pomodoroBreakRemainingMs;
     setState(() => _pomodoroBreakRunning = true);
     _pomodoroBreakTicker = Timer.periodic(
       const Duration(seconds: 1),
@@ -498,12 +503,19 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           timer.cancel();
           return;
         }
-        final nextRemaining = _pomodoroBreakRemainingMs - 1000;
-        if (nextRemaining <= 0) {
+        final deadline = _pomodoroBreakEndsAtUtcMs;
+        if (deadline == null) {
           timer.cancel();
+          return;
+        }
+        final remaining = deadline - DateTime.now().toUtc().millisecondsSinceEpoch;
+        if (remaining <= 0) {
+          timer.cancel();
+          _pomodoroBreakRemainingMs = 0;
+          _pomodoroBreakEndsAtUtcMs = null;
           _completePomodoroBreak(context);
         } else {
-          setState(() => _pomodoroBreakRemainingMs = nextRemaining);
+          setState(() => _pomodoroBreakRemainingMs = remaining);
         }
       },
     );
@@ -511,6 +523,13 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
 
   void _pausePomodoroBreak() {
     _pomodoroBreakTicker?.cancel();
+    final deadline = _pomodoroBreakEndsAtUtcMs;
+    if (deadline != null) {
+      _pomodoroBreakRemainingMs = (deadline -
+              DateTime.now().toUtc().millisecondsSinceEpoch)
+          .clamp(0, _pomodoroBreakDurationMs);
+    }
+    _pomodoroBreakEndsAtUtcMs = null;
     setState(() => _pomodoroBreakRunning = false);
   }
 
@@ -531,6 +550,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       _pomodoroBreakRunning = false;
       _pomodoroBreakDurationMs = 0;
       _pomodoroBreakRemainingMs = 0;
+      _pomodoroBreakEndsAtUtcMs = null;
     });
     if (autoStart) {
       _startNewSession(
