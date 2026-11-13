@@ -122,7 +122,8 @@ jobs:
         run: |
           set +e
           LOG_FILE="$RUNNER_TEMP/release-signing-guard.log"
-          (cd android && ./gradlew assembleRelease --no-daemon) >"$LOG_FILE" 2>&1
+          flutter build apk --release --target-platform=android-arm64 \
+            --android-skip-build-dependency-validation --no-pub >"$LOG_FILE" 2>&1
           STATUS=$?
           set -e
           if [[ "$STATUS" -eq 0 ]]; then
