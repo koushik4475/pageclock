@@ -190,7 +190,7 @@ jobs:
           echo "Building PageClock $VERSION_NAME with monotonic Android versionCode $BUILD_NUMBER"
           for attempt in 1 2 3 4; do
             echo "Android APK build attempt $attempt/4"
-            if flutter build apk --release --target-platform=android-arm64 --build-name="$VERSION_NAME" --build-number="$BUILD_NUMBER" --android-skip-build-dependency-validation --no-pub >"$log_file" 2>&1; then
+            if flutter build apk --release --target-platform=android-arm64 --build-name="$VERSION_NAME" --build-number="$BUILD_NUMBER"  --no-pub >"$log_file" 2>&1; then
               cat "$log_file"
               exit 0
             else
