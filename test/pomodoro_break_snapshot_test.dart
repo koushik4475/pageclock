@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pageclock/core/engine/pomodoro_break_snapshot.dart';
 
 void main() {
@@ -49,6 +50,34 @@ void main() {
       expect(restored!.isRunning, isFalse);
       expect(restored.deadlineUtcMs, isNull);
       expect(restored.remainingAt(1700009999999), 125000);
+    });
+
+    test('persists break state and completed-focus cadence locally', () async {
+      SharedPreferences.setMockInitialValues({});
+      final preferences = await SharedPreferences.getInstance();
+      const snapshot = PomodoroBreakSnapshot(
+        isLongBreak: true,
+        durationMs: 900000,
+        remainingMs: 600000,
+        isRunning: true,
+        deadlineUtcMs: 1700000600000,
+      );
+
+      await preferences.setString(
+        'pageclock_pomodoro_break_state_v1',
+        snapshot.toJson(),
+      );
+      await preferences.setInt(
+        'pageclock_pomodoro_completed_focus_sessions_v1',
+        3,
+      );
+
+      final restored = PomodoroBreakSnapshot.tryParse(
+        preferences.getString('pageclock_pomodoro_break_state_v1'),
+      );
+      expect(restored, isNotNull);
+      expect(restored!.isLongBreak, isTrue);
+      expect(preferences.getInt('pageclock_pomodoro_completed_focus_sessions_v1'), 3);
     });
 
     test('rejects unsupported, malformed, and inconsistent snapshots', () {
