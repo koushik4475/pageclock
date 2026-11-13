@@ -531,6 +531,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           _pomodoroCompletedSessionsKey,
           _pomodoroCompletedFocusSessions,
         );
+    if (!mounted) return;
     final longBreakDue = settings.pomodoroLongBreakInterval > 0 &&
         _pomodoroCompletedFocusSessions %
                 settings.pomodoroLongBreakInterval ==
@@ -547,6 +548,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       _pomodoroBreakRunning = false;
     });
     await _persistPomodoroBreakState();
+    if (!mounted) return;
 
     unawaited(NotificationService.showPomodoroComplete(
       settings,
