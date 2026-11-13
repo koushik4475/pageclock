@@ -44,6 +44,14 @@ PageClock features a built-in automated in-app update mechanism powered by GitHu
 
 ---
 
+## 🚨 MANDATORY: Android release delivery is part of every merge
+
+**STRICT PROJECT RULE — NO EXCEPTIONS:** A feature is not complete when its code is merely committed, merged, or CI-tested. Every successful push/merge to `main` must automatically produce a production-signed Android APK, publish the matching SHA-256 checksum and stable GitHub Release, and verify that the release is visible through the in-app updater's `/releases/latest` endpoint.
+
+The release workflow is fail-closed: full validation must pass first; the existing production signing identity is mandatory; APK and checksum must match; and the latest-release API must return the exact new tag and both assets. Missing secrets, failed checks, stale/duplicate versions, missing assets, or API verification failures must fail the workflow. **Debug/unsigned APKs and throwaway signing keys are strictly forbidden as production-update fallbacks.**
+
+Do not mark Android work as shipped until the release is published and updater-visible. Report whether a real-device installation/update was tested; never claim device verification without evidence. The binding rules are in [AGENTS.md](AGENTS.md) and [the mandatory Android release policy](docs/ANDROID_RELEASE_POLICY.md).
+
 ## 🔐 Android Release Keystore Configuration (GitHub Actions)
 
 To enable permanent signed releases across all builds, configure the following secrets in GitHub (**Settings > Secrets and variables > Actions**):
