@@ -397,8 +397,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                   onTap: () => _handleJsonExport(context),
                 ),
                 _buildDivider(isDark),
-                _buildTile(
-                  title: 'Export CSV',
+                _buildTile(                  title: 'Export CSV',
                   subtitle: 'Spreadsheet compatible data export',
                   isDark: isDark,
                   onTap: () => _handleCsvExport(context),
@@ -797,8 +796,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
 
   void _showStreakThresholdDialog(BuildContext context, AppSettings settings) {
     int selected = settings.streakThresholdMinutes;
-    showDialog(
-      context: context,
+    showDialog(      context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Streak Minimum Threshold'),
         content: Column(
@@ -1069,6 +1067,157 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     );
   }
 
+  void _showClockStudio(BuildContext context, AppSettings settings) {
+    var selectedStyle = settings.clockStyleId;
+    var selectedAccent = settings.clockAccentColor;
+    var showSeconds = settings.clockShowSeconds;
+    var showDate = settings.clockShowDate;
+    const accents = <String>[
+      '#F5A623', '#FF5C8A', '#7C9CFF', '#63F5A5',
+      '#B58CFF', '#42D6D0', '#FFFFFF',
+    ];
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final now = DateTime.now();
+          final hour = settings.use24HourClock
+              ? now.hour.toString().padLeft(2, '0')
+              : ((now.hour % 12 == 0 ? 12 : now.hour % 12).toString().padLeft(2, '0'));
+          final minute = now.minute.toString().padLeft(2, '0');
+          final second = now.second.toString().padLeft(2, '0');
+          return AlertDialog(
+            title: const Text('Clock Studio'),
+            content: SizedBox(
+              width: 520,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClockFaceView(
+                      styleId: selectedStyle,
+                      leftText: hour,
+                      rightText: minute,
+                      secondsText: second,
+                      badge: 'LIVE PREVIEW',
+                      accentColor: ClockFaceView.colorFromHex(selectedAccent),
+                      showSeconds: showSeconds,
+                      showDate: showDate,
+                      date: now,
+                      isDark: Theme.of(context).brightness == Brightness.dark,
+                    ),
+                    const SizedBox(height: 18),
+                    const Text('CLOCK TEMPLATES', style: TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.1,
+                    )),
+                    const SizedBox(height: 8),
+                    ...ClockFaceView.styleIds.map((styleId) {
+                      final isSelected = selectedStyle == styleId;
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        child: RadioListTile<String>(
+                          value: styleId,
+                          groupValue: selectedStyle,
+                          onChanged: (value) {
+                            if (value != null) setDialogState(() => selectedStyle = value);
+                          },
+                          title: Text(ClockFaceView.labelFor(styleId)),
+                          subtitle: Text(styleId == 'mac_flip'
+                              ? 'Classic split-flap • Default'
+                              : 'Preview and apply this clock face'),
+                          secondary: SizedBox(
+                            width: 66,
+                            child: ClockFaceView(
+                              styleId: styleId,
+                              leftText: hour,
+                              rightText: minute,
+                              secondsText: second,
+                              badge: null,
+                              accentColor: ClockFaceView.colorFromHex(selectedAccent),
+                              showSeconds: false,
+                              showDate: false,
+                              date: now,
+                              isDark: true,
+                              compact: true,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 12),
+                    const Text('ACCENT COLOUR', style: TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.1,
+                    )),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: accents.map((hex) => InkWell(
+                        onTap: () => setDialogState(() => selectedAccent = hex),
+                        borderRadius: BorderRadius.circular(24),
+                        child: Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: ClockFaceView.colorFromHex(hex),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: selectedAccent == hex
+                                  ? Theme.of(context).colorScheme.onSurface
+                                  : Colors.transparent,
+                              width: 3,
+                            ),
+                          ),
+                          child: selectedAccent == hex
+                              ? const Icon(Icons.check, size: 18, color: Colors.black)
+                              : null,
+                        ),
+                      )).toList(),
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Show seconds'),
+                      value: showSeconds,
+                      onChanged: (value) => setDialogState(() => showSeconds = value),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Show date'),
+                      value: showDate,
+                      onChanged: (value) => setDialogState(() => showDate = value),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  await ref.read(settingsProvider.notifier).update((current) => current.copyWith(
+                    clockStyleId: selectedStyle,
+                    clockAccentColor: selectedAccent,
+                    clockShowSeconds: showSeconds,
+                    clockShowDate: showDate,
+                  ));
+                  if (dialogContext.mounted) Navigator.pop(dialogContext);
+                  if (mounted) setState(() {});
+                },
+                child: const Text('Apply clock'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   // --- Data & Backup Actions ---
 
   Future<void> _handlePdfExport(BuildContext context) async {
@@ -1197,8 +1346,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
-          FilledButton(
-            onPressed: () {
+          FilledButton(            onPressed: () {
               final text = controller.text.trim();
               Navigator.pop(ctx);
               if (text.isNotEmpty) {
@@ -1597,8 +1745,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: colors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      shape: const RoundedRectangleBorder(        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (ctx) => SafeArea(
         child: ConstrainedBox(
