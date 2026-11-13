@@ -274,17 +274,15 @@ jobs:
           tag_name: ${{ steps.release_tag.outputs.tag_name }}
           name: "PageClock Release ${{ steps.release_tag.outputs.tag_name }}"
           body: |
-            ### PageClock Automated Release (${{ steps.release_tag.outputs.tag_name }})
-            
-            **What's Changed:**
-            - Automated Android in-app updates with GitHub Releases.
-            - SHA-256 integrity verification.
-            - Drift SQLite offline-first persistence.
-            - Mobile fullscreen clock and Pomodoro usability fixes.
-            - Eleven curated themes with coordinated light/dark palettes and instant previews.
-            
-            **Verification:**
-            Download the matching `.sha256` file to verify the APK.
+            ### PageClock ${{ steps.release_tag.outputs.tag_name }}
+
+            **What's changed:**
+            - Pomodoro break countdown now uses a UTC deadline, avoiding accumulated drift when timer callbacks are delayed.
+            - Statistics calculations safely handle empty and negative time windows.
+            - Existing offline-first SQLite persistence, reading reports, themes, and Android in-app update verification are retained.
+
+            **Integrity:**
+            Download the matching `.sha256` file and verify the APK before installing.
           draft: false
           prerelease: false
           files: |
