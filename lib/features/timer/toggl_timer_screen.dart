@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/engine/stopwatch_engine.dart';
+import '../../core/engine/pomodoro_clock.dart';
 import '../../core/format/formatters.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/repository/session_repository.dart';
@@ -493,8 +494,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     _pomodoroBreakTicker?.cancel();
     // Use an absolute deadline so delayed callbacks (for example after the
     // app resumes from the background) do not make the break run slow.
-    _pomodoroBreakEndsAtUtcMs ??= DateTime.now().toUtc().millisecondsSinceEpoch +
-        _pomodoroBreakRemainingMs;
+    _pomodoroBreakEndsAtUtcMs ??= PomodoroClock.deadlineAfter(
+      nowUtcMs: DateTime.now().toUtc().millisecondsSinceEpoch,
+      remainingMs: _pomodoroBreakRemainingMs,
+    );
     setState(() => _pomodoroBreakRunning = true);
     _pomodoroBreakTicker = Timer.periodic(
       const Duration(seconds: 1),
@@ -508,7 +511,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           timer.cancel();
           return;
         }
-        final remaining = deadline - DateTime.now().toUtc().millisecondsSinceEpoch;
+        final remaining = PomodoroClock.remaining(
+          deadlineUtcMs: deadline,
+          nowUtcMs: DateTime.now().toUtc().millisecondsSinceEpoch,
+          maximumMs: _pomodoroBreakDurationMs,
+        );
         if (remaining <= 0) {
           timer.cancel();
           _pomodoroBreakRemainingMs = 0;
@@ -525,9 +532,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     _pomodoroBreakTicker?.cancel();
     final deadline = _pomodoroBreakEndsAtUtcMs;
     if (deadline != null) {
-      _pomodoroBreakRemainingMs = (deadline -
-              DateTime.now().toUtc().millisecondsSinceEpoch)
-          .clamp(0, _pomodoroBreakDurationMs);
+      _pomodoroBreakRemainingMs = PomodoroClock.remaining(
+        deadlineUtcMs: deadline,
+        nowUtcMs: DateTime.now().toUtc().millisecondsSinceEpoch,
+        maximumMs: _pomodoroBreakDurationMs,
+      );
     }
     _pomodoroBreakEndsAtUtcMs = null;
     setState(() => _pomodoroBreakRunning = false);
