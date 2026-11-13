@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/engine/stopwatch_engine.dart';
+import '../../core/engine/pomodoro_clock.dart';
 import '../../core/format/formatters.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/repository/session_repository.dart';
@@ -49,6 +50,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   int _pomodoroCompletedFocusSessions = 0;
   int _pomodoroBreakDurationMs = 0;
   int _pomodoroBreakRemainingMs = 0;
+  int? _pomodoroBreakEndsAtUtcMs;
   Timer? _pomodoroBreakTicker;
 
   final List<String> _availableProjects = const [
@@ -490,6 +492,12 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   void _startPomodoroBreak(BuildContext context) {
     if (!_isPomodoroBreak || _pomodoroBreakDurationMs <= 0) return;
     _pomodoroBreakTicker?.cancel();
+    // Use an absolute deadline so delayed callbacks (for example after the
+    // app resumes from the background) do not make the break run slow.
+    _pomodoroBreakEndsAtUtcMs ??= PomodoroClock.deadlineAfter(
+      nowUtcMs: DateTime.now().toUtc().millisecondsSinceEpoch,
+      remainingMs: _pomodoroBreakRemainingMs,
+    );
     setState(() => _pomodoroBreakRunning = true);
     _pomodoroBreakTicker = Timer.periodic(
       const Duration(seconds: 1),
@@ -498,12 +506,23 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           timer.cancel();
           return;
         }
-        final nextRemaining = _pomodoroBreakRemainingMs - 1000;
-        if (nextRemaining <= 0) {
+        final deadline = _pomodoroBreakEndsAtUtcMs;
+        if (deadline == null) {
           timer.cancel();
+          return;
+        }
+        final remaining = PomodoroClock.remaining(
+          deadlineUtcMs: deadline,
+          nowUtcMs: DateTime.now().toUtc().millisecondsSinceEpoch,
+          maximumMs: _pomodoroBreakDurationMs,
+        );
+        if (remaining <= 0) {
+          timer.cancel();
+          _pomodoroBreakRemainingMs = 0;
+          _pomodoroBreakEndsAtUtcMs = null;
           _completePomodoroBreak(context);
         } else {
-          setState(() => _pomodoroBreakRemainingMs = nextRemaining);
+          setState(() => _pomodoroBreakRemainingMs = remaining);
         }
       },
     );
@@ -511,6 +530,15 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
 
   void _pausePomodoroBreak() {
     _pomodoroBreakTicker?.cancel();
+    final deadline = _pomodoroBreakEndsAtUtcMs;
+    if (deadline != null) {
+      _pomodoroBreakRemainingMs = PomodoroClock.remaining(
+        deadlineUtcMs: deadline,
+        nowUtcMs: DateTime.now().toUtc().millisecondsSinceEpoch,
+        maximumMs: _pomodoroBreakDurationMs,
+      );
+    }
+    _pomodoroBreakEndsAtUtcMs = null;
     setState(() => _pomodoroBreakRunning = false);
   }
 
@@ -531,6 +559,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       _pomodoroBreakRunning = false;
       _pomodoroBreakDurationMs = 0;
       _pomodoroBreakRemainingMs = 0;
+      _pomodoroBreakEndsAtUtcMs = null;
     });
     if (autoStart) {
       _startNewSession(

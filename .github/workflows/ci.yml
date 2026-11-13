@@ -78,6 +78,46 @@ jobs:
           if-no-files-found: error
           compression-level: 1
 
+
+  # Compile Android on pull requests without exposing production signing secrets.
+  # This job uses Gradle's debug signing only and never publishes or uploads an APK.
+  android-pr-build:
+    if: github.event_name == 'pull_request'
+    name: Compile Android PR (debug signing only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Java 17 (with Gradle dependency cache)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.9'
+          cache: true
+          pub-cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run code generation (Drift / build_runner)
+        run: dart run build_runner build
+
+      - name: Build Android debug APK without release credentials
+        run: flutter build apk --debug --target-platform=android-arm64 --android-skip-build-dependency-validation --no-pub
+
   android-apk:
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
     name: Build Android release APK
