@@ -35,7 +35,7 @@ void main() {
 
     test('parses accent colours and falls back safely for invalid values', () {
       expect(ClockFaceView.colorFromHex('#FF5C8A').value, 0xFFFF5C8A);
-      expect(ClockFaceView.colorFromHex('invalid').value, 0xFFFFA623);
+      expect(ClockFaceView.colorFromHex('invalid').value, 0xFFF5A623);
     });
 
     test('offers ten distinct stable clock face IDs', () {
