@@ -62,53 +62,51 @@ class ClockFaceView extends StatelessWidget {
     final displayTime = showSeconds ? time + ':' + secondsText : time;
     final size = compact ? 25.0 : 76.0;
     Widget face;
-
-    switch (styleId) {
-      case 'analog':
-        face = AspectRatio(
-          aspectRatio: 1,
-          child: CustomPaint(painter: _AnalogClockPainter(date: date, foreground: foreground, accent: accentColor)),
-        );
-      case 'binary':
-        face = Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('HOUR  ' + date.hour.toRadixString(2).padLeft(5, '0'), style: TextStyle(color: foreground, fontFamily: 'monospace', fontSize: compact ? 10 : 20)),
-            const SizedBox(height: 8),
-            Text('MIN   ' + date.minute.toRadixString(2).padLeft(6, '0'), style: TextStyle(color: foreground, fontFamily: 'monospace', fontSize: compact ? 10 : 20)),
-          ],
-        );
-      case 'editorial':
-        face = Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(leftText, style: TextStyle(color: foreground, fontSize: compact ? 30 : 100, fontWeight: FontWeight.w300, height: .95)),
-            Text(rightText, style: TextStyle(color: foreground, fontSize: compact ? 30 : 100, fontWeight: FontWeight.w800, height: .95)),
-          ],
-        );
-      case 'mac_flip':
-        face = Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _flipCard(leftText, foreground, compact),
-            Padding(padding: EdgeInsets.symmetric(horizontal: compact ? 3 : 12), child: Text(':', style: TextStyle(color: foreground, fontSize: compact ? 22 : 72))),
-            _flipCard(rightText, foreground, compact),
-          ],
-        );
-      default:
-        final glow = styleId == 'nixie' || styleId == 'neon';
-        face = Text(
-          displayTime,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: styleId == 'dot_matrix' ? accentColor : foreground,
-            fontSize: size,
-            fontWeight: FontWeight.w800,
-            fontFamily: styleId == 'terminal' || styleId == 'lcd' || styleId == 'dot_matrix' ? 'monospace' : null,
-            letterSpacing: styleId == 'dot_matrix' ? (compact ? 1 : 7) : (compact ? -1 : -4),
-            shadows: glow ? [Shadow(color: accentColor, blurRadius: compact ? 7 : 28)] : null,
-          ),
-        );
+    if (styleId == 'analog') {
+      face = AspectRatio(
+        aspectRatio: 1,
+        child: CustomPaint(painter: _AnalogClockPainter(date: date, foreground: foreground, accent: accentColor)),
+      );
+    } else if (styleId == 'binary') {
+      face = Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('HOUR  ' + date.hour.toRadixString(2).padLeft(5, '0'), style: TextStyle(color: foreground, fontFamily: 'monospace', fontSize: compact ? 10 : 20)),
+          const SizedBox(height: 8),
+          Text('MIN   ' + date.minute.toRadixString(2).padLeft(6, '0'), style: TextStyle(color: foreground, fontFamily: 'monospace', fontSize: compact ? 10 : 20)),
+        ],
+      );
+    } else if (styleId == 'editorial') {
+      face = Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(leftText, style: TextStyle(color: foreground, fontSize: compact ? 30 : 100, fontWeight: FontWeight.w300, height: .95)),
+          Text(rightText, style: TextStyle(color: foreground, fontSize: compact ? 30 : 100, fontWeight: FontWeight.w800, height: .95)),
+        ],
+      );
+    } else if (styleId == 'mac_flip') {
+      face = Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _flipCard(leftText, foreground, compact),
+          Padding(padding: EdgeInsets.symmetric(horizontal: compact ? 3 : 12), child: Text(':', style: TextStyle(color: foreground, fontSize: compact ? 22 : 72))),
+          _flipCard(rightText, foreground, compact),
+        ],
+      );
+    } else {
+      final glow = styleId == 'nixie' || styleId == 'neon';
+      face = Text(
+        displayTime,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: styleId == 'dot_matrix' ? accentColor : foreground,
+          fontSize: size,
+          fontWeight: FontWeight.w800,
+          fontFamily: styleId == 'terminal' || styleId == 'lcd' || styleId == 'dot_matrix' ? 'monospace' : null,
+          letterSpacing: styleId == 'dot_matrix' ? (compact ? 1 : 7) : (compact ? -1 : -4),
+          shadows: glow ? [Shadow(color: accentColor, blurRadius: compact ? 7 : 28)] : null,
+        ),
+      );
     }
 
     return Container(
