@@ -18,6 +18,7 @@ class SessionExportService {
         'device_id',
         'created_at',
         'updated_at',
+        'paused_at_utc',
       ]
     ];
 
@@ -36,6 +37,7 @@ class SessionExportService {
         s.deviceId,
         s.createdAt,
         s.updatedAt,
+        s.pausedAtUtc ?? '',
       ]);
     }
 
@@ -65,6 +67,11 @@ class SessionExportService {
           deviceId: row[9].toString().isEmpty ? 'local' : row[9].toString(),
           createdAt: int.tryParse(row[10].toString()) ?? DateTime.now().millisecondsSinceEpoch,
           updatedAt: int.tryParse(row[11].toString()) ?? DateTime.now().millisecondsSinceEpoch,
+          // The trailing column was added after the original 12-column CSV
+          // format. Older exports remain valid and import as unpaused sessions.
+          pausedAtUtc: row.length > 12 && row[12].toString().isNotEmpty
+              ? int.tryParse(row[12].toString())
+              : null,
         ),
       );
     }
