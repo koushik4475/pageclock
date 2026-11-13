@@ -3,7 +3,6 @@ name: PageClock CI / CD & Automated Release
 on:
   push:
     branches: [ main, master, 'release/*' ]
-    tags: [ 'v*' ]
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
@@ -119,23 +118,24 @@ jobs:
         run: flutter build apk --debug --target-platform=android-arm64 --android-skip-build-dependency-validation --no-pub
 
   android-apk:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    name: Build Android release APK
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [ verify-and-web ]
+    name: Build production Android APK (required signing)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
+    permissions:
+      contents: read
     steps:
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
-
-      - name: Set up Java 17 (with Gradle dependency cache)
+      - name: Set up Java 17
         uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           distribution: temurin
           java-version: '17'
           cache: gradle
-
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -143,69 +143,152 @@ jobs:
           flutter-version: '3.47.9'
           cache: true
           pub-cache: true
-
       - name: Install dependencies
         run: flutter pub get
-
-      - name: Run code generation (Drift / build_runner)
+      - name: Run code generation
         run: dart run build_runner build
 
-      - name: Setup Android Keystore (if secrets provided)
-        id: setup_keystore
+      - name: Validate release version and latest published APK
+        id: release_preflight
         env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          GH_TOKEN: ${ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
-          if [ -n "${ANDROID_KEYSTORE_BASE64:-}" ]; then
-            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
-            chmod 600 android/app/release.keystore
-          elif [[ "$GITHUB_REF" == refs/tags/v* || "$GITHUB_REF" == refs/heads/release/v* ]]; then
-            echo "::error::Version-tag releases require ANDROID_KEYSTORE_BASE64."
+          set -euo pipefail
+          SOURCE_VERSION="$(sed -n 's/^version: *//p' pubspec.yaml | head -n 1)"
+          VERSION_NAME="$(printf '%s' "$SOURCE_VERSION" | cut -d+ -f1)"
+          BUILD_NUMBER="$GITHUB_RUN_NUMBER"
+          if [[ ! "$VERSION_NAME" =~ ^[0-9]+(\.[0-9]+){2}$ ]]; then
+            echo "::error::pubspec.yaml must contain a stable semantic version such as 1.0.1."
             exit 1
-          else
-            echo "No release keystore configured; non-release builds use Gradle debug signing."
           fi
+          EXPECTED_TAG="v$VERSION_NAME+$BUILD_NUMBER"
+          LATEST_JSON="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/latest")"
+          LATEST_TAG="$(jq -r '.tag_name // empty' <<< "$LATEST_JSON")"
+          LATEST_APK_URL="$(jq -r '[.assets[]? | select((.name | ascii_downcase | endswith(".apk")))] | last | .browser_download_url // empty' <<< "$LATEST_JSON")"
+          if [[ -z "$LATEST_TAG" || -z "$LATEST_APK_URL" ]]; then
+            echo "::error::Latest stable release or APK asset is missing."
+            exit 1
+          fi
+          if [[ "$LATEST_TAG" != "$EXPECTED_TAG" ]]; then
+            LATEST_CLEAN="$(printf '%s' "$LATEST_TAG" | sed 's/^v//')"
+            LATEST_VERSION="$(printf '%s' "$LATEST_CLEAN" | cut -d+ -f1)"
+            LATEST_BUILD=0
+            if [[ "$LATEST_CLEAN" == *+* ]]; then LATEST_BUILD="$(printf '%s' "$LATEST_CLEAN" | cut -d+ -f2)"; fi
+            if [[ ! "$LATEST_VERSION" =~ ^[0-9]+(\.[0-9]+){2}$ || ! "$LATEST_BUILD" =~ ^[0-9]+$ ]]; then
+              echo "::error::Unsupported latest release tag: $LATEST_TAG"
+              exit 1
+            fi
+            if dpkg --compare-versions "$VERSION_NAME" lt "$LATEST_VERSION"; then
+              echo "::error::Candidate $EXPECTED_TAG is older than latest release $LATEST_TAG."
+              exit 1
+            fi
+            if dpkg --compare-versions "$VERSION_NAME" eq "$LATEST_VERSION" && (( BUILD_NUMBER <= LATEST_BUILD )); then
+              echo "::error::Candidate $EXPECTED_TAG is not newer than $LATEST_TAG."
+              exit 1
+            fi
+            ENCODED_TAG="$(jq -rn --arg value "$EXPECTED_TAG" '$value | @uri')"
+            TAG_STATUS="$(curl --silent --show-error -o "$RUNNER_TEMP/existing-release.json" -w '%{http_code}' \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$ENCODED_TAG")"
+            if [[ "$TAG_STATUS" == "200" ]]; then
+              echo "::error::Release tag $EXPECTED_TAG already exists but is not latest."
+              exit 1
+            elif [[ "$TAG_STATUS" != "404" ]]; then
+              echo "::error::Unable to verify whether release tag $EXPECTED_TAG exists (HTTP $TAG_STATUS)."
+              exit 1
+            fi
+          fi
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$EXPECTED_TAG" >> "$GITHUB_OUTPUT"
+          echo "latest_apk_url=$LATEST_APK_URL" >> "$GITHUB_OUTPUT"
 
-      - name: Build Android Release APK (retry transient dependency/network failures only)
+      - name: Setup production Android keystore (mandatory; fail closed)
+        env:
+          ANDROID_KEYSTORE_BASE64: ${ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${ secrets.ANDROID_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$ANDROID_KEYSTORE_BASE64" || -z "$ANDROID_KEYSTORE_PASSWORD" || -z "$ANDROID_KEY_ALIAS" || -z "$ANDROID_KEY_PASSWORD" ]]; then
+            echo "::error::All four production Android signing secrets are mandatory. Debug/unsigned fallback is forbidden."
+            exit 1
+          fi
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+          chmod 600 android/app/release.keystore
+          keytool -list -keystore android/app/release.keystore -alias "$ANDROID_KEY_ALIAS" -storepass "$ANDROID_KEYSTORE_PASSWORD" >/dev/null
+          echo "Production signing keystore and alias validated."
+
+      - name: Build Android production APK (retry transient failures only)
         env:
           ANDROID_KEYSTORE_PATH: release.keystore
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_PASSWORD: ${ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${ secrets.ANDROID_KEY_PASSWORD }}
         shell: bash
         run: |
           set -u
-          log_file="$RUNNER_TEMP/android-build.log"
-          if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
-            SOURCE_VERSION="$(sed -n 's/^version: *//p' pubspec.yaml | head -n 1)"
-          else
-            SOURCE_VERSION="${GITHUB_REF_NAME#release/}"
-            SOURCE_VERSION="${SOURCE_VERSION#v}"
-          fi
-          VERSION_NAME="${SOURCE_VERSION%%+*}"
-          BUILD_NUMBER="${GITHUB_RUN_NUMBER}"
-          if [[ ! "$VERSION_NAME" =~ ^[0-9]+(\.[0-9]+){2}$ ]]; then
-            echo "::error::Build ref or pubspec.yaml must provide a stable semantic version (for example 1.0.1)."
-            exit 1
-          fi
-          echo "Building PageClock $VERSION_NAME with monotonic Android versionCode $BUILD_NUMBER"
+          LOG_FILE="$RUNNER_TEMP/android-build.log"
+          VERSION_NAME="${ steps.release_preflight.outputs.version_name }}"
+          BUILD_NUMBER="${ steps.release_preflight.outputs.build_number }}"
           for attempt in 1 2 3 4; do
-            echo "Android APK build attempt $attempt/4"
-            if flutter build apk --release --target-platform=android-arm64 --build-name="$VERSION_NAME" --build-number="$BUILD_NUMBER" --android-skip-build-dependency-validation --no-pub >"$log_file" 2>&1; then
-              cat "$log_file"
+            echo "Android production APK build attempt $attempt/4"
+            if flutter build apk --release --target-platform=android-arm64 \
+              --build-name="$VERSION_NAME" --build-number="$BUILD_NUMBER" \
+              --android-skip-build-dependency-validation --no-pub >"$LOG_FILE" 2>&1; then
+              cat "$LOG_FILE"
               exit 0
             else
               status=$?
-              cat "$log_file"
+              cat "$LOG_FILE"
             fi
-            if grep -Eiq 'Received status code 5[0-9]{2}|HTTP/[0-9.]+ 5[0-9]{2}|HTTP response code: 5[0-9]{2}|Gateway Time[- ]out|Connection reset|Temporary failure|timed out|Building native assets failed|Building assets for package:sqlite3 failed|sqlite3.*(download|failed)' "$log_file"; then
-              echo "Transient dependency/network failure detected; backing off before retry."
+            if grep -Eiq 'Received status code 5[0-9]{2}|HTTP/[0-9.]+ 5[0-9]{2}|HTTP response code: 5[0-9]{2}|Gateway Time[- ]out|Connection reset|Temporary failure|timed out|Building native assets failed|Building assets for package:sqlite3 failed|sqlite3.*(download|failed)' "$LOG_FILE"; then
+              echo "Transient network/dependency failure; retrying after backoff."
             else
-              echo "Android build failed for a non-transient reason; not retrying."
+              echo "Android production build failed for a non-transient reason."
               exit "$status"
             fi
-            if [ "$attempt" -lt 4 ]; then sleep $((attempt * 15)); fi
+            if [[ "$attempt" -lt 4 ]]; then sleep $((attempt * 15)); fi
           done
           exit 1
+
+      - name: Verify APK signature and application ID continuity
+        env:
+          LATEST_APK_URL: ${ steps.release_preflight.outputs.latest_apk_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          PREVIOUS_APK="$RUNNER_TEMP/pageclock-previous-release.apk"
+          curl --fail --location --silent --show-error "$LATEST_APK_URL" --output "$PREVIOUS_APK"
+          BUILD_TOOLS_DIR="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          APKSIGNER="$BUILD_TOOLS_DIR/apksigner"
+          AAPT="$BUILD_TOOLS_DIR/aapt"
+          if [[ ! -x "$APKSIGNER" || ! -x "$AAPT" ]]; then
+            echo "::error::Android SDK signature/package inspection tools are unavailable."
+            exit 1
+          fi
+          "$APKSIGNER" verify --print-certs "$PREVIOUS_APK" > "$RUNNER_TEMP/previous-signature.txt" 2>&1
+          "$APKSIGNER" verify --print-certs "$APK" > "$RUNNER_TEMP/current-signature.txt" 2>&1
+          PREVIOUS_CERT="$(sed -n 's/.*Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/previous-signature.txt" | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          CURRENT_CERT="$(sed -n 's/.*Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/current-signature.txt" | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          if [[ -z "$PREVIOUS_CERT" || -z "$CURRENT_CERT" || "$PREVIOUS_CERT" != "$CURRENT_CERT" ]]; then
+            echo "::error::APK signing certificate changed. Refusing an incompatible update."
+            exit 1
+          fi
+          PREVIOUS_APP_ID="$("$AAPT" dump badging "$PREVIOUS_APK" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)"
+          CURRENT_APP_ID="$("$AAPT" dump badging "$APK" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)"
+          if [[ -z "$PREVIOUS_APP_ID" || "$PREVIOUS_APP_ID" != "$CURRENT_APP_ID" ]]; then
+            echo "::error::Android application ID changed. Refusing an incompatible update."
+            exit 1
+          fi
+          echo "APK signature and application ID match the currently released app."
 
       - name: Secure Keystore Cleanup
         if: always()
@@ -213,26 +296,21 @@ jobs:
           rm -f android/app/release.keystore
           rm -f android/key.properties
 
-      - name: Package Release Assets & Compute Checksum
+      - name: Package APK and matching SHA-256
+        env:
+          RELEASE_TAG: ${ steps.release_preflight.outputs.release_tag }}
+        shell: bash
         run: |
+          set -euo pipefail
           APK_DIR="build/app/outputs/flutter-apk"
-          if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
-            SOURCE_VERSION="$(sed -n 's/^version: *//p' pubspec.yaml | head -n 1)"
-          else
-            SOURCE_VERSION="${GITHUB_REF_NAME#release/}"
-            SOURCE_VERSION="${SOURCE_VERSION#v}"
-          fi
-          VERSION_NAME="${SOURCE_VERSION%%+*}"
-          VERSION_TAG="v${VERSION_NAME}+${GITHUB_RUN_NUMBER}"
-          ASSET_NAME="PageClock-${VERSION_TAG}.apk"
-          SHA_NAME="PageClock-${VERSION_TAG}.apk.sha256"
+          ASSET_NAME="PageClock-$RELEASE_TAG.apk"
+          SHA_NAME="$ASSET_NAME.sha256"
           cp "$APK_DIR/app-release.apk" "$APK_DIR/$ASSET_NAME"
           cd "$APK_DIR"
           sha256sum "$ASSET_NAME" > "$SHA_NAME"
-          echo "SHA256 Checksum:"
-          cat "$SHA_NAME"
+          [[ "$(awk '{print length($1)}' "$SHA_NAME")" == "64" ]]
 
-      - name: Upload APK and checksum
+      - name: Upload signed APK and checksum artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: pageclock-apk-build
@@ -241,51 +319,121 @@ jobs:
           compression-level: 0
 
   publish-release:
-    name: Publish GitHub Release
+    name: Publish and verify production GitHub Release
     permissions:
       contents: write
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [ verify-and-web, android-apk ]
     runs-on: ubuntu-latest
     steps:
-      - name: Download APK and checksum
+      - name: Checkout exact main commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${ github.sha }}
+          fetch-depth: 1
+      - name: Download signed APK and checksum
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: pageclock-apk-build
           path: artifacts/apk
-
-      - name: Resolve release tag
+      - name: Resolve release tag from the exact source commit
         id: release_tag
         shell: bash
         run: |
-          SOURCE_VERSION="${GITHUB_REF_NAME#release/}"
-          SOURCE_VERSION="${SOURCE_VERSION#v}"
-          VERSION_NAME="${SOURCE_VERSION%%+*}"
+          set -euo pipefail
+          SOURCE_VERSION="$(sed -n 's/^version: *//p' pubspec.yaml | head -n 1)"
+          VERSION_NAME="$(printf '%s' "$SOURCE_VERSION" | cut -d+ -f1)"
           if [[ ! "$VERSION_NAME" =~ ^[0-9]+(\.[0-9]+){2}$ ]]; then
-            echo "::error::Release ref must contain a stable semantic version (for example v1.0.1)."
+            echo "::error::pubspec.yaml must provide a stable semantic version."
             exit 1
           fi
-          RELEASE_TAG="v${VERSION_NAME}+${GITHUB_RUN_NUMBER}"
+          RELEASE_TAG="v$VERSION_NAME+$GITHUB_RUN_NUMBER"
+          APK_NAME="PageClock-$RELEASE_TAG.apk"
+          SHA_NAME="$APK_NAME.sha256"
+          [[ -s "artifacts/apk/$APK_NAME" ]]
+          [[ -s "artifacts/apk/$SHA_NAME" ]]
           echo "tag_name=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
-
-      - name: Publish GitHub Release
+          echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
+          echo "sha_name=$SHA_NAME" >> "$GITHUB_OUTPUT"
+      - name: Publish production GitHub Release
         uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: ${{ steps.release_tag.outputs.tag_name }}
-          name: "PageClock Release ${{ steps.release_tag.outputs.tag_name }}"
+          token: ${ secrets.GITHUB_TOKEN }}
+          tag_name: ${ steps.release_tag.outputs.tag_name }}
+          target_commitish: ${ github.sha }}
+          name: "PageClock Release ${ steps.release_tag.outputs.tag_name }}"
           body: |
-            ### PageClock ${{ steps.release_tag.outputs.tag_name }}
-
-            **What's changed:**
-            - Pomodoro break countdown now uses a UTC deadline, avoiding accumulated drift when timer callbacks are delayed.
-            - Statistics calculations safely handle empty and negative time windows.
-            - Existing offline-first SQLite persistence, reading reports, themes, and Android in-app update verification are retained.
-
-            **Integrity:**
-            Download the matching `.sha256` file and verify the APK before installing.
+            Automatically built from successful main commit ${ github.sha }}.
+            The production APK passed analyzer, full Flutter tests, web build, release signing,
+            signing-certificate continuity and application-ID continuity checks.
+            Install only the APK accompanied by its matching SHA-256 checksum.
           draft: false
           prerelease: false
           files: |
-            artifacts/apk/*.apk
-            artifacts/apk/*.sha256
+            artifacts/apk/${ steps.release_tag.outputs.apk_name }}
+            artifacts/apk/${ steps.release_tag.outputs.sha_name }}
+      - name: Verify latest release, exact tag, commit, APK and checksum
+        env:
+          GH_TOKEN: ${ secrets.GITHUB_TOKEN }}
+          EXPECTED_TAG: ${ steps.release_tag.outputs.tag_name }}
+          EXPECTED_APK: ${ steps.release_tag.outputs.apk_name }}
+          EXPECTED_SHA: ${ steps.release_tag.outputs.sha_name }}
+          EXPECTED_COMMIT: ${ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          API="https://api.github.com/repos/$GITHUB_REPOSITORY"
+          LATEST_JSON=""
+          for attempt in $(seq 1 12); do
+            LATEST_JSON="$(curl --fail --silent --show-error \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "$API/releases/latest" || true)"
+            ACTUAL_TAG="$(jq -r '.tag_name // empty' <<< "$LATEST_JSON" 2>/dev/null || true)"
+            if [[ "$ACTUAL_TAG" == "$EXPECTED_TAG" ]]; then break; fi
+            echo "Waiting for latest-release endpoint to expose $EXPECTED_TAG (attempt $attempt/12)."
+            sleep 5
+          done
+          ACTUAL_TAG="$(jq -r '.tag_name // empty' <<< "$LATEST_JSON")"
+          if [[ "$ACTUAL_TAG" != "$EXPECTED_TAG" ]]; then
+            echo "::error::Updater endpoint returned '$ACTUAL_TAG', expected '$EXPECTED_TAG'."
+            exit 1
+          fi
+          if [[ "$(jq -r '.draft' <<< "$LATEST_JSON")" != "false" || "$(jq -r '.prerelease' <<< "$LATEST_JSON")" != "false" ]]; then
+            echo "::error::Latest release is not a stable published release."
+            exit 1
+          fi
+          APK_URL="$(jq -r --arg name "$EXPECTED_APK" '[.assets[]? | select(.name == $name and .state == "uploaded")] | first | .browser_download_url // empty' <<< "$LATEST_JSON")"
+          SHA_URL="$(jq -r --arg name "$EXPECTED_SHA" '[.assets[]? | select(.name == $name and .state == "uploaded")] | first | .browser_download_url // empty' <<< "$LATEST_JSON")"
+          APK_DIGEST="$(jq -r --arg name "$EXPECTED_APK" '[.assets[]? | select(.name == $name)] | first | .digest // empty' <<< "$LATEST_JSON")"
+          if [[ -z "$APK_URL" || -z "$SHA_URL" ]]; then
+            echo "::error::Updater-visible release is missing its exact APK or checksum."
+            exit 1
+          fi
+          CHECKSUM_CONTENT="$(curl --fail --location --silent --show-error "$SHA_URL")"
+          CHECKSUM_VALUE="$(awk 'NR == 1 {print $1}' <<< "$CHECKSUM_CONTENT")"
+          CHECKSUM_FILE="$(awk 'NR == 1 {print $2}' <<< "$CHECKSUM_CONTENT" | sed 's/^\*//')"
+          NORMALIZED_CHECKSUM="$(printf '%s' "$CHECKSUM_VALUE" | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$CHECKSUM_VALUE" =~ ^[A-Fa-f0-9]{64}$ || "$CHECKSUM_FILE" != "$EXPECTED_APK" ]]; then
+            echo "::error::Published checksum is malformed or names a different APK."
+            exit 1
+          fi
+          if [[ -n "$APK_DIGEST" && "$APK_DIGEST" != "sha256:$NORMALIZED_CHECKSUM" ]]; then
+            echo "::error::GitHub APK asset digest does not match its SHA-256 sidecar."
+            exit 1
+          fi
+          TAG_REF="$(curl --fail --silent --show-error -H "Authorization: Bearer $GH_TOKEN" "$API/git/ref/tags/$EXPECTED_TAG")"
+          REF_TYPE="$(jq -r '.object.type' <<< "$TAG_REF")"
+          REF_SHA="$(jq -r '.object.sha' <<< "$TAG_REF")"
+          for depth in 1 2 3; do
+            if [[ "$REF_TYPE" != "tag" ]]; then break; fi
+            TAG_OBJECT="$(curl --fail --silent --show-error -H "Authorization: Bearer $GH_TOKEN" "$API/git/tags/$REF_SHA")"
+            REF_TYPE="$(jq -r '.object.type' <<< "$TAG_OBJECT")"
+            REF_SHA="$(jq -r '.object.sha' <<< "$TAG_OBJECT")"
+          done
+          if [[ "$REF_TYPE" != "commit" || "$REF_SHA" != "$EXPECTED_COMMIT" ]]; then
+            echo "::error::Release tag does not point at the exact main commit that was built."
+            exit 1
+          fi
+          echo "Verified updater-visible stable release $EXPECTED_TAG."
+          echo "Verified commit $EXPECTED_COMMIT, APK $EXPECTED_APK, checksum $EXPECTED_SHA."
