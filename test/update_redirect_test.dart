@@ -125,8 +125,8 @@ void main() {
         );
       });
 
-      expect(
-        () => ApkDownloader(client: mockClient).downloadAndVerifyApk(
+      await expectLater(
+        ApkDownloader(client: mockClient).downloadAndVerifyApk(
           url: 'https://github.com/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
           expectedSha256: expectedSha,
         ),
