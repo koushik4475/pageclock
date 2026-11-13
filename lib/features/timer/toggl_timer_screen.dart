@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/engine/stopwatch_engine.dart';
 import '../../core/engine/pomodoro_clock.dart';
+import '../../core/engine/pomodoro_break_snapshot.dart';
 import '../../core/format/formatters.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/repository/session_repository.dart';
@@ -52,6 +53,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   int _pomodoroBreakRemainingMs = 0;
   int? _pomodoroBreakEndsAtUtcMs;
   Timer? _pomodoroBreakTicker;
+  Future<void> _pomodoroPersistenceQueue = Future<void>.value();
+
+  static const _pomodoroBreakStateKey = 'pageclock_pomodoro_break_state_v1';
+  static const _pomodoroCompletedSessionsKey = 'pageclock_pomodoro_completed_focus_sessions_v1';
 
   final List<String> _availableProjects = const [
     'General Focus',
@@ -72,6 +77,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     _taskController = TextEditingController(
       text: ref.read(focusTaskDescriptionProvider),
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_restorePomodoroState());
+    });
   }
 
   @override
@@ -443,6 +451,65 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   }
 
 
+  Future<void> _restorePomodoroState() async {
+    final preferences = ref.read(sharedPreferencesProvider);
+    final completedSessions = preferences.getInt(_pomodoroCompletedSessionsKey);
+    if (completedSessions != null && completedSessions >= 0) {
+      _pomodoroCompletedFocusSessions = completedSessions;
+    }
+
+    final snapshot = PomodoroBreakSnapshot.tryParse(
+      preferences.getString(_pomodoroBreakStateKey),
+    );
+    if (snapshot == null || !mounted) return;
+
+    final nowUtcMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final remainingMs = snapshot.remainingAt(nowUtcMs);
+    setState(() {
+      _isPomodoroBreak = true;
+      _isLongBreak = snapshot.isLongBreak;
+      _pomodoroBreakDurationMs = snapshot.durationMs;
+      _pomodoroBreakRemainingMs = remainingMs;
+      _pomodoroBreakRunning = snapshot.isRunning && remainingMs > 0;
+      _pomodoroBreakEndsAtUtcMs =
+          snapshot.isRunning ? snapshot.deadlineUtcMs : null;
+    });
+
+    if (remainingMs <= 0) {
+      _completePomodoroBreak(context);
+    } else if (snapshot.isRunning) {
+      // Recreate the ticker from the persisted deadline. The deadline, not
+      // the number of callbacks, remains the source of truth after a restart.
+      _startPomodoroBreak(context);
+    }
+  }
+
+  Future<void> _persistPomodoroBreakState() {
+    final preferences = ref.read(sharedPreferencesProvider);
+    final serialized = !_isPomodoroBreak || _pomodoroBreakDurationMs <= 0
+        ? null
+        : PomodoroBreakSnapshot(
+            isLongBreak: _isLongBreak,
+            durationMs: _pomodoroBreakDurationMs,
+            remainingMs: _pomodoroBreakRemainingMs,
+            isRunning: _pomodoroBreakRunning,
+            deadlineUtcMs: _pomodoroBreakEndsAtUtcMs,
+          ).toJson();
+
+    // Serialize preference writes so a rapid start/pause sequence cannot let
+    // an older asynchronous write overwrite the newest break state.
+    _pomodoroPersistenceQueue = _pomodoroPersistenceQueue.then((_) async {
+      if (serialized == null) {
+        await preferences.remove(_pomodoroBreakStateKey);
+      } else {
+        await preferences.setString(_pomodoroBreakStateKey, serialized);
+      }
+    }).catchError((Object error) {
+      debugPrint('[Pomodoro] Failed to persist break state: $error');
+    });
+    return _pomodoroPersistenceQueue;
+  }
+
   Future<void> _completePomodoroFocus(BuildContext context) async {
     final settings = ref.read(settingsProvider);
     final focusTargetMs = settings.pomodoroFocusMinutes * 60000;
@@ -460,6 +527,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     if (!mounted) return;
 
     _pomodoroCompletedFocusSessions++;
+    await ref.read(sharedPreferencesProvider).setInt(
+          _pomodoroCompletedSessionsKey,
+          _pomodoroCompletedFocusSessions,
+        );
     final longBreakDue = settings.pomodoroLongBreakInterval > 0 &&
         _pomodoroCompletedFocusSessions %
                 settings.pomodoroLongBreakInterval ==
@@ -475,6 +546,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       _pomodoroBreakRemainingMs = _pomodoroBreakDurationMs;
       _pomodoroBreakRunning = false;
     });
+    await _persistPomodoroBreakState();
 
     unawaited(NotificationService.showPomodoroComplete(
       settings,
@@ -499,6 +571,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       remainingMs: _pomodoroBreakRemainingMs,
     );
     setState(() => _pomodoroBreakRunning = true);
+    unawaited(_persistPomodoroBreakState());
     _pomodoroBreakTicker = Timer.periodic(
       const Duration(seconds: 1),
       (timer) {
@@ -540,6 +613,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     }
     _pomodoroBreakEndsAtUtcMs = null;
     setState(() => _pomodoroBreakRunning = false);
+    unawaited(_persistPomodoroBreakState());
   }
 
   void _completePomodoroBreak(BuildContext context) {
@@ -561,7 +635,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       _pomodoroBreakRemainingMs = 0;
       _pomodoroBreakEndsAtUtcMs = null;
     });
-    if (autoStart) {
+    unawaited(_persistPomodoroBreakState());
+    final stopwatchState = ref.read(stopwatchProvider);
+    if (autoStart &&
+        stopwatchState.status == StopwatchStatus.idle &&
+        stopwatchState.currentSession == null) {
       _startNewSession(
         context,
         project: ref.read(focusSelectedProjectProvider),
