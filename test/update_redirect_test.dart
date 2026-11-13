@@ -32,17 +32,35 @@ class _OversizedContentLengthClient extends http.BaseClient {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  Directory? testTempDirectory;
+
   setUpAll(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
       const MethodChannel('plugins.flutter.io/path_provider'),
       (MethodCall methodCall) async {
         if (methodCall.method == 'getTemporaryDirectory') {
-          return Directory.systemTemp.path;
+          return testTempDirectory?.path ?? Directory.systemTemp.path;
         }
         return null;
       },
     );
+  });
+
+  setUp(() async {
+    // Each test gets its own temp directory. Flutter runs test files in
+    // separate isolates, so comparing the process-wide system temp directory
+    // can mistake another test's in-flight download for a leaked APK.
+    testTempDirectory =
+        await Directory.systemTemp.createTemp('pageclock-updater-test-');
+  });
+
+  tearDown(() async {
+    final directory = testTempDirectory;
+    testTempDirectory = null;
+    if (directory != null && await directory.exists()) {
+      await directory.delete(recursive: true);
+    }
   });
 
   group('Update Download & Integrity Pressure Tests', () {
@@ -110,8 +128,7 @@ void main() {
     test('rejects a non-APK payload even when its SHA-256 is correct and removes it', () async {
       final invalidBytes = utf8.encode('<html>not an apk</html>');
       final expectedSha = sha256.convert(invalidBytes).toString();
-      final existingFiles = await Directory.systemTemp
-          .list()
+      final existingFiles = await testTempDirectory!.list()
           .where((entity) => entity.path.split(Platform.pathSeparator).last
               .startsWith('pageclock_update_'))
           .map((entity) => entity.path)
@@ -133,8 +150,7 @@ void main() {
         throwsA(isA<InvalidApkPayloadException>()),
       );
 
-      final remainingFiles = await Directory.systemTemp
-          .list()
+      final remainingFiles = await testTempDirectory!.list()
           .where((entity) => entity.path.split(Platform.pathSeparator).last
               .startsWith('pageclock_update_'))
           .map((entity) => entity.path)
@@ -215,8 +231,7 @@ void main() {
     });
 
     test('rejects streamed APK overflow without Content-Length and deletes the partial file', () async {
-      final before = await Directory.systemTemp
-          .list()
+      final before = await testTempDirectory!.list()
           .where((entity) => entity.path.split(Platform.pathSeparator).last.startsWith('pageclock_update_'))
           .map((entity) => entity.path)
           .toSet();
@@ -240,8 +255,7 @@ void main() {
         throwsA(isA<HttpException>()),
       );
 
-      final after = await Directory.systemTemp
-          .list()
+      final after = await testTempDirectory!.list()
           .where((entity) => entity.path.split(Platform.pathSeparator).last.startsWith('pageclock_update_'))
           .map((entity) => entity.path)
           .toSet();
