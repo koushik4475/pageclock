@@ -48,13 +48,13 @@ class ClockFaceView extends StatelessWidget {
       'lcd' => const Color(0xFFB6C58A),
       'gradient' => const Color(0xFF101A36),
       'neon' => const Color(0xFF130B25),
-      'editorial' => const Color(0xFFF0EBDD),
+      'editorial' => isDark ? const Color(0xFF25231F) : const Color(0xFFF0EBDD),
       'terminal' || 'binary' => const Color(0xFF050A08),
       _ => const Color(0xFF08090D),
     };
     final foreground = switch (styleId) {
       'lcd' => const Color(0xFF17220E),
-      'editorial' => const Color(0xFF202020),
+      'editorial' => isDark ? const Color(0xFFF0EBDD) : const Color(0xFF202020),
       'terminal' || 'binary' => const Color(0xFF63F5A5),
       'nixie' => const Color(0xFFFFA34A),
       _ => Colors.white,
