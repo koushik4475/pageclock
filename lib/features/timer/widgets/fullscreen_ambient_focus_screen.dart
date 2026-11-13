@@ -7,6 +7,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../core/engine/stopwatch_engine.dart';
 import '../../../core/settings/app_settings.dart';
 import '../../../core/theme/theme_provider.dart';
+import 'clock_face.dart';
 
 /// Apple Mac Retro Flip Clock & Fullscreen Focus Countdown Screen (Fliqlo Screensaver Style)
 /// Matches Toggl Track & Apple StandBy aesthetic:
@@ -246,94 +247,22 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
             ),
           ),
 
-          // Center: Responsive Apple Mac Twin Flip Plates
+          // Center: user-customizable Clock Studio face.
           Center(
-            child: LayoutBuilder(
-              builder: (ctx, constraints) {
-                final isLandscape = constraints.maxWidth > constraints.maxHeight;
-                final double plateWidth = isLandscape
-                    ? (constraints.maxWidth * 0.30).clamp(160.0, 320.0)
-                    : ((constraints.maxWidth - 56) / 2).clamp(130.0, 220.0);
-                final double plateHeight = plateWidth * 1.25;
-                final double fontSize = plateWidth * 0.72;
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _buildFlipPlate(
-                            value: leftVal,
-                            badge: subBadge,
-                            isLeft: true,
-                            isDark: isDark,
-                            plateWidth: plateWidth,
-                            plateHeight: plateHeight,
-                            fontSize: fontSize,
-                            colorScheme: colorScheme,
-                            isOledBackdrop: isOledBackdrop,
-                          ),
-                          SizedBox(width: plateWidth * 0.08),
-                          _buildFlipPlate(
-                            value: rightVal,
-                            badge: null,
-                            isLeft: false,
-                            isDark: isDark,
-                            plateWidth: plateWidth,
-                            plateHeight: plateHeight,
-                            fontSize: fontSize,
-                            colorScheme: colorScheme,
-                            isOledBackdrop: isOledBackdrop,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 28),
-
-                      // Task Description & Project Badge
-                      if (widget.description.isNotEmpty || widget.projectName.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: surfaceColor,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: borderColor,
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  color: colorScheme.primary,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                widget.description.isNotEmpty
-                                    ? widget.description
-                                    : widget.projectName,
-                                style: TextStyle(
-                                  color: primaryTextColor,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                );
-              },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: ClockFaceView(
+                styleId: settings.clockStyleId,
+                leftText: leftVal,
+                rightText: rightVal,
+                secondsText: now.second.toString().padLeft(2, '0'),
+                badge: subBadge,
+                accentColor: ClockFaceView.colorFromHex(settings.clockAccentColor),
+                showSeconds: settings.clockShowSeconds && _showWallClock,
+                showDate: settings.clockShowDate && _showWallClock,
+                date: now,
+                isDark: isDark,
+              ),
             ),
           ),
 
