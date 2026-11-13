@@ -47,7 +47,10 @@ void main() {
 
   group('Update Download & Integrity Pressure Tests', () {
     test('ApkDownloader follows multi-hop HTTP 302/301 redirects and computes bit-for-bit SHA-256', () async {
-      final dummyApkBytes = utf8.encode('DUMMY_ANDROID_APK_BINARY_STREAM_FOR_TESTING_PURPOSES');
+      final dummyApkBytes = <int>[
+        0x50, 0x4B, 0x03, 0x04,
+        ...utf8.encode('DUMMY_ANDROID_APK_BINARY_STREAM_FOR_TESTING_PURPOSES'),
+      ];
       final expectedSha = sha256.convert(dummyApkBytes).toString();
 
       final mockClient = MockClient((request) async {
@@ -104,6 +107,41 @@ void main() {
         throwsA(isA<ChecksumMismatchException>()),
       );
     }); 
+    test('rejects a non-APK payload even when its SHA-256 is correct and removes it', () async {
+      final invalidBytes = utf8.encode('<html>not an apk</html>');
+      final expectedSha = sha256.convert(invalidBytes).toString();
+      final existingFiles = await Directory.systemTemp
+          .list()
+          .where((entity) => entity.path.split(Platform.pathSeparator).last
+              .startsWith('pageclock_update_'))
+          .map((entity) => entity.path)
+          .toList();
+
+      final mockClient = MockClient((request) async {
+        return http.Response.bytes(
+          invalidBytes,
+          200,
+          headers: {'content-length': invalidBytes.length.toString()},
+        );
+      });
+
+      expect(
+        () => ApkDownloader(client: mockClient).downloadAndVerifyApk(
+          url: 'https://github.com/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
+          expectedSha256: expectedSha,
+        ),
+        throwsA(isA<InvalidApkPayloadException>()),
+      );
+
+      final remainingFiles = await Directory.systemTemp
+          .list()
+          .where((entity) => entity.path.split(Platform.pathSeparator).last
+              .startsWith('pageclock_update_'))
+          .map((entity) => entity.path)
+          .toList();
+      expect(remainingFiles.toSet(), unorderedEquals(existingFiles.toSet()));
+    });
+
     test('ApkDownloader rejects missing checksums before starting a network request', () async {
       var requestStarted = false;
       final mockClient = MockClient((request) async {

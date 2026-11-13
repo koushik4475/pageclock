@@ -17,6 +17,13 @@ class DownloadProgress {
   });
 }
 
+class InvalidApkPayloadException implements Exception {
+  const InvalidApkPayloadException();
+
+  @override
+  String toString() => 'InvalidApkPayloadException: downloaded file is not an APK archive';
+}
+
 class ChecksumMismatchException implements Exception {
   final String expected;
   final String actual;
@@ -147,16 +154,29 @@ class ApkDownloader {
       // The checksum was required and validated before the download.
       final expected = expectedSha256!.trim().toLowerCase();
       if (actualSha256 != expected) {
-        if (await targetFile.exists()) {
-          await targetFile.delete();
-        }
         throw ChecksumMismatchException(expected: expected, actual: actualSha256);
+      }
+
+      // APKs are ZIP archives. Reject HTML error pages or arbitrary payloads
+      // even when a matching sidecar is present.
+      final header = <int>[];
+      await for (final chunk in targetFile.openRead(0, 4)) {
+        header.addAll(chunk);
+      }
+      if (header.length < 4 ||
+          header[0] != 0x50 ||
+          header[1] != 0x4B ||
+          header[2] != 0x03 ||
+          header[3] != 0x04) {
+        throw const InvalidApkPayloadException();
       }
 
       return targetFile;
     } catch (e) {
       try {
         await sink.close();
+      } catch (_) {}
+      try {
         if (await targetFile.exists()) {
           await targetFile.delete();
         }
