@@ -117,6 +117,25 @@ jobs:
       - name: Build Android debug APK without release credentials
         run: flutter build apk --debug --target-platform=android-arm64 --android-skip-build-dependency-validation --no-pub
 
+      - name: Assert production release build fails without signing credentials
+        shell: bash
+        run: |
+          set +e
+          LOG_FILE="$RUNNER_TEMP/release-signing-guard.log"
+          (cd android && ./gradlew assembleRelease --no-daemon) >"$LOG_FILE" 2>&1
+          STATUS=$?
+          set -e
+          if [[ "$STATUS" -eq 0 ]]; then
+            echo "::error::Release build unexpectedly succeeded without production signing credentials."
+            exit 1
+          fi
+          if ! grep -Fq "Production release signing is mandatory" "$LOG_FILE"; then
+            cat "$LOG_FILE"
+            echo "::error::Release build failed, but not because the mandatory signing guard blocked it."
+            exit 1
+          fi
+          echo "Verified: production release build is blocked when signing credentials are absent."
+
   android-apk:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [ verify-and-web ]
