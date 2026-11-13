@@ -26,11 +26,45 @@ void main() {
       expect(restored.clockShowDate, isFalse);
     });
 
+    test('old settings payloads retain safe clock defaults', () {
+      final restored = AppSettings.fromJson(<String, dynamic>{'themeId': 'default_dark'});
+      expect(restored.clockStyleId, 'mac_flip');
+      expect(restored.clockShowDate, isTrue);
+    });
+
     test('offers ten distinct stable clock face IDs', () {
       expect(ClockFaceView.styleIds, hasLength(10));
       expect(ClockFaceView.styleIds.toSet(), hasLength(10));
       expect(ClockFaceView.labelFor('mac_flip'), 'macOS Flip');
       expect(ClockFaceView.labelFor('unknown'), 'macOS Flip');
     });
+  });
+
+  testWidgets('all ten clock faces render without layout exceptions', (tester) async {
+    for (final style in ClockFaceView.styleIds) {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 340,
+              child: ClockFaceView(
+                styleId: style,
+                leftText: '09',
+                rightText: '41',
+                secondsText: '26',
+                badge: 'FOCUS',
+                accentColor: ClockFaceView.colorFromHex('#F5A623'),
+                showSeconds: true,
+                showDate: true,
+                date: DateTime(2026, 11, 13, 9, 41, 26),
+                isDark: true,
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.pump();
+      expect(tester.takeException(), isNull, reason: 'Clock face $style should render');
+    }
   });
 }
