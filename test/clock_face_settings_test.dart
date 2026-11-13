@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pageclock/core/settings/app_settings.dart';
 import 'package:pageclock/features/timer/widgets/clock_face.dart';
