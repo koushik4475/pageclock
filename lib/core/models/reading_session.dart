@@ -239,6 +239,8 @@ class ReadingSession {
     int? createdAt,
     int? updatedAt,
     int? deletedAt,
+    bool clearDeletedAt = false,
+    bool clearNote = false,
     List<PauseInterval>? pauseIntervals,
   }) {
     return ReadingSession(
@@ -250,12 +252,12 @@ class ReadingSession {
       durationMs: durationMs ?? this.durationMs,
       tzOffsetMin: tzOffsetMin ?? this.tzOffsetMin,
       subjectId: subjectId ?? this.subjectId,
-      note: note ?? this.note,
+      note: clearNote ? null : (note ?? this.note),
       source: source ?? this.source,
       deviceId: deviceId ?? this.deviceId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      deletedAt: deletedAt ?? this.deletedAt,
+      deletedAt: clearDeletedAt ? null : (deletedAt ?? this.deletedAt),
       pauseIntervals: pauseIntervals ?? this.pauseIntervals,
     );
   }

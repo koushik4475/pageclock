@@ -97,14 +97,48 @@ class DriftSessionRepository implements SessionRepository {
   }
 
   @override
-  Future<void> softDeleteSession(String id) async {
-    final now = DateTime.now().toUtc().millisecondsSinceEpoch;
+  Future<void> softDeleteSession(String id, {int? deletedAt}) async {
+    final now = deletedAt ?? DateTime.now().toUtc().millisecondsSinceEpoch;
     await (db.update(db.readingSessions)..where((t) => t.id.equals(id))).write(
       ReadingSessionsCompanion(
         deletedAt: Value(now),
         updatedAt: Value(now),
       ),
     );
+  }
+
+  @override
+  Future<bool> restoreSoftDeletedSession({
+    required ReadingSession session,
+    required int expectedDeletedAt,
+  }) async {
+    final now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final updated = await (db.update(db.readingSessions)
+          ..where((t) =>
+              t.id.equals(session.id) &
+              t.deletedAt.equals(expectedDeletedAt) &
+              t.updatedAt.equals(expectedDeletedAt)))
+        .write(
+      ReadingSessionsCompanion(
+        startedAtUtc: Value(session.startedAtUtc),
+        endedAtUtc: Value(session.endedAtUtc),
+        pausedAtUtc: Value(session.pausedAtUtc),
+        pausedTotalMs: Value(session.pausedTotalMs),
+        pauseIntervalsJson: Value(jsonEncode(
+          session.pauseIntervals.map((interval) => interval.toMap()).toList(),
+        )),
+        durationMs: Value(session.durationMs),
+        tzOffsetMin: Value(session.tzOffsetMin),
+        subjectId: Value(session.subjectId),
+        note: Value(session.note),
+        source: Value(session.source),
+        deviceId: Value(session.deviceId),
+        createdAt: Value(session.createdAt),
+        updatedAt: Value(now),
+        deletedAt: const Value(null),
+      ),
+    );
+    return updated == 1;
   }
 
   @override
