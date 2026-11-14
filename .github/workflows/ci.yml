@@ -189,9 +189,13 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/latest")"
           LATEST_TAG="$(jq -r '.tag_name // empty' <<< "$LATEST_JSON")"
-          LATEST_APK_URL="$(jq -r '[.assets[]? | select((.name | ascii_downcase | endswith(".apk")))] | last | .browser_download_url // empty' <<< "$LATEST_JSON")"
-          if [[ -z "$LATEST_TAG" || -z "$LATEST_APK_URL" ]]; then
-            echo "::error::Latest stable release or APK asset is missing."
+          LATEST_APK_NAME="PageClock-$LATEST_TAG.apk"
+          LATEST_SHA_NAME="$LATEST_APK_NAME.sha256"
+          LATEST_APK_URL="$(jq -r --arg name "$LATEST_APK_NAME" '[.assets[]? | select(.name == $name and .state == "uploaded")] | first | .browser_download_url // empty' <<< "$LATEST_JSON")"
+          LATEST_SHA_URL="$(jq -r --arg name "$LATEST_SHA_NAME" '[.assets[]? | select(.name == $name and .state == "uploaded")] | first | .browser_download_url // empty' <<< "$LATEST_JSON")"
+          LATEST_APK_DIGEST="$(jq -r --arg name "$LATEST_APK_NAME" '[.assets[]? | select(.name == $name)] | first | .digest // empty' <<< "$LATEST_JSON")"
+          if [[ -z "$LATEST_TAG" || -z "$LATEST_APK_URL" || -z "$LATEST_SHA_URL" ]]; then
+            echo "::error::Latest stable release is missing its exact APK or SHA-256 sidecar."
             exit 1
           fi
           ENCODED_TAG="$(jq -rn --arg value "$EXPECTED_TAG" '$value | @uri')"
@@ -212,6 +216,9 @@ jobs:
           echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
           echo "release_tag=$EXPECTED_TAG" >> "$GITHUB_OUTPUT"
           echo "latest_apk_url=$LATEST_APK_URL" >> "$GITHUB_OUTPUT"
+          echo "latest_apk_name=$LATEST_APK_NAME" >> "$GITHUB_OUTPUT"
+          echo "latest_sha_url=$LATEST_SHA_URL" >> "$GITHUB_OUTPUT"
+          echo "latest_apk_digest=$LATEST_APK_DIGEST" >> "$GITHUB_OUTPUT"
 
       - name: Setup production Android keystore (mandatory; fail closed)
         env:
@@ -267,12 +274,33 @@ jobs:
       - name: Verify APK signature and application ID continuity
         env:
           LATEST_APK_URL: ${{ steps.release_preflight.outputs.latest_apk_url }}
+          LATEST_SHA_URL: ${{ steps.release_preflight.outputs.latest_sha_url }}
+          LATEST_APK_NAME: ${{ steps.release_preflight.outputs.latest_apk_name }}
+          LATEST_APK_DIGEST: ${{ steps.release_preflight.outputs.latest_apk_digest }}
         shell: bash
         run: |
           set -euo pipefail
           APK="build/app/outputs/flutter-apk/app-release.apk"
           PREVIOUS_APK="$RUNNER_TEMP/pageclock-previous-release.apk"
+          PREVIOUS_SHA="$RUNNER_TEMP/pageclock-previous-release.apk.sha256"
           curl --fail --location --silent --show-error "$LATEST_APK_URL" --output "$PREVIOUS_APK"
+          curl --fail --location --silent --show-error "$LATEST_SHA_URL" --output "$PREVIOUS_SHA"
+          PREVIOUS_SHA_VALUE="$(awk 'NR == 1 {print $1}' "$PREVIOUS_SHA")"
+          PREVIOUS_SHA_FILE="$(awk 'NR == 1 {print $2}' "$PREVIOUS_SHA" | sed 's/^\*//')"
+          NORMALIZED_PREVIOUS_SHA="$(printf '%s' "$PREVIOUS_SHA_VALUE" | tr '[:upper:]' '[:lower:]')"
+          ACTUAL_PREVIOUS_SHA="$(sha256sum "$PREVIOUS_APK" | awk '{print $1}')"
+          if [[ ! "$PREVIOUS_SHA_VALUE" =~ ^[A-Fa-f0-9]{64}$ || "$PREVIOUS_SHA_FILE" != "$LATEST_APK_NAME" ]]; then
+            echo "::error::Published APK checksum sidecar is malformed or names a different APK."
+            exit 1
+          fi
+          if [[ "$ACTUAL_PREVIOUS_SHA" != "$NORMALIZED_PREVIOUS_SHA" ]]; then
+            echo "::error::Downloaded published APK does not match its SHA-256 sidecar."
+            exit 1
+          fi
+          if [[ -n "$LATEST_APK_DIGEST" && "$LATEST_APK_DIGEST" != "sha256:$NORMALIZED_PREVIOUS_SHA" ]]; then
+            echo "::error::GitHub APK asset digest does not match its SHA-256 sidecar."
+            exit 1
+          fi
           BUILD_TOOLS_DIR="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
           APKSIGNER="$BUILD_TOOLS_DIR/apksigner"
           AAPT="$BUILD_TOOLS_DIR/aapt"
