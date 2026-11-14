@@ -66,9 +66,10 @@ void main() {
     expect(saved, hasLength(1));
     expect(saved.single.note, 'Updated chapter');
     expect(saved.single.durationMs, 45 * 60 * 1000);
+    expect(saved.single.endedAtUtc, session.endedAtUtc);
     expect(
-      saved.single.endedAtUtc,
-      session.startedAtUtc + 45 * 60 * 1000,
+      saved.single.startedAtUtc,
+      session.endedAtUtc! - 45 * 60 * 1000,
     );
     expect(saved.single.id, session.id);
     expect(saved.single.createdAt, session.createdAt);
