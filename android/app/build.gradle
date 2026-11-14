@@ -22,7 +22,7 @@ def productionReleaseSigningConfigured =
 
 android {
     namespace "com.example.pageclock"
-    compileSdk 35
+    compileSdk 36
     ndkVersion flutter.ndkVersion
 
     compileOptions {
