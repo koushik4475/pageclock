@@ -3,6 +3,7 @@ name: PageClock CI / CD & Automated Release
 on:
   push:
     branches: [ main, master, 'release/*' ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
@@ -138,7 +139,7 @@ jobs:
           echo "Verified: production release build is blocked when signing credentials are absent."
 
   android-apk:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: [ verify-and-web ]
     name: Build production Android APK (required signing)
     runs-on: ubuntu-latest
@@ -149,7 +150,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 1
+          fetch-depth: 0
       - name: Set up Java 17
         uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
@@ -177,12 +178,29 @@ jobs:
           set -euo pipefail
           SOURCE_VERSION="$(sed -n 's/^version: *//p' pubspec.yaml | head -n 1)"
           VERSION_NAME="$(printf '%s' "$SOURCE_VERSION" | cut -d+ -f1)"
-          BUILD_NUMBER="$GITHUB_RUN_NUMBER"
+          EXPECTED_TAG="$GITHUB_REF_NAME"
           if [[ ! "$VERSION_NAME" =~ ^[0-9]+(\.[0-9]+){2}$ ]]; then
             echo "::error::pubspec.yaml must contain a stable semantic version such as 1.0.1."
             exit 1
           fi
           EXPECTED_TAG="v$VERSION_NAME+$BUILD_NUMBER"
+          if [[ ! "$EXPECTED_TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)\+([1-9][0-9]*)$ ]]; then
+            echo "::error::Release tags must use vMAJOR.MINOR.PATCH+BUILD_NUMBER."
+            exit 1
+          fi
+          TAG_VERSION="${BASH_REMATCH[1]}"
+          BUILD_NUMBER="${BASH_REMATCH[2]}"
+          if [[ "$TAG_VERSION" != "$VERSION_NAME" ]]; then
+            echo "::error::Release tag version $TAG_VERSION does not match pubspec.yaml version $VERSION_NAME."
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          MAIN_SHA="$(git rev-parse FETCH_HEAD)"
+          TAG_SHA="$(git rev-parse "${GITHUB_REF}^{commit}")"
+          if [[ "$TAG_SHA" != "$GITHUB_SHA" || "$GITHUB_SHA" != "$MAIN_SHA" ]]; then
+            echo "::error::Production releases must be tagged from the exact current main HEAD."
+            exit 1
+          fi
           LATEST_JSON="$(curl --fail --silent --show-error \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
@@ -193,38 +211,20 @@ jobs:
             echo "::error::Latest stable release or APK asset is missing."
             exit 1
           fi
-          if [[ "$LATEST_TAG" != "$EXPECTED_TAG" ]]; then
-            LATEST_CLEAN="$(printf '%s' "$LATEST_TAG" | sed 's/^v//')"
-            LATEST_VERSION="$(printf '%s' "$LATEST_CLEAN" | cut -d+ -f1)"
-            LATEST_BUILD=0
-            if [[ "$LATEST_CLEAN" == *+* ]]; then LATEST_BUILD="$(printf '%s' "$LATEST_CLEAN" | cut -d+ -f2)"; fi
-            if [[ ! "$LATEST_VERSION" =~ ^[0-9]+(\.[0-9]+){2}$ || ! "$LATEST_BUILD" =~ ^[0-9]+$ ]]; then
-              echo "::error::Unsupported latest release tag: $LATEST_TAG"
-              exit 1
-            fi
-            if (( BUILD_NUMBER <= LATEST_BUILD )); then
-              echo "::error::Android versionCode must increase on every release. Candidate build $BUILD_NUMBER is not greater than latest build $LATEST_BUILD."
-              exit 1
-            fi
-            if dpkg --compare-versions "$VERSION_NAME" lt "$LATEST_VERSION"; then
-              echo "::error::Candidate $EXPECTED_TAG is older than latest release $LATEST_TAG."
-              exit 1
-            fi
-            if dpkg --compare-versions "$VERSION_NAME" eq "$LATEST_VERSION" && (( BUILD_NUMBER <= LATEST_BUILD )); then
-              echo "::error::Candidate $EXPECTED_TAG is not newer than $LATEST_TAG."
-              exit 1
-            fi
-            ENCODED_TAG="$(jq -rn --arg value "$EXPECTED_TAG" '$value | @uri')"
-            TAG_STATUS="$(curl --silent --show-error -o "$RUNNER_TEMP/existing-release.json" -w '%{http_code}' \
-              -H "Authorization: Bearer $GH_TOKEN" \
-              "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$ENCODED_TAG")"
-            if [[ "$TAG_STATUS" == "200" ]]; then
-              echo "::error::Release tag $EXPECTED_TAG already exists but is not latest."
-              exit 1
-            elif [[ "$TAG_STATUS" != "404" ]]; then
-              echo "::error::Unable to verify whether release tag $EXPECTED_TAG exists (HTTP $TAG_STATUS)."
-              exit 1
-            fi
+          LATEST_CLEAN="${LATEST_TAG#v}"
+          if [[ ! "$LATEST_CLEAN" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)$ ]]; then
+            echo "::error::Unsupported latest release tag: $LATEST_TAG"
+            exit 1
+          fi
+          LATEST_VERSION="${BASH_REMATCH[1]}"
+          LATEST_BUILD="${BASH_REMATCH[2]}"
+          if (( BUILD_NUMBER <= LATEST_BUILD )); then
+            echo "::error::Android versionCode must increase. Candidate $BUILD_NUMBER is not greater than latest build $LATEST_BUILD."
+            exit 1
+          fi
+          if dpkg --compare-versions "$VERSION_NAME" lt "$LATEST_VERSION"; then
+            echo "::error::Candidate $EXPECTED_TAG is older than latest release $LATEST_TAG."
+            exit 1
           fi
           echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
           echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
@@ -302,8 +302,11 @@ jobs:
           "$APKSIGNER" verify --print-certs "$APK" > "$RUNNER_TEMP/current-signature.txt" 2>&1
           PREVIOUS_CERT="$(sed -n 's/.*Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/previous-signature.txt" | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
           CURRENT_CERT="$(sed -n 's/.*Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/current-signature.txt" | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          # Certificate fingerprints are public identifiers, not private key material.
+          echo "Published APK signing certificate SHA-256: ${PREVIOUS_CERT:-unavailable}"
+          echo "Candidate APK signing certificate SHA-256: ${CURRENT_CERT:-unavailable}"
           if [[ -z "$PREVIOUS_CERT" || -z "$CURRENT_CERT" || "$PREVIOUS_CERT" != "$CURRENT_CERT" ]]; then
-            echo "::error::APK signing certificate changed. Refusing an incompatible update."
+            echo "::error::APK signing certificate changed. Refusing an incompatible update; verify the configured production keystore against the published fingerprint above."
             exit 1
           fi
           PREVIOUS_APP_ID="$("$AAPT" dump badging "$PREVIOUS_APK" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)"
@@ -346,7 +349,7 @@ jobs:
     name: Publish and verify production GitHub Release
     permissions:
       contents: write
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: [ verify-and-web, android-apk ]
     runs-on: ubuntu-latest
     steps:
@@ -371,7 +374,11 @@ jobs:
             echo "::error::pubspec.yaml must provide a stable semantic version."
             exit 1
           fi
-          RELEASE_TAG="v$VERSION_NAME+$GITHUB_RUN_NUMBER"
+          RELEASE_TAG="$GITHUB_REF_NAME"
+          if [[ ! "$RELEASE_TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)\+([1-9][0-9]*)$ || "${BASH_REMATCH[1]}" != "$VERSION_NAME" ]]; then
+            echo "::error::Release tag does not match the source version."
+            exit 1
+          fi
           APK_NAME="PageClock-$RELEASE_TAG.apk"
           SHA_NAME="$APK_NAME.sha256"
           [[ -s "artifacts/apk/$APK_NAME" ]]
