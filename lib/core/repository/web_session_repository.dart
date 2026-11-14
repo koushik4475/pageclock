@@ -192,8 +192,9 @@ class WebSessionRepository implements SessionRepository {
     final previous = Map<String, ReadingSession>.of(_cache);
     _cache.clear();
     try {
+      final hadStoredSessions = _prefs.containsKey(_storageKey);
       final removed = await _prefs.remove(_storageKey);
-      if (!removed) {
+      if (hadStoredSessions && !removed) {
         throw StateError('Browser storage rejected the PageClock data reset.');
       }
       _broadcast();
