@@ -98,6 +98,15 @@ void main() {
       expect(notifier.state.status, StopwatchStatus.running);
       expect(notifier.state.currentSession?.pausedAtUtc, isNull);
       expect(notifier.state.currentSession!.pausedTotalMs, greaterThan(0));
+      expect(notifier.state.currentSession!.pauseIntervals, hasLength(1));
+      expect(
+        notifier.state.currentSession!.pauseIntervals.single.startedAtUtc,
+        pausedAt,
+      );
+      expect(
+        notifier.state.currentSession!.pauseIntervals.single.endedAtUtc,
+        greaterThan(pausedAt!),
+      );
 
       await Future<void>.delayed(const Duration(milliseconds: 20));
       final finished = await notifier.stop(minSessionDurationMs: 0);
@@ -112,6 +121,31 @@ void main() {
       expect(saved.single.id, finished.id);
       expect(saved.single.durationMs, finished.durationMs);
       expect(saved.single.pausedTotalMs, finished.pausedTotalMs);
+      expect(saved.single.pauseIntervals, hasLength(1));
+      notifier.dispose();
+    });
+
+    test('stopping while paused persists the final pause interval', () async {
+      final repository = InMemorySessionRepository([]);
+      final notifier = StopwatchNotifier(repository);
+
+      await notifier.start(subjectId: 'Reading');
+      await Future<void>.delayed(const Duration(milliseconds: 15));
+      await notifier.pause();
+      final pausedAt = notifier.state.currentSession!.pausedAtUtc!;
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      final finished = await notifier.stop(minSessionDurationMs: 0);
+      expect(finished, isNotNull);
+      expect(finished!.pausedAtUtc, isNull);
+      expect(finished.pauseIntervals, hasLength(1));
+      expect(finished.pauseIntervals.single.startedAtUtc, pausedAt);
+      expect(finished.pauseIntervals.single.endedAtUtc, greaterThan(pausedAt));
+      expect(
+        finished.pauseIntervals.single.durationMs,
+        finished.pausedTotalMs,
+      );
+
       notifier.dispose();
     });
   });
