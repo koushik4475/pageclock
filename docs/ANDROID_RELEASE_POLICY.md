@@ -4,16 +4,18 @@
 
 ## Non-negotiable guarantee
 
-Every successful push/merge to `main` must automatically produce a production-signed Android APK for that exact `main` commit, calculate and publish its SHA-256 sidecar, create a stable GitHub Release, and verify that the release is visible to the app's updater. A merged Android change that is not available to installed users is an incident—not a completed delivery.
+Every push/merge to `main` must pass dependency resolution, Drift code generation, Dart analysis, the full Flutter test suite, and the production web build. A merged Android change is not shipped until a separate version-tag release has produced a production-signed APK and matching SHA-256 sidecar, published both in a stable GitHub Release, and verified updater visibility. Production signing secrets are available only to a `push` event for a `v*` tag that points to the exact current `main` HEAD; ordinary branch pushes, pull requests, legacy release branches, and manual workflow dispatch must never access those secrets.
 
 ## Required sequence
 
-1. **Validate:** dependencies, Drift code generation, `flutter analyze`, all `flutter test` tests, and production web build must pass.
-2. **Build:** build the Android release APK only after validation passes. Use the existing production keystore and signing identity. Do not use debug signing as a fallback.
-3. **Version:** extract the semantic version from `pubspec.yaml`; use a monotonically increasing CI run number for Android's build number. The new version/build pair must compare newer than the current latest stable GitHub Release.
-4. **Package:** publish the APK and its matching `.apk.sha256` file together in a non-draft, non-prerelease release.
-5. **Verify:** query `https://api.github.com/repos/koushik4475/pageclock/releases/latest` and assert that it returns the expected tag and both matching assets. Fail the job if anything is missing, stale, or malformed.
-6. **Report:** provide the merge SHA, successful checks, release URL, asset verification, and honest device-testing status.
+1. **Validate main and PRs:** dependencies, Drift code generation, `flutter analyze`, all `flutter test` tests, and production web build must pass. These jobs do not receive production signing secrets.
+2. **Prepare a release tag:** after validation passes, create `vMAJOR.MINOR.PATCH+BUILD_NUMBER` on the exact current `main` HEAD. Never tag an old commit, legacy release branch, or unmerged feature branch.
+3. **Verify the tag:** the tag-triggered workflow must confirm that the tag matches `pubspec.yaml`, its commit equals `GITHUB_SHA`, and that SHA equals current `main` HEAD. Recheck before publishing.
+4. **Build:** only the `push` event for a `v*` tag may run the production APK job or access the existing production keystore. Use the same signing identity as the currently published APK.
+5. **Version:** use the build number encoded in the tag as Android's `versionCode`; it must increase monotonically and the version pair must compare newer than the latest stable GitHub Release.
+6. **Package:** publish the APK and its matching `.apk.sha256` file together in a non-draft, non-prerelease release.
+7. **Verify:** query `https://api.github.com/repos/koushik4475/pageclock/releases/latest` and assert that it returns the expected tag, exact source commit, APK, and checksum. Independently verify the downloaded APK bytes against the sidecar.
+8. **Report:** provide the main/tag commit SHA, successful checks, release URL, asset verification, and honest device-testing status.
 
 ## Fail-closed conditions
 
@@ -30,4 +32,4 @@ Any modification to the release workflow, signing configuration, package ID, ver
 
 ## Recovery
 
-If a merge does not produce a release, stop new delivery claims, inspect the failed or missing workflow, repair the root cause, and publish a release from the latest `main` SHA. Verify that the updater's latest-release endpoint returns the new release. A release gap remains open until this verification succeeds.
+If a merge does not yet have a release, stop new delivery claims, inspect the failed or missing workflow, and repair the root cause. Once the latest `main` SHA has passed validation, create an approved `vMAJOR.MINOR.PATCH+BUILD_NUMBER` tag on that exact commit and let the tag-only workflow build and publish it. Never expose production signing secrets to a branch push as a recovery shortcut. Verify that the updater's latest-release endpoint returns the new release. A release gap remains open until this verification succeeds.
