@@ -32,4 +32,4 @@ Any modification to the release workflow, signing configuration, package ID, ver
 
 ## Recovery
 
-If a merge does not produce a release, stop new delivery claims, inspect the failed or missing workflow, repair the root cause, and publish a release from the latest `main` SHA. Verify that the updater's latest-release endpoint returns the new release. A release gap remains open until this verification succeeds.
+If a merge does not yet have a release, stop new delivery claims, inspect the failed or missing workflow, and repair the root cause. Once the latest `main` SHA has passed validation, create an approved `vMAJOR.MINOR.PATCH+BUILD_NUMBER` tag on that exact commit and let the tag-only workflow build and publish it. Never expose production signing secrets to a branch push as a recovery shortcut. Verify that the updater's latest-release endpoint returns the new release. A release gap remains open until this verification succeeds.
