@@ -164,8 +164,9 @@ class ClockFaceView extends StatelessWidget {
         ],
       );
     } else if (styleId == 'analog') {
-      face = AspectRatio(
-        aspectRatio: 1,
+      face = SizedBox(
+        width: classicDialSize,
+        height: classicDialSize,
         child: CustomPaint(
           painter: _AnalogClockPainter(
             date: date,
