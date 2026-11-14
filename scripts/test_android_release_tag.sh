@@ -24,11 +24,12 @@ expect_failure() {
 expect_success $'1.0.1\t123\tv1.0.1+123' \
   "1.0.1+1" "v1.0.1+123" "v1.0.0+122" "abc123" "abc123" "abc123"
 expect_success $'1.0.0\t123\tv1.0.0+123' \
-  "1.0.0+1" "v1.0.0+123" "v1.0.0+122" "abc123" "abc123"
+  "1.0.0+1" "v1.0.0+123" "v1.0.0+122" "abc123" "abc123" "abc123"
 
-expect_failure "1.0.1+1" "v1.0.1" "v1.0.0+122" "abc123" "abc123"
-expect_failure "1.0.1+1" "v1.0.2+123" "v1.0.0+122" "abc123" "abc123"
+expect_failure "1.0.1+1" "v1.0.1" "v1.0.0+122" "abc123" "abc123" "abc123"
+expect_failure "1.0.1+1" "v1.0.2+123" "v1.0.0+122" "abc123" "abc123" "abc123"
 expect_failure "1.0.1+1" "v1.0.1+123" "v1.0.0+122" "abc123" "different" "abc123"
+expect_failure "1.0.1+1" "v1.0.1+123" "v1.0.0+122" "abc123" "abc123" "different"
 expect_failure "1.0.1+1" "v1.0.1+122" "v1.0.0+122" "abc123" "abc123" "abc123"
 expect_failure "1.0.0+1" "v0.9.9+123" "v1.0.0+122" "abc123" "abc123" "abc123"
 expect_failure "1.0.1+1" "v1.0.1+123" "not-a-release" "abc123" "abc123" "abc123"
