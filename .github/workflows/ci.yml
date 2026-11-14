@@ -194,6 +194,17 @@ jobs:
             echo "::error::Latest stable release or APK asset is missing."
             exit 1
           fi
+          ENCODED_TAG="$(jq -rn --arg value "$EXPECTED_TAG" '$value | @uri')"
+          RELEASE_STATUS="$(curl --silent --show-error -o "$RUNNER_TEMP/existing-release.json" -w '%{http_code}' \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$ENCODED_TAG")"
+          if [[ "$RELEASE_STATUS" == "200" ]]; then
+            echo "::error::A GitHub Release already exists for $EXPECTED_TAG; refusing to overwrite it."
+            exit 1
+          elif [[ "$RELEASE_STATUS" != "404" ]]; then
+            echo "::error::Unable to verify whether release $EXPECTED_TAG already exists (HTTP $RELEASE_STATUS)."
+            exit 1
+          fi
           VALIDATED="$(bash scripts/validate_android_release_tag.sh \
             "$SOURCE_VERSION" "$EXPECTED_TAG" "$LATEST_TAG" "$TAG_SHA" "$GITHUB_SHA" "$MAIN_SHA")"
           IFS=$'\t' read -r VERSION_NAME BUILD_NUMBER EXPECTED_TAG <<< "$VALIDATED"
