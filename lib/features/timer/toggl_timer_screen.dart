@@ -375,6 +375,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                             return;
                           }
 
+                          // Dismiss the keyboard before the bottom sheet removes
+                          // its editable fields; this avoids a pending caret callback
+                          // targeting a detached RenderEditable during route teardown.
+                          FocusScope.of(sheetContext).unfocus();
                           final now =
                               DateTime.now().toUtc().millisecondsSinceEpoch;
                           final durationMs = minutes * 60000;
