@@ -52,6 +52,24 @@ const devices = [
           const response = await fetch(manifestLink);
           if (response.ok) manifest = await response.json();
         }
+        let serviceWorkerActive = false;
+        try {
+          if ('serviceWorker' in navigator) {
+            const registration = await navigator.serviceWorker.register(new URL('sw.js', location.href).href);
+            const ready = await Promise.race([
+              navigator.serviceWorker.ready,
+              new Promise(resolve => setTimeout(() => resolve(null), 15000)),
+            ]);
+            serviceWorkerActive = Boolean(ready?.active || registration.active);
+          }
+        } catch (_) {
+          serviceWorkerActive = false;
+        }
+        let appleIconStatus = 0;
+        if (appleIcon) {
+          const iconResponse = await fetch(appleIcon);
+          appleIconStatus = iconResponse.status;
+        }
         return {
           title: document.title,
           viewportWidth: window.innerWidth,
@@ -74,8 +92,8 @@ const devices = [
       }
       if (result.appleCapable !== 'yes') failures.push(device.name + ': iOS standalone metadata is missing');
       if (result.appleTitle !== 'PageClock') failures.push(device.name + ': iOS home-screen title is missing');
-      if (!result.appleIcon) failures.push(device.name + ': iOS home-screen icon link is missing');
-      if (result.manifestDisplay !== 'standalone') failures.push(device.name + ': PWA manifest is not standalone');
+      if (!result.appleIcon || result.appleIconStatus !== 200) failures.push(device.name + ': iOS home-screen icon is unavailable');
+      if (result.manifestDisplay !== 'standalone') failures.push(device.name + ': PWA manifest is not standalone');\n      if (!result.serviceWorkerActive) failures.push(device.name + ': offline service worker did not activate');
       if (pageErrors.length) failures.push(device.name + ': JavaScript errors: ' + pageErrors.join(' | '));
 
       await page.screenshot({
