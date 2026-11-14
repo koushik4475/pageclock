@@ -52,6 +52,14 @@ const devices = [
           const response = await fetch(manifestLink);
           if (response.ok) manifest = await response.json();
         }
+        const manifestIconStatuses = await Promise.all((manifest?.icons || []).map(async icon => {
+          try {
+            const iconResponse = await fetch(new URL(icon.src, manifestLink).href);
+            return { src: icon.src, status: iconResponse.status };
+          } catch (_) {
+            return { src: icon.src, status: 0 };
+          }
+        }));
         let serviceWorkerActive = false;
         try {
           if ('serviceWorker' in navigator) {
@@ -81,6 +89,7 @@ const devices = [
           appleIcon,
           appleIconStatus,
           serviceWorkerActive,
+          manifestIconStatuses,
           manifestDisplay: manifest?.display,
           manifestOrientation: manifest?.orientation,
           canvasCount: document.querySelectorAll('canvas').length,
@@ -96,6 +105,7 @@ const devices = [
       if (result.appleTitle !== 'PageClock') failures.push(device.name + ': iOS home-screen title is missing');
       if (!result.appleIcon || result.appleIconStatus !== 200) failures.push(device.name + ': iOS home-screen icon is unavailable');
       if (result.manifestDisplay !== 'standalone') failures.push(device.name + ': PWA manifest is not standalone');
+      if (!result.manifestIconStatuses.length || result.manifestIconStatuses.some(icon => icon.status !== 200)) failures.push(device.name + ': one or more PWA manifest icons are missing');
       if (!result.serviceWorkerActive) failures.push(device.name + ': offline service worker did not activate');
       if (pageErrors.length) failures.push(device.name + ': JavaScript errors: ' + pageErrors.join(' | '));
 
