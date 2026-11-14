@@ -4,7 +4,7 @@ const path = require('node:path');
 const { webkit } = require('playwright');
 
 const baseUrl = process.env.PAGECLOCK_WEB_URL || 'http://127.0.0.1:4173';
-const outputDir = path.join(os.tmpdir(), 'pageclock-ios-webkit');
+const outputDir = path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'pageclock-ios-webkit');
 fs.mkdirSync(outputDir, { recursive: true });
 
 const devices = [
