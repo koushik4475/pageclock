@@ -84,7 +84,63 @@ void main() {
         ),
       ));
       await tester.pump();
-      expect(tester.takeException(), isNull, reason: 'Clock face $style should render');
+      expect(tester.takeException(), isNull, reason: 'Clock face ' + style + ' should render');
+    }
+  });
+
+  testWidgets('classic faces fit compact iPhones, landscape phones and iPads', (tester) async {
+    const viewports = <Size>[
+      Size(320, 568),   // compact iPhone portrait
+      Size(390, 844),   // standard iPhone portrait
+      Size(430, 932),   // large iPhone portrait
+      Size(667, 375),   // small phone landscape
+      Size(844, 390),   // modern phone landscape
+      Size(820, 1180),  // iPad portrait
+      Size(1180, 820),  // iPad landscape
+    ];
+
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    for (final viewport in viewports) {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = viewport;
+      for (final style in ClockFaceView.classicStyleIds) {
+        await tester.pumpWidget(MaterialApp(
+          builder: (context, child) {
+            final media = MediaQuery.of(context);
+            return MediaQuery(
+              data: media.copyWith(textScaler: TextScaler.linear(1.3)),
+              child: child!,
+            );
+          },
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: viewport.width - 40,
+                child: ClockFaceView(
+                  styleId: style,
+                  leftText: '25',
+                  rightText: '43',
+                  secondsText: '08',
+                  badge: 'FOCUS',
+                  accentColor: ClockFaceView.colorFromHex('#F5A623'),
+                  showSeconds: false,
+                  showDate: false,
+                  date: DateTime(2026, 11, 14, 9, 41, 8),
+                  isDark: true,
+                ),
+              ),
+            ),
+          ),
+        ));
+        await tester.pump();
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: style + ' should fit viewport ' + viewport.width.toString() + 'x' + viewport.height.toString() + ' with enlarged text',
+        );
+      }
     }
   });
 }
