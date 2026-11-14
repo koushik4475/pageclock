@@ -298,10 +298,14 @@ jobs:
             echo "::error::Android SDK signature/package inspection tools are unavailable."
             exit 1
           fi
-          "$APKSIGNER" verify --print-certs "$PREVIOUS_APK" > "$RUNNER_TEMP/previous-signature.txt" 2>&1
-          "$APKSIGNER" verify --print-certs "$APK" > "$RUNNER_TEMP/current-signature.txt" 2>&1
-          PREVIOUS_CERT="$(sed -n 's/.*Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/previous-signature.txt" | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
-          CURRENT_CERT="$(sed -n 's/.*Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/current-signature.txt" | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          "$APKSIGNER" verify --print-certs "$PREVIOUS_APK" > "$RUNNER_TEMP/previous-signature.txt" 2>&1 || true
+          "$APKSIGNER" verify --print-certs "$APK" > "$RUNNER_TEMP/current-signature.txt" 2>&1 || true
+          echo "=== apksigner output (published APK) ==="
+          cat "$RUNNER_TEMP/previous-signature.txt"
+          echo "=== apksigner output (current APK) ==="
+          cat "$RUNNER_TEMP/current-signature.txt"
+          PREVIOUS_CERT="$(grep -i "SHA-256" "$RUNNER_TEMP/previous-signature.txt" | head -n 1 | sed -e 's/.*digest: *//I' -e 's/.*SHA-256: *//I' -e 's/.*SHA-256 *//I' | tr -d ' :"' | tr '[:upper:]' '[:lower:]')"
+          CURRENT_CERT="$(grep -i "SHA-256" "$RUNNER_TEMP/current-signature.txt" | head -n 1 | sed -e 's/.*digest: *//I' -e 's/.*SHA-256: *//I' -e 's/.*SHA-256 *//I' | tr -d ' :"' | tr '[:upper:]' '[:lower:]')"
           if [[ -z "$PREVIOUS_CERT" || -z "$CURRENT_CERT" || "$PREVIOUS_CERT" != "$CURRENT_CERT" ]]; then
             echo "::error::APK signing certificate changed. Refusing an incompatible update."
             echo "Expected (published) certificate SHA-256: $PREVIOUS_CERT"
