@@ -128,12 +128,29 @@ class DriftSessionRepository implements SessionRepository {
       final now = DateTime.now().toUtc().millisecondsSinceEpoch;
       for (int i = 1; i < openRows.length; i++) {
         final orphaned = openRows[i];
-        final effectiveDuration = orphaned.durationMs > 0
-            ? orphaned.durationMs
-            : (now - orphaned.startedAtUtc - orphaned.pausedTotalMs).clamp(0, 86400000);
+        final orphanedSession = _mapEntryToDomain(orphaned);
+        final finalPauseDuration = orphaned.pausedAtUtc == null
+            ? 0
+            : (now - orphaned.pausedAtUtc!).clamp(0, 86400000);
+        final completedPauseIntervals = [
+          ...orphanedSession.pauseIntervals,
+          if (finalPauseDuration > 0)
+            PauseInterval(
+              startedAtUtc: orphaned.pausedAtUtc!,
+              endedAtUtc: now,
+            ),
+        ];
+        final updatedPausedTotalMs =
+            orphanedSession.pausedTotalMs + finalPauseDuration;
+        final effectiveDuration = orphanedSession.activeDurationMs(nowUtcMs: now);
         await (db.update(db.readingSessions)..where((t) => t.id.equals(orphaned.id))).write(
           ReadingSessionsCompanion(
             endedAtUtc: Value(now),
+            pausedAtUtc: const Value(null),
+            pausedTotalMs: Value(updatedPausedTotalMs),
+            pauseIntervalsJson: Value(jsonEncode(
+              completedPauseIntervals.map((interval) => interval.toMap()).toList(),
+            )),
             durationMs: Value(effectiveDuration),
             updatedAt: Value(now),
           ),
