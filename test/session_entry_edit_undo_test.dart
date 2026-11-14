@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:drift/native.dart';
+import 'package:pageclock/core/db/app_database.dart';
 import 'package:pageclock/core/models/reading_session.dart';
 import 'package:pageclock/core/repository/session_repository.dart';
 import 'package:pageclock/core/repository/web_session_repository.dart';
@@ -87,6 +89,35 @@ void main() {
 
       expect(restored, isFalse);
       expect(await repository.getAllSessions(), isEmpty);
+    });
+
+    test('native Drift repository restores only the matching soft deletion', () async {
+      final database = AppDatabase.forTesting(NativeDatabase.memory());
+      final repository = DriftSessionRepository(database);
+      final session = _session();
+      const deletedAt = 8000;
+
+      try {
+        await repository.saveSession(session);
+        await repository.softDeleteSession(
+          session.id,
+          deletedAt: deletedAt,
+        );
+        expect(await repository.getAllSessions(), isEmpty);
+
+        final restored = await repository.restoreSoftDeletedSession(
+          session: session,
+          expectedDeletedAt: deletedAt,
+        );
+
+        expect(restored, isTrue);
+        final saved = await repository.getAllSessions();
+        expect(saved, hasLength(1));
+        expect(saved.single.id, session.id);
+        expect(saved.single.deletedAt, isNull);
+      } finally {
+        await database.close();
+      }
     });
 
     test('web repository persists delete and undo across repository recreation', () async {
