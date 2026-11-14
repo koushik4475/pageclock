@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pageclock/core/db/app_database.dart';
+import 'package:pageclock/core/models/reading_session.dart';
 
 void main() {
   test('v2 database upgrade adds pause history without losing sessions', () async {
@@ -54,4 +55,46 @@ void main() {
 
     await database.close();
   });
+  test('self-healing an orphaned paused session closes its final pause', () async {
+    final now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final pausedAt = now - 30 * 60000;
+    final startedAt = pausedAt - 15 * 60000;
+    final database = AppDatabase.forTesting(NativeDatabase.memory());
+    final repository = DriftSessionRepository(database);
+
+    try {
+      await repository.saveSession(ReadingSession(
+        id: 'orphaned-paused',
+        startedAtUtc: startedAt,
+        pausedAtUtc: pausedAt,
+        tzOffsetMin: 0,
+        createdAt: startedAt,
+        updatedAt: pausedAt,
+      ));
+      await repository.saveSession(ReadingSession(
+        id: 'newest-running',
+        startedAtUtc: now - 60000,
+        tzOffsetMin: 0,
+        createdAt: now - 60000,
+        updatedAt: now,
+      ));
+
+      final active = await repository.getActiveSession();
+      expect(active?.id, 'newest-running');
+
+      final sessions = await repository.getAllSessions();
+      final orphaned = sessions.singleWhere((session) => session.id == 'orphaned-paused');
+      expect(orphaned.endedAtUtc, isNotNull);
+      expect(orphaned.pausedAtUtc, isNull);
+      expect(orphaned.pauseIntervals, hasLength(1));
+      expect(orphaned.pauseIntervals.single.startedAtUtc, pausedAt);
+      expect(orphaned.pauseIntervals.single.endedAtUtc, orphaned.endedAtUtc);
+      expect(orphaned.pausedTotalMs, orphaned.pauseIntervals.single.durationMs);
+      expect(orphaned.durationMs, 15 * 60000);
+      expect(orphaned.activeDurationMs(), 15 * 60000);
+    } finally {
+      await database.close();
+    }
+  });
+
 }
