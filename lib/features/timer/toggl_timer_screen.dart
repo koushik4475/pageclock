@@ -261,7 +261,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     final descriptionController =
         TextEditingController(text: session.note ?? '');
     final durationController = TextEditingController(
-      text: (session.durationMs / 60000).round().clamp(1, 1440).toString(),
+      text: (session.durationMs / 60000).round().clamp(1, 525600).toString(),
     );
     final projects = <String>{
       ..._availableProjects,
@@ -364,11 +364,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         onPressed: () async {
                           final minutes =
                               int.tryParse(durationController.text.trim());
-                          if (minutes == null || minutes <= 0 || minutes > 1440) {
+                          if (minutes == null || minutes <= 0 || minutes > 525600) {
                             ScaffoldMessenger.of(sheetContext).showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                  'Enter a duration between 1 and 1,440 minutes.',
+                                  'Enter a duration between 1 minute and 1 year.',
                                 ),
                               ),
                             );
