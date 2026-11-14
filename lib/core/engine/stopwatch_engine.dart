@@ -161,9 +161,16 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
     final pauseStart = state.currentSession!.pausedAtUtc ?? state.pauseTimestampUtc ?? nowUtc;
     final pauseDuration = (nowUtc - pauseStart).clamp(0, double.maxFinite.toInt());
 
-    final updatedSession = state.currentSession!.copyWith(
+    final currentSession = state.currentSession!;
+    final updatedSession = currentSession.copyWith(
       clearPausedAtUtc: true,
-      pausedTotalMs: state.currentSession!.pausedTotalMs + pauseDuration,
+      pausedTotalMs: currentSession.pausedTotalMs + pauseDuration,
+      pauseIntervals: pauseDuration > 0
+          ? [
+              ...currentSession.pauseIntervals,
+              PauseInterval(startedAtUtc: pauseStart, endedAtUtc: nowUtc),
+            ]
+          : currentSession.pauseIntervals,
       updatedAt: nowUtc,
     );
 
@@ -193,6 +200,12 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
       session = session.copyWith(
         clearPausedAtUtc: true,
         pausedTotalMs: session.pausedTotalMs + additionalPause,
+        pauseIntervals: additionalPause > 0
+            ? [
+                ...session.pauseIntervals,
+                PauseInterval(startedAtUtc: pauseStart, endedAtUtc: nowUtc),
+              ]
+            : session.pauseIntervals,
       );
     }
 

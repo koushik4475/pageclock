@@ -62,39 +62,100 @@ class DailyTrendResult {
 }
 
 class StatsEngine {
-  /// Splits a session across local midnight boundaries.
-  /// Returns a map of Local Date (normalized to midnight) -> minutes spent.
-  static Map<DateTime, int> splitSessionByLocalDay(ReadingSession session) {
+  /// Converts one session into local-day focused minutes, excluding pauses.
+  /// Day keys remain local DateTime values; interval arithmetic uses a UTC
+  /// pseudo-local timeline so stored offsets are independent of device timezone.
+  static Map<DateTime, int> splitSessionByLocalDay(
+    ReadingSession session, {
+    int? nowUtcMs,
+  }) {
     if (session.deletedAt != null) return {};
 
-    final startUtc = session.startedAtUtc;
-    final endUtc = session.endedAtUtc ?? startUtc + session.durationMs;
-    if (endUtc <= startUtc) return {};
+    final offsetMs = session.tzOffsetMin * 60000;
+    final millisecondsByDay = <DateTime, int>{};
+    for (final interval in session.activeIntervals(nowUtcMs: nowUtcMs)) {
+      var current = DateTime.fromMillisecondsSinceEpoch(
+        interval.startUtc + offsetMs,
+        isUtc: true,
+      );
+      final localEnd = DateTime.fromMillisecondsSinceEpoch(
+        interval.endUtc + offsetMs,
+        isUtc: true,
+      );
 
-    // Apply session's stored timezone offset in minutes to get local time
-    final tzOffset = Duration(minutes: session.tzOffsetMin);
-    final localStart = DateTime.fromMillisecondsSinceEpoch(startUtc, isUtc: true).add(tzOffset);
-    final localEnd = DateTime.fromMillisecondsSinceEpoch(endUtc, isUtc: true).add(tzOffset);
-
-    final result = <DateTime, int>{};
-    var current = localStart;
-
-    while (current.isBefore(localEnd)) {
-      final dayKey = DateTime(current.year, current.month, current.day);
-      final nextDay = dayKey.add(const Duration(days: 1));
-
-      final windowEnd = localEnd.isBefore(nextDay) ? localEnd : nextDay;
-      final msInWindow = windowEnd.difference(current).inMilliseconds;
-
-      final mins = (msInWindow / 60000.0).round();
-      if (mins > 0) {
-        result[dayKey] = (result[dayKey] ?? 0) + mins;
+      while (current.isBefore(localEnd)) {
+        final dayKey = DateTime(current.year, current.month, current.day);
+        final nextDay = DateTime.utc(current.year, current.month, current.day)
+            .add(const Duration(days: 1));
+        final windowEnd = localEnd.isBefore(nextDay) ? localEnd : nextDay;
+        final milliseconds = windowEnd.difference(current).inMilliseconds;
+        millisecondsByDay[dayKey] =
+            (millisecondsByDay[dayKey] ?? 0) + milliseconds;
+        current = windowEnd;
       }
-
-      current = nextDay;
     }
 
-    return result;
+    return {
+      for (final entry in millisecondsByDay.entries)
+        if (entry.value > 0) entry.key: (entry.value / 60000).round(),
+    };
+  }
+
+  /// Returns focused milliseconds whose stored-offset local timestamps overlap
+  /// the requested local date/time range. Used by period reports and grouping.
+  static int activeDurationInLocalRange(
+    ReadingSession session,
+    DateTime localStart,
+    DateTime localEnd, {
+    int? nowUtcMs,
+  }) {
+    if (session.deletedAt != null || !localEnd.isAfter(localStart)) return 0;
+
+    final rangeStart = DateTime.utc(
+      localStart.year,
+      localStart.month,
+      localStart.day,
+      localStart.hour,
+      localStart.minute,
+      localStart.second,
+      localStart.millisecond,
+      localStart.microsecond,
+    );
+    final rangeEnd = DateTime.utc(
+      localEnd.year,
+      localEnd.month,
+      localEnd.day,
+      localEnd.hour,
+      localEnd.minute,
+      localEnd.second,
+      localEnd.millisecond,
+      localEnd.microsecond,
+    );
+    final offsetMs = session.tzOffsetMin * 60000;
+    var total = 0;
+
+    for (final interval in session.activeIntervals(nowUtcMs: nowUtcMs)) {
+      final start = DateTime.fromMillisecondsSinceEpoch(
+        interval.startUtc + offsetMs,
+        isUtc: true,
+      );
+      final end = DateTime.fromMillisecondsSinceEpoch(
+        interval.endUtc + offsetMs,
+        isUtc: true,
+      );
+      final overlapStart = start.isAfter(rangeStart) ? start : rangeStart;
+      final overlapEnd = end.isBefore(rangeEnd) ? end : rangeEnd;
+      if (overlapEnd.isAfter(overlapStart)) {
+        total += overlapEnd.difference(overlapStart).inMilliseconds;
+      }
+    }
+    return total;
+  }
+
+  /// Calculates the net focused duration for a session, with legacy fallback.
+  static int activeDurationMs(ReadingSession session, {int? nowUtcMs}) {
+    if (session.deletedAt != null) return 0;
+    return session.activeDurationMs(nowUtcMs: nowUtcMs);
   }
 
   /// Calculates daily totals for a range of sessions
@@ -308,49 +369,55 @@ class StatsEngine {
     return sqrt(varianceSum / windowDays);
   }
 
-  /// Calculates reading minutes distribution across each hour of the day (0..23) for [targetDay].
-  /// Correctly splits sessions that span across hour boundaries.
+  /// Calculates focused minutes by local hour, excluding every pause interval.
   static Map<int, int> calculateHourlyDistribution(
     List<ReadingSession> sessions,
     DateTime targetDay,
   ) {
-    final hourly = <int, int>{for (int h = 0; h < 24; h++) h: 0};
-    final dayStart = DateTime(targetDay.year, targetDay.month, targetDay.day);
+    final millisecondsByHour = <int, int>{for (int h = 0; h < 24; h++) h: 0};
+    final dayStart = DateTime.utc(targetDay.year, targetDay.month, targetDay.day);
     final dayEnd = dayStart.add(const Duration(days: 1));
 
     for (final session in sessions) {
       if (session.deletedAt != null) continue;
+      final offsetMs = session.tzOffsetMin * 60000;
 
-      final startUtc = session.startedAtUtc;
-      final endUtc = session.endedAtUtc ?? startUtc + session.durationMs;
-      if (endUtc <= startUtc) continue;
-
-      final tzOffset = Duration(minutes: session.tzOffsetMin);
-      final localStart = DateTime.fromMillisecondsSinceEpoch(startUtc, isUtc: true).add(tzOffset);
-      final localEnd = DateTime.fromMillisecondsSinceEpoch(endUtc, isUtc: true).add(tzOffset);
-
-      // Skip sessions entirely outside target day
-      if (localEnd.isBefore(dayStart) || localStart.isAfter(dayEnd)) continue;
-
-      final boundedStart = localStart.isBefore(dayStart) ? dayStart : localStart;
-      final boundedEnd = localEnd.isAfter(dayEnd) ? dayEnd : localEnd;
-
-      var cur = boundedStart;
-      while (cur.isBefore(boundedEnd)) {
-        final nextHour = DateTime(cur.year, cur.month, cur.day, cur.hour).add(const Duration(hours: 1));
-        final sliceEnd = boundedEnd.isBefore(nextHour) ? boundedEnd : nextHour;
-
-        final sliceMs = sliceEnd.difference(cur).inMilliseconds;
-        final mins = (sliceMs / 60000.0).round();
-        if (mins > 0) {
-          hourly[cur.hour] = (hourly[cur.hour] ?? 0) + mins;
+      for (final interval in session.activeIntervals()) {
+        final localStart = DateTime.fromMillisecondsSinceEpoch(
+          interval.startUtc + offsetMs,
+          isUtc: true,
+        );
+        final localEnd = DateTime.fromMillisecondsSinceEpoch(
+          interval.endUtc + offsetMs,
+          isUtc: true,
+        );
+        if (!localEnd.isAfter(dayStart) || !localStart.isBefore(dayEnd)) {
+          continue;
         }
 
-        cur = sliceEnd;
+        var current = localStart.isBefore(dayStart) ? dayStart : localStart;
+        final boundedEnd = localEnd.isAfter(dayEnd) ? dayEnd : localEnd;
+        while (current.isBefore(boundedEnd)) {
+          final nextHour = DateTime.utc(
+            current.year,
+            current.month,
+            current.day,
+            current.hour,
+          ).add(const Duration(hours: 1));
+          final sliceEnd =
+              boundedEnd.isBefore(nextHour) ? boundedEnd : nextHour;
+          millisecondsByHour[current.hour] =
+              (millisecondsByHour[current.hour] ?? 0) +
+                  sliceEnd.difference(current).inMilliseconds;
+          current = sliceEnd;
+        }
       }
     }
 
-    return hourly;
+    return {
+      for (final entry in millisecondsByHour.entries)
+        entry.key: (entry.value / 60000).round(),
+    };
   }
 
   static int _sumWeek(

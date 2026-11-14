@@ -10,6 +10,13 @@ import '../../stats/stats_engine.dart';
 import '../../core/navigation/main_tab_navigation.dart';
 import 'widgets/contribution_heatmap.dart';
 
+class _ReportRange {
+  final DateTime start;
+  final DateTime end;
+
+  const _ReportRange({required this.start, required this.end});
+}
+
 /// Reports Screen matching Toggl Track UI
 /// Features:
 /// 1. GitHub-style daily contribution square heatmap (weeks x 7 days)
@@ -32,24 +39,41 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   int _groupByIndex = 0; // 0: Projects, 1: Books
   String _selectedFilter = 'This week';
 
-  List<ReadingSession> _filterSessions(
-    List<ReadingSession> all,
-    int weekStartDay,
-  ) {
-    final active = all.where((s) => s.deletedAt == null).toList();
-    final now = DateTime.now();
-
+  _ReportRange? _selectedRange(int weekStartDay, DateTime now) {
     if (_selectedFilter == 'This week') {
       final daysFromWeekStart = (now.weekday - weekStartDay + 7) % 7;
       final startOfWeek = now.subtract(Duration(days: daysFromWeekStart));
-      final midnightStart = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
-      return active.where((s) => s.startedAtUtc >= midnightStart.millisecondsSinceEpoch).toList();
-    } else if (_selectedFilter == 'This month') {
-      final startOfMonth = DateTime(now.year, now.month, 1);
-      return active.where((s) => s.startedAtUtc >= startOfMonth.millisecondsSinceEpoch).toList();
+      return _ReportRange(
+        start: DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day),
+        end: now,
+      );
     }
-    // 'All time'
-    return active;
+    if (_selectedFilter == 'This month') {
+      return _ReportRange(
+        start: DateTime(now.year, now.month, 1),
+        end: now,
+      );
+    }
+    return null; // All time
+  }
+
+  List<ReadingSession> _filterSessions(
+    List<ReadingSession> all,
+    _ReportRange? range,
+    int nowUtcMs,
+  ) {
+    final active = all.where((session) => session.deletedAt == null);
+    if (range == null) return active.toList();
+    return active
+        .where((session) =>
+            StatsEngine.activeDurationInLocalRange(
+              session,
+              range.start,
+              range.end,
+              nowUtcMs: nowUtcMs,
+            ) >
+            0)
+        .toList();
   }
 
   @override
@@ -57,12 +81,30 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
     final settings = ref.watch(settingsProvider);
+    final now = DateTime.now();
+    final nowUtcMs = now.toUtc().millisecondsSinceEpoch;
+    final range = _selectedRange(settings.weekStartDay, now);
     final filteredSessions =
-        _filterSessions(widget.sessions, settings.weekStartDay);
+        _filterSessions(widget.sessions, range, nowUtcMs);
     final dailyTotals = StatsEngine.calculateDailyTotals(widget.sessions);
 
-    // Calculate total duration for current filtered period
-    final totalMs = filteredSessions.fold<int>(0, (acc, s) => acc + s.durationMs);
+    int focusedDurationFor(ReadingSession session) {
+      if (range == null) {
+        return StatsEngine.activeDurationMs(session, nowUtcMs: nowUtcMs);
+      }
+      return StatsEngine.activeDurationInLocalRange(
+        session,
+        range.start,
+        range.end,
+        nowUtcMs: nowUtcMs,
+      );
+    }
+
+    // Sum only focused intervals that overlap the selected reporting period.
+    final totalMs = filteredSessions.fold<int>(
+      0,
+      (total, session) => total + focusedDurationFor(session),
+    );
     final formattedTotal = AppFormatters.formatDuration(
       totalMs,
       format: settings.durationFormat,
@@ -74,7 +116,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       final key = _groupByIndex == 0
           ? s.subjectName
           : (s.bookTitle ?? 'Uncategorized');
-      final mins = (s.durationMs / 60000).round();
+      final mins = (focusedDurationFor(s) / 60000).round();
       distribution[key] = (distribution[key] ?? 0) + mins;
     }
 

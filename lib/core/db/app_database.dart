@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -16,7 +17,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor e) : super(e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -39,6 +40,14 @@ class AppDatabase extends _$AppDatabase {
                 readingSessions.pausedAtUtc,
               );
             }
+          }
+          // Version 3 stores exact completed pause positions. Existing rows
+          // receive the empty-list default and retain their legacy fallback.
+          if (from < 3) {
+            await m.addColumn(
+              readingSessions,
+              readingSessions.pauseIntervalsJson,
+            );
           }
         },
       );
@@ -66,6 +75,9 @@ class DriftSessionRepository implements SessionRepository {
             endedAtUtc: Value(session.endedAtUtc),
             pausedAtUtc: Value(session.pausedAtUtc),
             pausedTotalMs: Value(session.pausedTotalMs),
+            pauseIntervalsJson: Value(jsonEncode(
+              session.pauseIntervals.map((interval) => interval.toMap()).toList(),
+            )),
             durationMs: Value(session.durationMs),
             tzOffsetMin: Value(session.tzOffsetMin),
             subjectId: Value(session.subjectId),
@@ -116,12 +128,34 @@ class DriftSessionRepository implements SessionRepository {
       final now = DateTime.now().toUtc().millisecondsSinceEpoch;
       for (int i = 1; i < openRows.length; i++) {
         final orphaned = openRows[i];
-        final effectiveDuration = orphaned.durationMs > 0
-            ? orphaned.durationMs
-            : (now - orphaned.startedAtUtc - orphaned.pausedTotalMs).clamp(0, 86400000);
+        final orphanedSession = _mapEntryToDomain(orphaned);
+        final rawFinalPauseDuration = orphaned.pausedAtUtc == null
+            ? 0
+            : now - orphaned.pausedAtUtc!;
+        final finalPauseDuration = rawFinalPauseDuration <= 0
+            ? 0
+            : (rawFinalPauseDuration > 86400000
+                ? 86400000
+                : rawFinalPauseDuration);
+        final completedPauseIntervals = [
+          ...orphanedSession.pauseIntervals,
+          if (finalPauseDuration > 0)
+            PauseInterval(
+              startedAtUtc: orphaned.pausedAtUtc!,
+              endedAtUtc: now,
+            ),
+        ];
+        final updatedPausedTotalMs =
+            orphanedSession.pausedTotalMs + finalPauseDuration;
+        final effectiveDuration = orphanedSession.activeDurationMs(nowUtcMs: now);
         await (db.update(db.readingSessions)..where((t) => t.id.equals(orphaned.id))).write(
           ReadingSessionsCompanion(
             endedAtUtc: Value(now),
+            pausedAtUtc: const Value(null),
+            pausedTotalMs: Value(updatedPausedTotalMs),
+            pauseIntervalsJson: Value(jsonEncode(
+              completedPauseIntervals.map((interval) => interval.toMap()).toList(),
+            )),
             durationMs: Value(effectiveDuration),
             updatedAt: Value(now),
           ),
@@ -169,6 +203,24 @@ class DriftSessionRepository implements SessionRepository {
     return query.watch().map((rows) => rows.isNotEmpty ? _mapEntryToDomain(rows.first) : null);
   }
 
+  List<PauseInterval> _decodePauseIntervals(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded
+            .whereType<Map>()
+            .map((item) => PauseInterval.fromMap(
+                  Map<String, dynamic>.from(item),
+                ))
+            .toList();
+      }
+    } catch (_) {
+      // Preserve access to the session if an older or damaged row contains
+      // malformed optional pause metadata; the model uses its legacy fallback.
+    }
+    return const [];
+  }
+
   ReadingSession _mapEntryToDomain(ReadingSessionEntry entry) {
     return ReadingSession(
       id: entry.id,
@@ -176,6 +228,7 @@ class DriftSessionRepository implements SessionRepository {
       endedAtUtc: entry.endedAtUtc,
       pausedAtUtc: entry.pausedAtUtc,
       pausedTotalMs: entry.pausedTotalMs,
+      pauseIntervals: _decodePauseIntervals(entry.pauseIntervalsJson),
       durationMs: entry.durationMs,
       tzOffsetMin: entry.tzOffsetMin,
       subjectId: entry.subjectId,

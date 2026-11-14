@@ -91,32 +91,34 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     for (final session in widget.sessions) {
       if (session.deletedAt != null || session.endedAtUtc == null) continue;
       final offset = Duration(minutes: session.tzOffsetMin);
-      final sessionStart = DateTime.fromMillisecondsSinceEpoch(
-        session.startedAtUtc,
-        isUtc: true,
-      ).add(offset);
-      final sessionEnd = DateTime.fromMillisecondsSinceEpoch(
-        session.endedAtUtc!,
-        isUtc: true,
-      ).add(offset);
-      if (!sessionEnd.isAfter(dayStart) || !sessionStart.isBefore(dayEnd)) {
-        continue;
+      for (final interval in session.activeIntervals()) {
+        final sessionStart = DateTime.fromMillisecondsSinceEpoch(
+          interval.startUtc,
+          isUtc: true,
+        ).add(offset);
+        final sessionEnd = DateTime.fromMillisecondsSinceEpoch(
+          interval.endUtc,
+          isUtc: true,
+        ).add(offset);
+        if (!sessionEnd.isAfter(dayStart) || !sessionStart.isBefore(dayEnd)) {
+          continue;
+        }
+        final boundedStart =
+            sessionStart.isBefore(dayStart) ? dayStart : sessionStart;
+        final boundedEnd = sessionEnd.isAfter(dayEnd) ? dayEnd : sessionEnd;
+        final segmentMs = boundedEnd.difference(boundedStart).inMilliseconds;
+        if (segmentMs <= 0) continue;
+        final top = boundedStart.difference(dayStart).inMilliseconds / 60000.0;
+        final height = segmentMs / 60000.0;
+        daySegments.add(
+          _CalendarSessionSegment(
+            session: session,
+            top: top,
+            height: height < 1 ? 1 : height,
+            durationMs: segmentMs,
+          ),
+        );
       }
-      final boundedStart =
-          sessionStart.isBefore(dayStart) ? dayStart : sessionStart;
-      final boundedEnd = sessionEnd.isAfter(dayEnd) ? dayEnd : sessionEnd;
-      final segmentMs = boundedEnd.difference(boundedStart).inMilliseconds;
-      if (segmentMs <= 0) continue;
-      final top = boundedStart.difference(dayStart).inMilliseconds / 60000.0;
-      final height = segmentMs / 60000.0;
-      daySegments.add(
-        _CalendarSessionSegment(
-          session: session,
-          top: top,
-          height: height < 1 ? 1 : height,
-          durationMs: segmentMs,
-        ),
-      );
     }
 
     // Calculate the time overlap (not the whole session) on this selected day.

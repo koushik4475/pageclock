@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pageclock/core/models/reading_session.dart';
 import 'package:pageclock/core/services/export_service.dart';
@@ -103,6 +104,55 @@ void main() {
       expect(imported[0].subjectId, equals('sub-deep-work'));
       expect(imported[1].id, equals(sampleSessions[1].id));
       expect(imported[1].source, equals('manual'));
+    });
+
+    test('CSV and JSON roundtrips preserve completed pause intervals', () {
+      final start = 1700200000000;
+      final session = ReadingSession(
+        id: 'pause-roundtrip',
+        startedAtUtc: start,
+        endedAtUtc: start + 90 * 60000,
+        pausedTotalMs: 30 * 60000,
+        durationMs: 60 * 60000,
+        tzOffsetMin: 330,
+        pauseIntervals: [
+          PauseInterval(
+            startedAtUtc: start + 15 * 60000,
+            endedAtUtc: start + 45 * 60000,
+          ),
+        ],
+        createdAt: start,
+        updatedAt: start + 90 * 60000,
+      );
+
+      final csvImported =
+          SessionExportService.importFromCsv(SessionExportService.exportToCsv([session]));
+      expect(csvImported.single.pauseIntervals, hasLength(1));
+      expect(csvImported.single.pauseIntervals.single.startedAtUtc, start + 15 * 60000);
+      expect(csvImported.single.pauseIntervals.single.endedAtUtc, start + 45 * 60000);
+
+      final jsonImported =
+          SessionExportService.importFromJson(SessionExportService.exportToJson([session]));
+      expect(jsonImported.single.pauseIntervals, hasLength(1));
+      expect(jsonImported.single.activeDurationMs(), 60 * 60000);
+    });
+
+    test('legacy JSON backups without pause intervals remain compatible', () {
+      final start = 1700300000000;
+      final legacy = {
+        'id': 'legacy-json',
+        'started_at_utc': start,
+        'ended_at_utc': start + 60 * 60000,
+        'paused_total_ms': 15 * 60000,
+        'duration_ms': 45 * 60000,
+        'tz_offset_min': 0,
+        'created_at': start,
+        'updated_at': start + 60 * 60000,
+      };
+
+      final imported = SessionExportService.importFromJson('[${jsonEncode(legacy)}]');
+      expect(imported.single.pauseIntervals, isEmpty);
+      expect(imported.single.activeDurationMs(), 45 * 60000);
     });
   });
 }
