@@ -257,6 +257,265 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     );
   }
 
+  void _showEditEntryModal(BuildContext context, ReadingSession session) {
+    var description = session.note ?? '';
+    var durationText =
+        (session.durationMs / 60000).round().clamp(1, 525600).toString();
+    final projects = <String>{
+      ..._availableProjects,
+      session.subjectName,
+    }.toList();
+    var selectedProject = session.subjectName;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              20,
+              20,
+              MediaQuery.of(sheetContext).viewInsets.bottom + 24,
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Edit Time Entry',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Close editor',
+                          onPressed: () => Navigator.pop(sheetContext),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      initialValue: description,
+                      onChanged: (value) => description = value,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(
+                        labelText: 'Description',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      initialValue: durationText,
+                      onChanged: (value) => durationText = value,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: const InputDecoration(
+                        labelText: 'Duration (minutes)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'The original end time is kept. The start time is adjusted to match the new duration.',
+                      style: Theme.of(sheetContext).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'PROJECT',
+                      style: Theme.of(sheetContext).textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: projects.map((project) {
+                        final selected = selectedProject == project;
+                        return ChoiceChip(
+                          label: Text(project),
+                          selected: selected,
+                          onSelected: (_) =>
+                              setSheetState(() => selectedProject = project),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: FilledButton(
+                        onPressed: () async {
+                          final minutes =
+                              int.tryParse(durationText.trim());
+                          if (minutes == null || minutes <= 0 || minutes > 525600) {
+                            ScaffoldMessenger.of(sheetContext).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Enter a duration between 1 minute and 1 year.',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+
+                          // Dismiss the keyboard before the bottom sheet removes
+                          // its editable fields; this avoids a pending caret callback
+                          // targeting a detached RenderEditable during route teardown.
+                          FocusScope.of(sheetContext).unfocus();
+                          // Let any scheduled EditableText caret/scroll work
+                          // finish while the editor is still attached.
+                          await WidgetsBinding.instance.endOfFrame;
+                          final now =
+                              DateTime.now().toUtc().millisecondsSinceEpoch;
+                          final durationMs = minutes * 60000;
+                          final descriptionText = description.trim();
+                          final updated = session.copyWith(
+                            subjectId: selectedProject,
+                            note: descriptionText,
+                            clearNote: descriptionText.isEmpty,
+                            durationMs: durationMs,
+                            startedAtUtc:
+                                session.endedAtUtc! -
+                                session.pausedTotalMs -
+                                durationMs,
+                            updatedAt: now,
+                          );
+
+                          try {
+                            await ref
+                                .read(sessionRepositoryProvider)
+                                .updateSession(updated);
+                            if (sheetContext.mounted) {
+                              Navigator.pop(sheetContext);
+                            }
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Time entry updated.'),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          } catch (_) {
+                            if (sheetContext.mounted) {
+                              ScaffoldMessenger.of(sheetContext).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Could not save this entry. Please try again.',
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        child: const Text('Save Changes'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteSessionWithUndo(ReadingSession session) async {
+    // Use the screen State's context rather than the list-row context. The
+    // row is removed as soon as the repository broadcasts the soft-delete.
+    // Capture the repository too, so Undo does not depend on a disposed ref.
+    final messenger = ScaffoldMessenger.of(context);
+    final repository = ref.read(sessionRepositoryProvider);
+    final deletedAt = DateTime.now().toUtc().millisecondsSinceEpoch;
+
+    try {
+      await repository.softDeleteSession(session.id, deletedAt: deletedAt);
+    } catch (_) {
+      if (mounted && messenger.mounted) {
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Could not delete this entry. Please try again.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!mounted || !messenger.mounted) return;
+    // A recent "Time entry updated" snackbar may still be visible. Replace it
+    // so the Undo action for this deletion is immediately available.
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: const Text('Time entry deleted.'),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'UNDO',
+          onPressed: () {
+            unawaited(_restoreDeletedSession(
+              repository,
+              messenger,
+              session,
+              deletedAt,
+            ));
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _restoreDeletedSession(
+    SessionRepository repository,
+    ScaffoldMessengerState messenger,
+    ReadingSession session,
+    int expectedDeletedAt,
+  ) async {
+    try {
+      final restored = await repository.restoreSoftDeletedSession(
+        session: session,
+        expectedDeletedAt: expectedDeletedAt,
+      );
+      if (!restored && mounted && messenger.mounted) {
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'This entry changed after deletion and could not be restored.',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted && messenger.mounted) {
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Could not restore this entry. Please try again.'),
+          ),
+        );
+      }
+    }
+  }
+
   void _showProjectPicker(BuildContext context) {
     final accent = Theme.of(context).colorScheme.primary;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1540,6 +1799,27 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   color: colorScheme.onSurface,
                 ),
               ),
+              if (group.length == 1 && latest.endedAtUtc != null)
+                PopupMenuButton<String>(
+                  tooltip: 'Entry actions',
+                  onSelected: (action) {
+                    if (action == 'edit') {
+                      _showEditEntryModal(context, latest);
+                    } else if (action == 'delete') {
+                      unawaited(_deleteSessionWithUndo(latest));
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Text('Edit entry'),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Delete entry'),
+                    ),
+                  ],
+                ),
               IconButton(
                 tooltip: 'Start this session again',
                 icon: Icon(

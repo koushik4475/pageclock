@@ -38,10 +38,14 @@ class WebSessionRepository implements SessionRepository {
   Future<void> _commit() async {
     try {
       final list = _cache.values.map((s) => s.toMap()).toList();
-      await _prefs.setString(_storageKey, json.encode(list));
+      final saved = await _prefs.setString(_storageKey, json.encode(list));
+      if (!saved) {
+        throw StateError('Browser storage rejected the PageClock session update.');
+      }
       _broadcast();
     } catch (e) {
       debugPrint('[WebSessionRepository] Error saving sessions: $e');
+      rethrow;
     }
   }
 
@@ -82,8 +86,20 @@ class WebSessionRepository implements SessionRepository {
 
   @override
   Future<void> saveSession(ReadingSession session) async {
+    final hadPrevious = _cache.containsKey(session.id);
+    final previous = _cache[session.id];
     _cache[session.id] = session;
-    await _commit();
+    try {
+      await _commit();
+    } catch (_) {
+      if (hadPrevious) {
+        _cache[session.id] = previous!;
+      } else {
+        _cache.remove(session.id);
+      }
+      _broadcast();
+      rethrow;
+    }
   }
 
   @override
@@ -92,15 +108,47 @@ class WebSessionRepository implements SessionRepository {
   }
 
   @override
-  Future<void> softDeleteSession(String id) async {
+  Future<void> softDeleteSession(String id, {int? deletedAt}) async {
     final session = _cache[id];
     if (session != null) {
-      final now = DateTime.now().toUtc().millisecondsSinceEpoch;
+      final timestamp = deletedAt ?? DateTime.now().toUtc().millisecondsSinceEpoch;
       _cache[id] = session.copyWith(
-        deletedAt: now,
-        updatedAt: now,
+        deletedAt: timestamp,
+        updatedAt: timestamp,
       );
+      try {
+        await _commit();
+      } catch (_) {
+        _cache[id] = session;
+        _broadcast();
+        rethrow;
+      }
+    }
+  }
+
+  @override
+  Future<bool> restoreSoftDeletedSession({
+    required ReadingSession session,
+    required int expectedDeletedAt,
+  }) async {
+    final current = _cache[session.id];
+    if (current == null ||
+        current.deletedAt != expectedDeletedAt ||
+        current.updatedAt != expectedDeletedAt) {
+      return false;
+    }
+
+    _cache[session.id] = session.copyWith(
+      clearDeletedAt: true,
+      updatedAt: DateTime.now().toUtc().millisecondsSinceEpoch,
+    );
+    try {
       await _commit();
+      return true;
+    } catch (_) {
+      _cache[session.id] = current;
+      _broadcast();
+      rethrow;
     }
   }
 
@@ -141,9 +189,22 @@ class WebSessionRepository implements SessionRepository {
 
   @override
   Future<void> hardDeleteAll() async {
+    final previous = Map<String, ReadingSession>.of(_cache);
     _cache.clear();
-    await _prefs.remove(_storageKey);
-    _broadcast();
+    try {
+      final hadStoredSessions = _prefs.containsKey(_storageKey);
+      final removed = await _prefs.remove(_storageKey);
+      if (hadStoredSessions && !removed) {
+        throw StateError('Browser storage rejected the PageClock data reset.');
+      }
+      _broadcast();
+    } catch (_) {
+      _cache
+        ..clear()
+        ..addAll(previous);
+      _broadcast();
+      rethrow;
+    }
   }
 
   @override
