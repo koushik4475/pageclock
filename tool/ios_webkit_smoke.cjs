@@ -79,6 +79,8 @@ const devices = [
           appleCapable,
           appleTitle,
           appleIcon,
+          appleIconStatus,
+          serviceWorkerActive,
           manifestDisplay: manifest?.display,
           manifestOrientation: manifest?.orientation,
           canvasCount: document.querySelectorAll('canvas').length,
@@ -93,7 +95,8 @@ const devices = [
       if (result.appleCapable !== 'yes') failures.push(device.name + ': iOS standalone metadata is missing');
       if (result.appleTitle !== 'PageClock') failures.push(device.name + ': iOS home-screen title is missing');
       if (!result.appleIcon || result.appleIconStatus !== 200) failures.push(device.name + ': iOS home-screen icon is unavailable');
-      if (result.manifestDisplay !== 'standalone') failures.push(device.name + ': PWA manifest is not standalone');\n      if (!result.serviceWorkerActive) failures.push(device.name + ': offline service worker did not activate');
+      if (result.manifestDisplay !== 'standalone') failures.push(device.name + ': PWA manifest is not standalone');
+      if (!result.serviceWorkerActive) failures.push(device.name + ': offline service worker did not activate');
       if (pageErrors.length) failures.push(device.name + ': JavaScript errors: ' + pageErrors.join(' | '));
 
       await page.screenshot({
