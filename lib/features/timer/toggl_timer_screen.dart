@@ -438,23 +438,18 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     );
   }
 
-  Future<void> _deleteSessionWithUndo(
-    BuildContext context,
-    ReadingSession session,
-  ) async {
-    // Capture the screen-level messenger before deleting. The list stream
-    // removes this row immediately, so the row's BuildContext may be unmounted
-    // by the time the repository write completes.
-    final messenger = ScaffoldMessenger.of(context);
+  Future<void> _deleteSessionWithUndo(ReadingSession session) async {
+    // Use the screen State's context rather than the list-row context. The
+    // row is removed as soon as the repository broadcasts the soft-delete.
+    // Capture the repository too, so Undo does not depend on a disposed ref.
+    final repository = ref.read(sessionRepositoryProvider);
     final deletedAt = DateTime.now().toUtc().millisecondsSinceEpoch;
 
     try {
-      await ref
-          .read(sessionRepositoryProvider)
-          .softDeleteSession(session.id, deletedAt: deletedAt);
+      await repository.softDeleteSession(session.id, deletedAt: deletedAt);
     } catch (_) {
-      if (messenger.mounted) {
-        messenger.showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Could not delete this entry. Please try again.'),
           ),
@@ -463,8 +458,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       return;
     }
 
-    if (!messenger.mounted) return;
-    messenger.showSnackBar(
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Time entry deleted.'),
         behavior: SnackBarBehavior.floating,
@@ -472,7 +467,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           label: 'UNDO',
           onPressed: () {
             unawaited(_restoreDeletedSession(
-              messenger,
+              repository,
               session,
               deletedAt,
             ));
@@ -483,19 +478,17 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   }
 
   Future<void> _restoreDeletedSession(
-    ScaffoldMessengerState messenger,
+    SessionRepository repository,
     ReadingSession session,
     int expectedDeletedAt,
   ) async {
     try {
-      final restored = await ref
-          .read(sessionRepositoryProvider)
-          .restoreSoftDeletedSession(
-            session: session,
-            expectedDeletedAt: expectedDeletedAt,
-          );
-      if (!restored && messenger.mounted) {
-        messenger.showSnackBar(
+      final restored = await repository.restoreSoftDeletedSession(
+        session: session,
+        expectedDeletedAt: expectedDeletedAt,
+      );
+      if (!restored && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
               'This entry changed after deletion and could not be restored.',
@@ -504,8 +497,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
         );
       }
     } catch (_) {
-      if (messenger.mounted) {
-        messenger.showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Could not restore this entry. Please try again.'),
           ),
@@ -1804,7 +1797,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     if (action == 'edit') {
                       _showEditEntryModal(context, latest);
                     } else if (action == 'delete') {
-                      unawaited(_deleteSessionWithUndo(context, latest));
+                      unawaited(_deleteSessionWithUndo(latest));
                     }
                   },
                   itemBuilder: (context) => const [
