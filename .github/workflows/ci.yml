@@ -78,6 +78,57 @@ jobs:
           compression-level: 1
 
 
+  # The repository's iOS distribution is Flutter Web/PWA (there is no ios/ Xcode project).
+  # Build output comes from verify-and-web, then WebKit checks iPhone/iPad viewports.
+  ios-webkit-smoke:
+    needs: [ verify-and-web ]
+    name: iOS Safari/WebKit PWA smoke (iPhone + iPad)
+    runs-on: macos-15
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Download verified Flutter web build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: pageclock-web
+          path: build/web
+
+      - name: Install pinned Playwright
+        run: npm install --no-save --no-package-lock playwright@1.65.1
+
+      - name: Install WebKit browser
+        run: npx playwright install webkit
+
+      - name: Serve PWA and run iPhone/iPad WebKit smoke checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 4173 --directory build/web >"$RUNNER_TEMP/pageclock-web-server.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent --show-error http://127.0.0.1:4173/ >/dev/null
+          PAGECLOCK_WEB_URL=http://127.0.0.1:4173 node tool/ios_webkit_smoke.cjs
+
+      - name: Upload iOS WebKit viewport screenshots
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pageclock-ios-webkit-smoke
+          path: ${{ runner.temp }}/pageclock-ios-webkit/*.png
+          if-no-files-found: ignore
+          compression-level: 1
+
+
   # Compile Android on pull requests without exposing production signing secrets.
   # This job uses Gradle's debug signing only and never publishes or uploads an APK.
   android-pr-build:
@@ -115,7 +166,47 @@ jobs:
         run: dart run build_runner build
 
       - name: Build Android debug APK without release credentials
-        run: flutter build apk --debug --target-platform=android-arm64 --no-pub
+        run: flutter build apk --debug --target-platform=android-arm64,android-x64 --no-pub
+
+      - name: Install and launch on Android 16 emulator
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: |
+            set -euo pipefail
+            APK="build/app/outputs/flutter-apk/app-debug.apk"
+            test -s "$APK"
+            adb logcat -c
+            adb install -r "$APK"
+            adb shell monkey -p com.example.pageclock 1
+            for attempt in $(seq 1 30); do
+              if adb shell pidof com.example.pageclock >/dev/null 2>&1; then break; fi
+              sleep 1
+            done
+            adb shell pidof com.example.pageclock
+            sleep 8
+            adb shell pidof com.example.pageclock
+            adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity' | grep -F 'com.example.pageclock'
+            adb logcat -d -v brief > "$RUNNER_TEMP/pageclock-android-logcat.txt"
+            if grep -A 8 -F "FATAL EXCEPTION" "$RUNNER_TEMP/pageclock-android-logcat.txt" | grep -qF "com.example.pageclock"; then
+              echo "::error::PageClock crashed during Android emulator launch."
+              exit 1
+            fi
+            adb shell screencap -p /sdcard/pageclock-android-smoke.png
+            adb pull /sdcard/pageclock-android-smoke.png "$RUNNER_TEMP/pageclock-android-smoke.png"
+
+      - name: Upload Android emulator launch screenshot
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pageclock-android-emulator-smoke
+          path: ${{ runner.temp }}/pageclock-android-smoke.png
+          if-no-files-found: ignore
 
       - name: Assert production release build fails without signing credentials
         shell: bash

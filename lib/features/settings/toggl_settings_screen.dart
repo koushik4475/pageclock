@@ -184,7 +184,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
               [
                 _buildTile(
                   title: 'Clock Studio',
-                  subtitle: ClockFaceView.labelFor(settings.clockStyleId) + ' • Customize face, accent, seconds and date',
+                  subtitle: ClockFaceView.categoryFor(settings.clockStyleId) + ' • ' + ClockFaceView.labelFor(settings.clockStyleId) + ' • Customize face, accent, seconds and date',
                   isDark: isDark,
                   onTap: () => _showClockStudio(context, settings),
                 ),
@@ -1453,138 +1453,203 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     var selectedAccent = settings.clockAccentColor;
     var showSeconds = settings.clockShowSeconds;
     var showDate = settings.clockShowDate;
+    var selectedCategory = ClockFaceView.categoryFor(selectedStyle);
     const colors = ['#F5A623', '#FF5C8A', '#43D9AD', '#64B5FF', '#C084FC', '#F4F1E8', '#FF4D4D'];
+    final previewDate = DateTime.now();
+    final isNarrow = MediaQuery.of(context).size.width < 600;
 
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Clock Studio'),
-          content: SizedBox(
-            width: 520,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Choose your clock face', style: Theme.of(context).textTheme.titleSmall),
-                  const SizedBox(height: 12),
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: ClockFaceView.styleIds.length,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 10,
-                      crossAxisSpacing: 10,
-                      childAspectRatio: 1.42,
+        builder: (context, setDialogState) {
+          final categoryStyles = ClockFaceView.categoryIds[selectedCategory] ?? const <String>[];
+          return AlertDialog(
+            title: const Text('Clock Studio'),
+            content: SizedBox(
+              width: 600,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Choose a clock collection',
+                      style: Theme.of(context).textTheme.titleSmall,
                     ),
-                    itemBuilder: (context, index) {
-                      final id = ClockFaceView.styleIds[index];
-                      final selected = selectedStyle == id;
-                      return InkWell(
-                        borderRadius: BorderRadius.circular(14),
-                        onTap: () => setDialogState(() => selectedStyle = id),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: selected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.outlineVariant,
-                              width: selected ? 2 : 1,
+                    const SizedBox(height: 10),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (final entry in ClockFaceView.categoryIds.entries) ...[
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text(entry.key + '  ' + entry.value.length.toString()),
+                                selected: selectedCategory == entry.key,
+                                onSelected: (_) => setDialogState(() => selectedCategory = entry.key),
+                              ),
                             ),
-                          ),
-                          child: Column(
-                            children: [
-                              Expanded(
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(9),
-                                  child: ClockFaceView(
-                                    styleId: id,
-                                    leftText: '09',
-                                    rightText: '41',
-                                    secondsText: '26',
-                                    badge: null,
-                                    accentColor: ClockFaceView.colorFromHex(selectedAccent),
-                                    showSeconds: false,
-                                    showDate: false,
-                                    date: DateTime(2026, 11, 13, 9, 41, 26),
-                                    isDark: true,
-                                    compact: true,
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      selectedCategory,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      selectedCategory == 'Classic'
+                          ? 'Six new traditional dials, plus the original analog face. Existing digital and ambient faces are preserved in their own collections.'
+                          : 'All previously available PageClock faces remain available here.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 12),
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: categoryStyles.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: isNarrow ? 1 : 2,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: isNarrow ? 1.75 : 1.18,
+                      ),
+                      itemBuilder: (context, index) {
+                        final id = categoryStyles[index];
+                        final selected = selectedStyle == id;
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () => setDialogState(() => selectedStyle = id),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(.28),
+                              border: Border.all(
+                                color: selected
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context).colorScheme.outlineVariant,
+                                width: selected ? 2 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Expanded(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(9),
+                                    child: ClockFaceView(
+                                      styleId: id,
+                                      leftText: '09',
+                                      rightText: '41',
+                                      secondsText: '26',
+                                      badge: null,
+                                      accentColor: ClockFaceView.colorFromHex(selectedAccent),
+                                      showSeconds: false,
+                                      showDate: false,
+                                      date: previewDate,
+                                      isDark: Theme.of(context).brightness == Brightness.dark,
+                                      compact: true,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  Expanded(child: Text(ClockFaceView.labelFor(id), style: Theme.of(context).textTheme.labelMedium)),
-                                  if (selected) Icon(Icons.check_circle, size: 16, color: Theme.of(context).colorScheme.primary),
-                                ],
-                              ),
-                            ],
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        ClockFaceView.labelFor(id),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    if (selected)
+                                      Icon(
+                                        Icons.check_circle,
+                                        size: 16,
+                                        color: Theme.of(context).colorScheme.primary,
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 18),
-                  Text('Accent colour', style: Theme.of(context).textTheme.titleSmall),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 10,
-                    children: [
-                      for (final color in colors)
-                        InkWell(
-                          onTap: () => setDialogState(() => selectedAccent = color),
-                          borderRadius: BorderRadius.circular(30),
-                          child: Container(
-                            width: 30,
-                            height: 30,
-                            decoration: BoxDecoration(
-                              color: ClockFaceView.colorFromHex(color),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: selectedAccent == color ? Theme.of(context).colorScheme.onSurface : Colors.transparent,
-                                width: 3,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    Text('Accent colour', style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      children: [
+                        for (final color in colors)
+                          InkWell(
+                            onTap: () => setDialogState(() => selectedAccent = color),
+                            borderRadius: BorderRadius.circular(30),
+                            child: Container(
+                              width: 30,
+                              height: 30,
+                              decoration: BoxDecoration(
+                                color: ClockFaceView.colorFromHex(color),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: selectedAccent == color
+                                      ? Theme.of(context).colorScheme.onSurface
+                                      : Colors.transparent,
+                                  width: 3,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                    ],
-                  ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Show seconds'),
-                    value: showSeconds,
-                    onChanged: (value) => setDialogState(() => showSeconds = value),
-                  ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Show date'),
-                    value: showDate,
-                    onChanged: (value) => setDialogState(() => showDate = value),
-                  ),
-                  const Text('Clock faces render locally. No account, network access or background service is required.'),
-                ],
+                      ],
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Show seconds'),
+                      value: showSeconds,
+                      onChanged: (value) => setDialogState(() => showSeconds = value),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Show date'),
+                      value: showDate,
+                      onChanged: (value) => setDialogState(() => showDate = value),
+                    ),
+                    const Text(
+                      'Clock faces render locally. Focus countdown, stopwatch and wall-clock modes remain part of the same fullscreen experience.',
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
-            FilledButton(
-              onPressed: () async {
-                await ref.read(settingsProvider.notifier).update((current) => current.copyWith(
-                  clockStyleId: selectedStyle,
-                  clockAccentColor: selectedAccent,
-                  clockShowSeconds: showSeconds,
-                  clockShowDate: showDate,
-                ));
-                if (dialogContext.mounted) Navigator.pop(dialogContext);
-              },
-              child: const Text('Apply clock'),
-            ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  await ref.read(settingsProvider.notifier).update((current) => current.copyWith(
+                    clockStyleId: selectedStyle,
+                    clockAccentColor: selectedAccent,
+                    clockShowSeconds: showSeconds,
+                    clockShowDate: showDate,
+                  ));
+                  if (dialogContext.mounted) Navigator.pop(dialogContext);
+                },
+                child: const Text('Apply clock'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
