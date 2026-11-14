@@ -25,6 +25,9 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Test APK signature verification fails closed
+        run: bash scripts/test_apksigner_fail_closed.sh
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -298,8 +301,16 @@ jobs:
             echo "::error::Android SDK signature/package inspection tools are unavailable."
             exit 1
           fi
-          "$APKSIGNER" verify --print-certs "$PREVIOUS_APK" > "$RUNNER_TEMP/previous-signature.txt" 2>&1 || true
-          "$APKSIGNER" verify --print-certs "$APK" > "$RUNNER_TEMP/current-signature.txt" 2>&1 || true
+          if ! "$APKSIGNER" verify --print-certs "$PREVIOUS_APK" > "$RUNNER_TEMP/previous-signature.txt" 2>&1; then
+            cat "$RUNNER_TEMP/previous-signature.txt"
+            echo "::error::Published APK signature verification failed."
+            exit 1
+          fi
+          if ! "$APKSIGNER" verify --print-certs "$APK" > "$RUNNER_TEMP/current-signature.txt" 2>&1; then
+            cat "$RUNNER_TEMP/current-signature.txt"
+            echo "::error::Candidate APK signature verification failed."
+            exit 1
+          fi
           echo "=== apksigner output (published APK) ==="
           cat "$RUNNER_TEMP/previous-signature.txt"
           echo "=== apksigner output (current APK) ==="
