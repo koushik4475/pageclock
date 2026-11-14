@@ -436,8 +436,12 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
         ),
       ),
     ).whenComplete(() {
-      descriptionController.dispose();
-      durationController.dispose();
+      // The modal route can complete before its final overlay rebuild. Dispose
+      // after that frame so TextFields never rebuild with disposed controllers.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        descriptionController.dispose();
+        durationController.dispose();
+      });
     });
   }
 
