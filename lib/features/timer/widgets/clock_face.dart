@@ -116,14 +116,28 @@ class ClockFaceView extends StatelessWidget {
       _ => Colors.white,
     };
 
+    // Adapt the dial to compact phones and landscape windows. The digital
+    // timer readout remains the primary value during focus sessions.
+    final viewport = MediaQuery.sizeOf(context);
+    final landscapeScale = viewport.width > viewport.height ? 0.30 : 0.40;
+    final classicDialSize = compact
+        ? 92.0
+        : math.max(
+            120.0,
+            math.min(
+              292.0,
+              math.min(viewport.width - 80.0, viewport.height * landscapeScale),
+            ),
+          ).toDouble();
+
     Widget face;
     if (classic) {
       face = Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
-            width: compact ? 92 : 292,
-            height: compact ? 92 : 292,
+            width: classicDialSize,
+            height: classicDialSize,
             child: CustomPaint(
               painter: _ClassicAnalogClockPainter(
                 date: date,
