@@ -4,7 +4,6 @@ import '../../core/format/formatters.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/navigation/main_tab_navigation.dart';
-import '../../stats/stats_engine.dart';
 
 /// 24-Hour Calendar Timeline Screen matching Toggl Track UI
 /// Features:
