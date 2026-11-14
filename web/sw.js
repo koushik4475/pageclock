@@ -6,7 +6,10 @@ const ASSETS_TO_CACHE = [
   './flutter.js',
   './flutter_bootstrap.js',
   './manifest.json',
-  './favicon.png'
+  './favicon.png',
+  './icons/Icon-192.png',
+  './icons/Icon-512.png',
+  './icons/Icon-maskable-512.png'
 ];
 
 self.addEventListener('install', (event) => {
