@@ -61,6 +61,21 @@ class DailyTrendResult {
   });
 }
 
+class DailyFocusSummary {
+  final List<ReadingSession> completedSessions;
+  final int completedMilliseconds;
+  final int currentSessionMilliseconds;
+
+  DailyFocusSummary({
+    required List<ReadingSession> completedSessions,
+    required this.completedMilliseconds,
+    required this.currentSessionMilliseconds,
+  }) : completedSessions = List.unmodifiable(completedSessions);
+
+  int get totalMilliseconds =>
+      completedMilliseconds + currentSessionMilliseconds;
+}
+
 class StatsEngine {
   /// Converts one session into local-day focused minutes, excluding pauses.
   /// Day keys remain local DateTime values; interval arithmetic uses a UTC
@@ -150,6 +165,59 @@ class StatsEngine {
       }
     }
     return total;
+  }
+
+  /// Builds the Timer tab's local-day summary from actual focused intervals.
+  ///
+  /// A session is included when any non-paused interval overlaps the selected
+  /// local day, even when the session started on the previous day. The same
+  /// captured UTC instant is used for completed and currently active rows so
+  /// the goal card and its list cannot disagree at a midnight boundary.
+  static DailyFocusSummary calculateDailyFocusSummary({
+    required Iterable<ReadingSession> sessions,
+    required DateTime localStart,
+    required DateTime localEnd,
+    ReadingSession? currentSession,
+    int? nowUtcMs,
+  }) {
+    final capturedNowUtcMs =
+        nowUtcMs ?? DateTime.now().toUtc().millisecondsSinceEpoch;
+    final completedSessions = sessions.where((session) {
+      return session.endedAtUtc != null &&
+          activeDurationInLocalRange(
+                session,
+                localStart,
+                localEnd,
+                nowUtcMs: capturedNowUtcMs,
+              ) >
+              0;
+    }).toList(growable: false);
+
+    final completedMilliseconds = completedSessions.fold<int>(
+      0,
+      (total, session) =>
+          total +
+          activeDurationInLocalRange(
+            session,
+            localStart,
+            localEnd,
+            nowUtcMs: capturedNowUtcMs,
+          ),
+    );
+    final currentSessionMilliseconds = currentSession == null
+        ? 0
+        : activeDurationInLocalRange(
+            currentSession,
+            localStart,
+            localEnd,
+            nowUtcMs: capturedNowUtcMs,
+          );
+
+    return DailyFocusSummary(
+      completedSessions: completedSessions,
+      completedMilliseconds: completedMilliseconds,
+      currentSessionMilliseconds: currentSessionMilliseconds,
+    );
   }
 
   /// Calculates the net focused duration for a session, with legacy fallback.
