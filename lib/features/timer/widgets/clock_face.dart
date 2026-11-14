@@ -122,8 +122,8 @@ class ClockFaceView extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
-            width: compact ? 106 : 292,
-            height: compact ? 106 : 292,
+            width: compact ? 92 : 292,
+            height: compact ? 92 : 292,
             child: CustomPaint(
               painter: _ClassicAnalogClockPainter(
                 date: date,
@@ -141,7 +141,7 @@ class ClockFaceView extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: foreground,
-              fontSize: compact ? 17 : 38,
+              fontSize: compact ? 15 : 38,
               fontWeight: FontWeight.w700,
               letterSpacing: compact ? -0.5 : -1.2,
               fontFeatures: const [FontFeature.tabularFigures()],
@@ -246,7 +246,7 @@ class ClockFaceView extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(compact ? 8 : 20),
+      padding: EdgeInsets.all(compact ? 6 : 20),
       decoration: BoxDecoration(
         color: styleId == 'gradient' || styleId == 'neon' ? null : background,
         gradient: styleId == 'gradient'
