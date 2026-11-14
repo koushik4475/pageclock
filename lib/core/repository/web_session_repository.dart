@@ -86,8 +86,20 @@ class WebSessionRepository implements SessionRepository {
 
   @override
   Future<void> saveSession(ReadingSession session) async {
+    final hadPrevious = _cache.containsKey(session.id);
+    final previous = _cache[session.id];
     _cache[session.id] = session;
-    await _commit();
+    try {
+      await _commit();
+    } catch (_) {
+      if (hadPrevious) {
+        _cache[session.id] = previous!;
+      } else {
+        _cache.remove(session.id);
+      }
+      _broadcast();
+      rethrow;
+    }
   }
 
   @override
@@ -177,9 +189,21 @@ class WebSessionRepository implements SessionRepository {
 
   @override
   Future<void> hardDeleteAll() async {
+    final previous = Map<String, ReadingSession>.of(_cache);
     _cache.clear();
-    await _prefs.remove(_storageKey);
-    _broadcast();
+    try {
+      final removed = await _prefs.remove(_storageKey);
+      if (!removed) {
+        throw StateError('Browser storage rejected the PageClock data reset.');
+      }
+      _broadcast();
+    } catch (_) {
+      _cache
+        ..clear()
+        ..addAll(previous);
+      _broadcast();
+      rethrow;
+    }
   }
 
   @override
