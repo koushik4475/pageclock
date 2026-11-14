@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -ne 5 ]]; then
-  echo "usage: validate_android_release_tag.sh SOURCE_VERSION RELEASE_TAG LATEST_TAG TAG_SHA MAIN_SHA" >&2
+if [[ $# -ne 6 ]]; then
+  echo "usage: validate_android_release_tag.sh SOURCE_VERSION RELEASE_TAG LATEST_TAG TAG_SHA EVENT_SHA MAIN_SHA" >&2
   exit 2
 fi
 
@@ -10,7 +10,8 @@ SOURCE_VERSION="$1"
 RELEASE_TAG="$2"
 LATEST_TAG="$3"
 TAG_SHA="$4"
-MAIN_SHA="$5"
+EVENT_SHA="$5"
+MAIN_SHA="$6"
 
 VERSION_NAME="${SOURCE_VERSION%%+*}"
 if [[ ! "$VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -30,7 +31,7 @@ if [[ "$TAG_VERSION" != "$VERSION_NAME" ]]; then
   exit 1
 fi
 
-if [[ -z "$TAG_SHA" || "$TAG_SHA" != "$MAIN_SHA" ]]; then
+if [[ -z "$TAG_SHA" || "$TAG_SHA" != "$EVENT_SHA" || "$EVENT_SHA" != "$MAIN_SHA" ]]; then
   echo "Release tag must point to the exact current main HEAD." >&2
   exit 1
 fi
