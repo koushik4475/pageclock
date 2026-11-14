@@ -65,14 +65,16 @@ class _UpdateDialogState extends State<UpdateDialog> {
       setState(() {
         _isDownloading = false;
         _verifiedApkFile = file;
-        _statusText = 'SHA-256 verification successful.';
+        _statusText = 'SHA-256 verification successful. Launching installer...';
       });
-      await _shareVerifiedApk();
+
+      // Automatically launch the native system installer
+      await _installVerifiedApk();
     } on ChecksumMismatchException {
       if (mounted) {
         setState(() {
           _isDownloading = false;
-          _errorMessage = 'Security Warning: SHA-256 Checksum Mismatch!\nThe downloaded APK was deleted and will not be shared or installed.';
+          _errorMessage = 'Security Warning: SHA-256 Checksum Mismatch!\nThe downloaded APK was deleted and will not be installed.';
         });
       }
     } catch (e) {
@@ -85,19 +87,29 @@ class _UpdateDialogState extends State<UpdateDialog> {
     }
   }
 
-  Future<void> _shareVerifiedApk() async {
+  Future<void> _installVerifiedApk() async {
     final file = _verifiedApkFile;
     if (file == null) return;
     setState(() {
       _errorMessage = null;
-      _infoMessage = 'Opening Android share sheet...';
+      _infoMessage = 'Opening Android installer...';
     });
-    final result = await ApkInstaller.shareVerifiedApk(file);
+    final result = await ApkInstaller.installApk(file);
     if (!mounted) return;
-    setState(() {
-      _infoMessage = result.opened ? result.message : null;
-      _errorMessage = result.opened ? null : result.message;
-    });
+    if (result.success) {
+      Navigator.of(context).pop();
+    } else {
+      setState(() {
+        _infoMessage = null;
+        _errorMessage = result.message;
+      });
+    }
+  }
+
+  Future<void> _shareVerifiedApk() async {
+    final file = _verifiedApkFile;
+    if (file == null) return;
+    await ApkInstaller.shareVerifiedApk(file);
   }
 
   @override
@@ -147,7 +159,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${widget.releaseInfo.tagName} • ${sizeMb != "0.0" ? "$sizeMb MB" : "Android APK"}',
+                        'Version ${widget.releaseInfo.versionName} (Build ${widget.releaseInfo.buildNumber})',
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.5),
                           fontSize: 13,
@@ -158,45 +170,62 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 ),
               ],
             ),
-            const SizedBox(height: 18),
-            const Text(
-              "What's New:",
-              style: TextStyle(
-                color: Color(0xFF94A3B8),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
-            ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 20),
             Container(
-              constraints: const BoxConstraints(maxHeight: 140),
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFF1A1F24),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.white.withOpacity(0.05)),
+                color: Colors.white.withOpacity(0.03),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.06)),
               ),
-              child: SingleChildScrollView(
-                child: Text(
-                  widget.releaseInfo.releaseNotes.trim(),
-                  style: const TextStyle(
-                    color: Color(0xFFE2E8F0),
-                    fontSize: 13,
-                    height: 1.45,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Download Size',
+                        style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13),
+                      ),
+                      Text(
+                        '$sizeMb MB',
+                        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                    ],
                   ),
-                ),
+                  if (widget.releaseInfo.releaseNotes.isNotEmpty) ...[
+                    const Divider(height: 20, color: Colors.white10),
+                    Text(
+                      'Release Notes',
+                      style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 6),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 120),
+                      child: SingleChildScrollView(
+                        child: Text(
+                          widget.releaseInfo.releaseNotes,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 12,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
             if (widget.releaseInfo.expectedSha256 != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Row(
                 children: [
-                  const Icon(Icons.verified_user_outlined, size: 13, color: Color(0xFF34D399)),
+                  const Icon(Icons.shield_outlined, size: 14, color: Color(0xFF34D399)),
                   const SizedBox(width: 6),
                   Text(
-                    'SHA-256 Checksum Verified Release',
+                    'SHA-256 Verified',
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.4),
                       fontSize: 11,
@@ -284,9 +313,17 @@ class _UpdateDialogState extends State<UpdateDialog> {
                     ),
                     child: const Text('Later'),
                   ),
+                  if (_verifiedApkFile != null) ...[
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.share_outlined, color: Colors.white70),
+                      tooltip: 'Share APK',
+                      onPressed: _shareVerifiedApk,
+                    ),
+                  ],
                   const SizedBox(width: 8),
                   FilledButton(
-                    onPressed: _verifiedApkFile == null ? _startDownload : _shareVerifiedApk,
+                    onPressed: _verifiedApkFile == null ? _startDownload : _installVerifiedApk,
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFF10B981),
                       foregroundColor: Colors.black,
@@ -294,8 +331,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     child: Text(
-                      _verifiedApkFile == null ? 'Download Update' : 'Share Verified APK',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                      _verifiedApkFile == null ? 'Update Now' : 'Install Update',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
                 ] else ...[
