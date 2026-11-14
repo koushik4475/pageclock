@@ -6,8 +6,8 @@ void main() {
   group('StatsEngine Unit & Edge Case Tests', () {
     test('Midnight Split: session spanning local midnight is split across two days', () {
       // 11:30 PM to 12:30 AM local time (60 mins total)
-      final localStart = DateTime(2026, 11, 6, 23, 30);
-      final localEnd = DateTime(2026, 11, 7, 0, 30);
+      final localStart = DateTime.utc(2026, 11, 6, 23, 30);
+      final localEnd = DateTime.utc(2026, 11, 7, 0, 30);
 
       final session = ReadingSession(
         id: 'midnight-1',
@@ -216,6 +216,82 @@ void main() {
       expect(daily[DateTime(2026, 11, 6)], 30);
       expect(daily.containsKey(DateTime(2026, 11, 7)), isFalse);
       expect(StatsEngine.activeDurationMs(legacy), 30 * 60000);
+    });
+
+    test('Pause-aware period totals split correctly across week and month boundaries', () {
+      final weekStart = DateTime.utc(2026, 10, 25, 23, 30).millisecondsSinceEpoch;
+      final weekEnd = DateTime.utc(2026, 10, 26, 0, 30).millisecondsSinceEpoch;
+      final weekSession = ReadingSession(
+        id: 'week-boundary',
+        startedAtUtc: weekStart,
+        endedAtUtc: weekEnd,
+        pausedTotalMs: 30 * 60000,
+        durationMs: 30 * 60000,
+        tzOffsetMin: 0,
+        pauseIntervals: [
+          PauseInterval(
+            startedAtUtc: DateTime.utc(2026, 10, 25, 23, 45).millisecondsSinceEpoch,
+            endedAtUtc: DateTime.utc(2026, 10, 26, 0, 15).millisecondsSinceEpoch,
+          ),
+        ],
+        createdAt: weekStart,
+        updatedAt: weekEnd,
+      );
+      expect(
+        StatsEngine.activeDurationInLocalRange(
+          weekSession,
+          DateTime(2026, 10, 25),
+          DateTime(2026, 10, 26),
+        ),
+        15 * 60000,
+      );
+      expect(
+        StatsEngine.activeDurationInLocalRange(
+          weekSession,
+          DateTime(2026, 10, 26),
+          DateTime(2026, 10, 27),
+        ),
+        15 * 60000,
+      );
+
+      final monthStart = DateTime.utc(2026, 10, 31, 23).millisecondsSinceEpoch;
+      final monthEnd = DateTime.utc(2026, 11, 1, 0, 45).millisecondsSinceEpoch;
+      final monthSession = ReadingSession(
+        id: 'month-boundary',
+        startedAtUtc: monthStart,
+        endedAtUtc: monthEnd,
+        pausedTotalMs: 45 * 60000,
+        durationMs: 60 * 60000,
+        tzOffsetMin: 0,
+        pauseIntervals: [
+          PauseInterval(
+            startedAtUtc: DateTime.utc(2026, 10, 31, 23, 15).millisecondsSinceEpoch,
+            endedAtUtc: DateTime.utc(2026, 10, 31, 23, 30).millisecondsSinceEpoch,
+          ),
+          PauseInterval(
+            startedAtUtc: DateTime.utc(2026, 10, 31, 23, 45).millisecondsSinceEpoch,
+            endedAtUtc: DateTime.utc(2026, 11, 1, 0, 15).millisecondsSinceEpoch,
+          ),
+        ],
+        createdAt: monthStart,
+        updatedAt: monthEnd,
+      );
+      expect(
+        StatsEngine.activeDurationInLocalRange(
+          monthSession,
+          DateTime(2026, 10, 1),
+          DateTime(2026, 11, 1),
+        ),
+        30 * 60000,
+      );
+      expect(
+        StatsEngine.activeDurationInLocalRange(
+          monthSession,
+          DateTime(2026, 11, 1),
+          DateTime(2026, 12, 1),
+        ),
+        30 * 60000,
+      );
     });
   });
 }
