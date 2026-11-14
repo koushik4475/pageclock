@@ -293,5 +293,33 @@ void main() {
         30 * 60000,
       );
     });
+
+    test('upgraded sessions preserve earlier unlocated pauses alongside new intervals', () {
+      final start = DateTime.utc(2026, 11, 9, 9).millisecondsSinceEpoch;
+      final end = DateTime.utc(2026, 11, 9, 10, 30).millisecondsSinceEpoch;
+      final upgradedSession = ReadingSession(
+        id: 'upgraded-active-session',
+        startedAtUtc: start,
+        endedAtUtc: end,
+        pausedTotalMs: 30 * 60000,
+        durationMs: 60 * 60000,
+        tzOffsetMin: 0,
+        // The first 15-minute pause happened before upgrade and has no exact
+        // position. The later pause is recorded by the new app version.
+        pauseIntervals: [
+          PauseInterval(
+            startedAtUtc: DateTime.utc(2026, 11, 9, 9, 45).millisecondsSinceEpoch,
+            endedAtUtc: DateTime.utc(2026, 11, 9, 10).millisecondsSinceEpoch,
+          ),
+        ],
+        createdAt: start,
+        updatedAt: end,
+      );
+
+      expect(upgradedSession.activeDurationMs(), 60 * 60000);
+      final active = upgradedSession.activeIntervals();
+      expect(active.first.startUtc, start + 15 * 60000);
+      expect(active.last.endUtc, end);
+    });
   });
 }
