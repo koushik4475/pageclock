@@ -38,15 +38,29 @@ void main() {
       expect(ClockFaceView.colorFromHex('invalid').value, 0xFFF5A623);
     });
 
-    test('offers ten distinct stable clock face IDs', () {
-      expect(ClockFaceView.styleIds, hasLength(10));
-      expect(ClockFaceView.styleIds.toSet(), hasLength(10));
-      expect(ClockFaceView.labelFor('mac_flip'), 'macOS Flip');
+    test('keeps the original ten IDs and adds six classic face IDs', () {
+      const originalIds = <String>[
+        'mac_flip', 'nixie', 'dot_matrix', 'lcd', 'neon',
+        'terminal', 'gradient', 'analog', 'editorial', 'binary',
+      ];
+      expect(ClockFaceView.styleIds, hasLength(16));
+      expect(ClockFaceView.styleIds.take(10), originalIds);
+      expect(ClockFaceView.styleIds.toSet(), hasLength(16));
+      expect(ClockFaceView.classicStyleIds, hasLength(6));
+      expect(ClockFaceView.categoryIds['Classic'], containsAll(ClockFaceView.classicStyleIds));
+      expect(ClockFaceView.categoryFor('classic_braun'), 'Classic');
+      expect(ClockFaceView.categoryFor('mac_flip'), 'Digital');
+      expect(ClockFaceView.labelFor('classic_braun'), 'Braun Minimal');
+      expect(ClockFaceView.labelFor('classic_railway'), 'Railway Classic');
+      expect(ClockFaceView.labelFor('classic_roman'), 'Roman Heritage');
+      expect(ClockFaceView.labelFor('classic_regulator'), 'Regulator');
+      expect(ClockFaceView.labelFor('classic_classroom'), 'Classroom Clear');
+      expect(ClockFaceView.labelFor('classic_night_lume'), 'Night Lume');
       expect(ClockFaceView.labelFor('unknown'), 'macOS Flip');
     });
   });
 
-  testWidgets('all ten clock faces render without layout exceptions', (tester) async {
+  testWidgets('all sixteen clock faces render without layout exceptions', (tester) async {
     for (final style in ClockFaceView.styleIds) {
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
