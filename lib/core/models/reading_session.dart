@@ -133,6 +133,71 @@ class ReadingSession {
     }
     pauses.sort((a, b) => a.startedAtUtc.compareTo(b.startedAtUtc));
 
+    // Merge and clip recorded pauses before comparing them with pausedTotalMs.
+    final mergedPauses = <PauseInterval>[];
+    for (final pause in pauses) {
+      final pauseStart =
+          pause.startedAtUtc > startedAtUtc ? pause.startedAtUtc : startedAtUtc;
+      final pauseEnd = pause.endedAtUtc < end ? pause.endedAtUtc : end;
+      if (pauseEnd <= pauseStart) continue;
+      if (mergedPauses.isNotEmpty &&
+          pauseStart <= mergedPauses.last.endedAtUtc) {
+        final previous = mergedPauses.removeLast();
+        mergedPauses.add(PauseInterval(
+          startedAtUtc: previous.startedAtUtc,
+          endedAtUtc: pauseEnd > previous.endedAtUtc
+              ? pauseEnd
+              : previous.endedAtUtc,
+        ));
+      } else {
+        mergedPauses.add(PauseInterval(
+          startedAtUtc: pauseStart,
+          endedAtUtc: pauseEnd,
+        ));
+      }
+    }
+
+    // A session may have started on an older app version, then gained exact
+    // pause intervals after an upgrade. Account for any earlier pause time
+    // that the old version had already accumulated but could not locate.
+    var unlocatedPauseMs = pausedTotalMs -
+        mergedPauses.fold<int>(0, (sum, pause) => sum + pause.durationMs);
+    if (unlocatedPauseMs > 0) {
+      var cursor = startedAtUtc;
+      final fallbackPauses = <PauseInterval>[];
+      for (final pause in mergedPauses) {
+        final gap = pause.startedAtUtc - cursor;
+        if (gap > 0 && unlocatedPauseMs > 0) {
+          final allocated = gap < unlocatedPauseMs ? gap : unlocatedPauseMs;
+          fallbackPauses.add(PauseInterval(
+            startedAtUtc: cursor,
+            endedAtUtc: cursor + allocated,
+          ));
+          unlocatedPauseMs -= allocated;
+        }
+        if (pause.endedAtUtc > cursor) cursor = pause.endedAtUtc;
+        if (unlocatedPauseMs <= 0) break;
+      }
+      if (unlocatedPauseMs > 0 && cursor < end) {
+        final available = end - cursor;
+        final allocated =
+            available < unlocatedPauseMs ? available : unlocatedPauseMs;
+        fallbackPauses.add(PauseInterval(
+          startedAtUtc: cursor,
+          endedAtUtc: cursor + allocated,
+        ));
+      }
+      pauses
+        ..clear()
+        ..addAll(mergedPauses)
+        ..addAll(fallbackPauses)
+        ..sort((a, b) => a.startedAtUtc.compareTo(b.startedAtUtc));
+    } else {
+      pauses
+        ..clear()
+        ..addAll(mergedPauses);
+    }
+
     final focused = <SessionTimeInterval>[];
     var cursor = startedAtUtc;
     for (final pause in pauses) {
