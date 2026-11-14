@@ -29,6 +29,9 @@ jobs:
       - name: Test Android release-tag policy
         run: bash scripts/test_android_release_tag.sh
 
+      - name: Test release workflow security boundary
+        run: bash scripts/test_release_workflow_policy.sh
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
