@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -16,7 +17,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor e) : super(e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -39,6 +40,14 @@ class AppDatabase extends _$AppDatabase {
                 readingSessions.pausedAtUtc,
               );
             }
+          }
+          // Version 3 stores exact completed pause positions. Existing rows
+          // receive the empty-list default and retain their legacy fallback.
+          if (from < 3) {
+            await m.addColumn(
+              readingSessions,
+              readingSessions.pauseIntervalsJson,
+            );
           }
         },
       );
@@ -66,6 +75,9 @@ class DriftSessionRepository implements SessionRepository {
             endedAtUtc: Value(session.endedAtUtc),
             pausedAtUtc: Value(session.pausedAtUtc),
             pausedTotalMs: Value(session.pausedTotalMs),
+            pauseIntervalsJson: Value(jsonEncode(
+              session.pauseIntervals.map((interval) => interval.toMap()).toList(),
+            )),
             durationMs: Value(session.durationMs),
             tzOffsetMin: Value(session.tzOffsetMin),
             subjectId: Value(session.subjectId),
@@ -169,6 +181,24 @@ class DriftSessionRepository implements SessionRepository {
     return query.watch().map((rows) => rows.isNotEmpty ? _mapEntryToDomain(rows.first) : null);
   }
 
+  List<PauseInterval> _decodePauseIntervals(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded
+            .whereType<Map>()
+            .map((item) => PauseInterval.fromMap(
+                  Map<String, dynamic>.from(item),
+                ))
+            .toList();
+      }
+    } catch (_) {
+      // Preserve access to the session if an older or damaged row contains
+      // malformed optional pause metadata; the model uses its legacy fallback.
+    }
+    return const [];
+  }
+
   ReadingSession _mapEntryToDomain(ReadingSessionEntry entry) {
     return ReadingSession(
       id: entry.id,
@@ -176,6 +206,7 @@ class DriftSessionRepository implements SessionRepository {
       endedAtUtc: entry.endedAtUtc,
       pausedAtUtc: entry.pausedAtUtc,
       pausedTotalMs: entry.pausedTotalMs,
+      pauseIntervals: _decodePauseIntervals(entry.pauseIntervalsJson),
       durationMs: entry.durationMs,
       tzOffsetMin: entry.tzOffsetMin,
       subjectId: entry.subjectId,
