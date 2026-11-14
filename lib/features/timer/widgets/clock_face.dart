@@ -206,9 +206,9 @@ class ClockFaceView extends StatelessWidget {
             leftText,
             style: TextStyle(
               color: foreground,
-              fontSize: compact ? 30 : 100,
+              fontSize: compact ? 28 : 92,
               fontWeight: FontWeight.w300,
-              height: .95,
+              height: .92,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
@@ -216,9 +216,9 @@ class ClockFaceView extends StatelessWidget {
             rightText,
             style: TextStyle(
               color: foreground,
-              fontSize: compact ? 30 : 100,
+              fontSize: compact ? 28 : 92,
               fontWeight: FontWeight.w800,
-              height: .95,
+              height: .92,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
