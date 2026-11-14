@@ -331,7 +331,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'The original start time is kept. The end time is adjusted to match the new duration.',
+                      'The original end time is kept. The start time is adjusted to match the new duration.',
                       style: Theme.of(sheetContext).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 16),
@@ -384,9 +384,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                             note: description,
                             clearNote: description.isEmpty,
                             durationMs: durationMs,
-                            endedAtUtc:
-                                session.startedAtUtc +
-                                session.pausedTotalMs +
+                            startedAtUtc:
+                                session.endedAtUtc! -
+                                session.pausedTotalMs -
                                 durationMs,
                             updatedAt: now,
                           );
