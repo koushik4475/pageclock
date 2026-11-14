@@ -379,6 +379,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                           // its editable fields; this avoids a pending caret callback
                           // targeting a detached RenderEditable during route teardown.
                           FocusScope.of(sheetContext).unfocus();
+                          // Let any scheduled EditableText caret/scroll work
+                          // finish while the editor is still attached.
+                          await WidgetsBinding.instance.endOfFrame;
                           final now =
                               DateTime.now().toUtc().millisecondsSinceEpoch;
                           final durationMs = minutes * 60000;
