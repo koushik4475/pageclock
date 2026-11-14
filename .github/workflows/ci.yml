@@ -187,32 +187,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          script: |
-            set -euo pipefail
-            APK="$GITHUB_WORKSPACE/build/app/outputs/flutter-apk/app-debug.apk"
-            if [[ ! -s "$APK" ]]; then
-              echo "::error::Android debug APK is missing from the GitHub workspace: $APK"
-              find "$GITHUB_WORKSPACE/build/app/outputs/flutter-apk" -maxdepth 2 -type f -ls 2>/dev/null || true
-              exit 1
-            fi
-            adb logcat -c
-            adb install -r "$APK"
-            adb shell monkey -p com.example.pageclock 1
-            for attempt in $(seq 1 30); do
-              if adb shell pidof com.example.pageclock >/dev/null 2>&1; then break; fi
-              sleep 1
-            done
-            adb shell pidof com.example.pageclock
-            sleep 8
-            adb shell pidof com.example.pageclock
-            adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity' | grep -F 'com.example.pageclock'
-            adb logcat -d -v brief > "$RUNNER_TEMP/pageclock-android-logcat.txt"
-            if grep -A 8 -F "FATAL EXCEPTION" "$RUNNER_TEMP/pageclock-android-logcat.txt" | grep -qF "com.example.pageclock"; then
-              echo "::error::PageClock crashed during Android emulator launch."
-              exit 1
-            fi
-            adb shell screencap -p /sdcard/pageclock-android-smoke.png
-            adb pull /sdcard/pageclock-android-smoke.png "$RUNNER_TEMP/pageclock-android-smoke.png"
+          script: bash "$GITHUB_WORKSPACE/tool/android_emulator_smoke.sh"
 
       - name: Upload Android emulator launch screenshot
         if: always()
