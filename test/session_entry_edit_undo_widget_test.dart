@@ -17,16 +17,23 @@ void main() {
   testWidgets('edits one completed entry and restores it with Undo', (tester) async {
     final now = DateTime.now().toUtc().millisecondsSinceEpoch;
     const durationMs = 30 * 60 * 1000;
+    const pauseDurationMs = 5 * 60 * 1000;
+    final pause = PauseInterval(
+      startedAtUtc: now - 20 * 60 * 1000,
+      endedAtUtc: now - 15 * 60 * 1000,
+    );
     final session = ReadingSession(
       id: 'editable-entry',
-      startedAtUtc: now - durationMs,
+      startedAtUtc: now - durationMs - pauseDurationMs,
       endedAtUtc: now,
+      pausedTotalMs: pauseDurationMs,
+      pauseIntervals: [pause],
       durationMs: durationMs,
       tzOffsetMin: DateTime.now().timeZoneOffset.inMinutes,
       subjectId: 'Reading',
       note: 'Original chapter',
       source: 'manual',
-      createdAt: now - durationMs,
+      createdAt: now - durationMs - pauseDurationMs,
       updatedAt: now,
     );
     final repository = InMemorySessionRepository([session]);
@@ -69,8 +76,10 @@ void main() {
     expect(saved.single.endedAtUtc, session.endedAtUtc);
     expect(
       saved.single.startedAtUtc,
-      session.endedAtUtc! - 45 * 60 * 1000,
+      session.endedAtUtc! - 45 * 60 * 1000 - pauseDurationMs,
     );
+    expect(saved.single.pauseIntervals, [pause]);
+    expect(saved.single.activeDurationMs(), 45 * 60 * 1000);
     expect(saved.single.id, session.id);
     expect(saved.single.createdAt, session.createdAt);
 
