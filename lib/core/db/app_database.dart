@@ -129,9 +129,14 @@ class DriftSessionRepository implements SessionRepository {
       for (int i = 1; i < openRows.length; i++) {
         final orphaned = openRows[i];
         final orphanedSession = _mapEntryToDomain(orphaned);
-        final finalPauseDuration = orphaned.pausedAtUtc == null
+        final rawFinalPauseDuration = orphaned.pausedAtUtc == null
             ? 0
-            : (now - orphaned.pausedAtUtc!).clamp(0, 86400000);
+            : now - orphaned.pausedAtUtc!;
+        final finalPauseDuration = rawFinalPauseDuration <= 0
+            ? 0
+            : (rawFinalPauseDuration > 86400000
+                ? 86400000
+                : rawFinalPauseDuration);
         final completedPauseIntervals = [
           ...orphanedSession.pauseIntervals,
           if (finalPauseDuration > 0)
