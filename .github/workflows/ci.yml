@@ -26,6 +26,9 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Test Android release-tag policy
+        run: bash scripts/test_android_release_tag.sh
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -177,29 +180,10 @@ jobs:
         run: |
           set -euo pipefail
           SOURCE_VERSION="$(sed -n 's/^version: *//p' pubspec.yaml | head -n 1)"
-          VERSION_NAME="$(printf '%s' "$SOURCE_VERSION" | cut -d+ -f1)"
           EXPECTED_TAG="$GITHUB_REF_NAME"
-          if [[ ! "$VERSION_NAME" =~ ^[0-9]+(\.[0-9]+){2}$ ]]; then
-            echo "::error::pubspec.yaml must contain a stable semantic version such as 1.0.1."
-            exit 1
-          fi
-          if [[ ! "$EXPECTED_TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)\+([1-9][0-9]*)$ ]]; then
-            echo "::error::Release tags must use vMAJOR.MINOR.PATCH+BUILD_NUMBER."
-            exit 1
-          fi
-          TAG_VERSION="${BASH_REMATCH[1]}"
-          BUILD_NUMBER="${BASH_REMATCH[2]}"
-          if [[ "$TAG_VERSION" != "$VERSION_NAME" ]]; then
-            echo "::error::Release tag version $TAG_VERSION does not match pubspec.yaml version $VERSION_NAME."
-            exit 1
-          fi
           git fetch --no-tags origin main
           MAIN_SHA="$(git rev-parse FETCH_HEAD)"
           TAG_SHA="$(git rev-parse "${GITHUB_REF}^{commit}")"
-          if [[ "$TAG_SHA" != "$GITHUB_SHA" || "$GITHUB_SHA" != "$MAIN_SHA" ]]; then
-            echo "::error::Production releases must be tagged from the exact current main HEAD."
-            exit 1
-          fi
           LATEST_JSON="$(curl --fail --silent --show-error \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
@@ -210,21 +194,9 @@ jobs:
             echo "::error::Latest stable release or APK asset is missing."
             exit 1
           fi
-          LATEST_CLEAN="${LATEST_TAG#v}"
-          if [[ ! "$LATEST_CLEAN" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)$ ]]; then
-            echo "::error::Unsupported latest release tag: $LATEST_TAG"
-            exit 1
-          fi
-          LATEST_VERSION="${BASH_REMATCH[1]}"
-          LATEST_BUILD="${BASH_REMATCH[2]}"
-          if (( BUILD_NUMBER <= LATEST_BUILD )); then
-            echo "::error::Android versionCode must increase. Candidate $BUILD_NUMBER is not greater than latest build $LATEST_BUILD."
-            exit 1
-          fi
-          if dpkg --compare-versions "$VERSION_NAME" lt "$LATEST_VERSION"; then
-            echo "::error::Candidate $EXPECTED_TAG is older than latest release $LATEST_TAG."
-            exit 1
-          fi
+          VALIDATED="$(bash scripts/validate_android_release_tag.sh \
+            "$SOURCE_VERSION" "$EXPECTED_TAG" "$LATEST_TAG" "$TAG_SHA" "$GITHUB_SHA" "$MAIN_SHA")"
+          IFS=$'\t' read -r VERSION_NAME BUILD_NUMBER EXPECTED_TAG <<< "$VALIDATED"
           echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
           echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
           echo "release_tag=$EXPECTED_TAG" >> "$GITHUB_OUTPUT"
