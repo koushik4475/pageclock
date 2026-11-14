@@ -66,6 +66,7 @@ class ReadingSession {
     int? updatedAt,
     int? deletedAt,
     bool clearDeletedAt = false,
+    bool clearNote = false,
   }) {
     return ReadingSession(
       id: id ?? this.id,
@@ -76,7 +77,7 @@ class ReadingSession {
       durationMs: durationMs ?? this.durationMs,
       tzOffsetMin: tzOffsetMin ?? this.tzOffsetMin,
       subjectId: subjectId ?? this.subjectId,
-      note: note ?? this.note,
+      note: clearNote ? null : (note ?? this.note),
       source: source ?? this.source,
       deviceId: deviceId ?? this.deviceId,
       createdAt: createdAt ?? this.createdAt,
