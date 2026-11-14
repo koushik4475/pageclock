@@ -179,6 +179,7 @@ jobs:
       - name: Install and launch on Android 16 emulator
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
+          working-directory: ${{ github.workspace }}
           emulator-boot-timeout: 900
           api-level: 36
           target: google_apis
@@ -188,8 +189,12 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           script: |
             set -euo pipefail
-            APK="build/app/outputs/flutter-apk/app-debug.apk"
-            test -s "$APK"
+            APK="$GITHUB_WORKSPACE/build/app/outputs/flutter-apk/app-debug.apk"
+            if [[ ! -s "$APK" ]]; then
+              echo "::error::Android debug APK is missing from the GitHub workspace: $APK"
+              find "$GITHUB_WORKSPACE/build/app/outputs/flutter-apk" -maxdepth 2 -type f -ls 2>/dev/null || true
+              exit 1
+            fi
             adb logcat -c
             adb install -r "$APK"
             adb shell monkey -p com.example.pageclock 1
