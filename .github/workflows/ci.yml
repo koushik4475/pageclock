@@ -302,8 +302,13 @@ jobs:
           "$APKSIGNER" verify --print-certs "$APK" > "$RUNNER_TEMP/current-signature.txt" 2>&1
           PREVIOUS_CERT="$(sed -n 's/.*Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/previous-signature.txt" | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
           CURRENT_CERT="$(sed -n 's/.*Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/current-signature.txt" | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          # Certificate fingerprints are public identifiers, not private key material.
+          # Print both values so maintainers can diagnose a misconfigured Actions keystore
+          # without exposing the keystore, alias passwords or signing credentials.
+          echo "Published APK signing certificate SHA-256: ${PREVIOUS_CERT:-unavailable}"
+          echo "Candidate APK signing certificate SHA-256: ${CURRENT_CERT:-unavailable}"
           if [[ -z "$PREVIOUS_CERT" || -z "$CURRENT_CERT" || "$PREVIOUS_CERT" != "$CURRENT_CERT" ]]; then
-            echo "::error::APK signing certificate changed. Refusing an incompatible update."
+            echo "::error::APK signing certificate changed. Refusing an incompatible update; verify the configured production keystore against the published fingerprint above."
             exit 1
           fi
           PREVIOUS_APP_ID="$("$AAPT" dump badging "$PREVIOUS_APK" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)"
