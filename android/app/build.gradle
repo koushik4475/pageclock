@@ -10,6 +10,16 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
+def releaseKeyStorePath = System.getenv("ANDROID_KEYSTORE_PATH") ?: keystoreProperties['storeFile']
+def releaseKeyStoreFile = releaseKeyStorePath ? file(releaseKeyStorePath) : null
+def releaseStorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: keystoreProperties['storePassword']
+def releaseKeyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: keystoreProperties['keyAlias']
+def releaseKeyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: keystoreProperties['keyPassword']
+def productionReleaseSigningConfigured =
+    releaseKeyStoreFile != null &&
+    releaseKeyStoreFile.exists() &&
+    [releaseStorePassword, releaseKeyAlias, releaseKeyPassword].every { it != null && !it.toString().trim().isEmpty() }
+
 android {
     namespace "com.example.pageclock"
     compileSdk 36
@@ -40,23 +50,20 @@ android {
 
     signingConfigs {
         release {
-            def keyStorePath = System.getenv("ANDROID_KEYSTORE_PATH") ?: keystoreProperties['storeFile']
-            if (keyStorePath != null && file(keyStorePath).exists()) {
-                storeFile = file(keyStorePath)
-                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: keystoreProperties['storePassword']
-                keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: keystoreProperties['keyAlias']
-                keyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: keystoreProperties['keyPassword']
+            if (productionReleaseSigningConfigured) {
+                storeFile = releaseKeyStoreFile
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
             }
         }
     }
 
     buildTypes {
         release {
-            def keyStorePath = System.getenv("ANDROID_KEYSTORE_PATH") ?: keystoreProperties['storeFile']
-            if (keyStorePath != null && file(keyStorePath).exists()) {
+            // Never silently fall back to the debug certificate for a production release.
+            if (productionReleaseSigningConfigured) {
                 signingConfig signingConfigs.release
-            } else {
-                signingConfig signingConfigs.debug
             }
             minifyEnabled false
             shrinkResources false
@@ -66,6 +73,24 @@ android {
 
 dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+}
+
+// Release packaging tasks must prove that the long-lived production signing identity is configured.
+tasks.register("verifyProductionReleaseSigning") {
+    doLast {
+        if (!productionReleaseSigningConfigured) {
+            throw new GradleException(
+                "Production release signing is mandatory. Configure the existing release keystore and all signing credentials; debug/unsigned release fallback is forbidden."
+            )
+        }
+    }
+}
+
+tasks.configureEach { task ->
+    def taskName = task.name.toLowerCase()
+    if (task.name != "verifyProductionReleaseSigning" && taskName.contains("release")) {
+        task.dependsOn("verifyProductionReleaseSigning")
+    }
 }
 
 flutter {
