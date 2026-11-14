@@ -258,11 +258,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   }
 
   void _showEditEntryModal(BuildContext context, ReadingSession session) {
-    final descriptionController =
-        TextEditingController(text: session.note ?? '');
-    final durationController = TextEditingController(
-      text: (session.durationMs / 60000).round().clamp(1, 525600).toString(),
-    );
+    var description = session.note ?? '';
+    var durationText =
+        (session.durationMs / 60000).round().clamp(1, 525600).toString();
     final projects = <String>{
       ..._availableProjects,
       session.subjectName,
@@ -311,8 +309,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: descriptionController,
+                    TextFormField(
+                      initialValue: description,
+                      onChanged: (value) => description = value,
                       textCapitalization: TextCapitalization.sentences,
                       decoration: const InputDecoration(
                         labelText: 'Description',
@@ -320,8 +319,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: durationController,
+                    TextFormField(
+                      initialValue: durationText,
+                      onChanged: (value) => durationText = value,
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: const InputDecoration(
@@ -363,7 +363,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                       child: FilledButton(
                         onPressed: () async {
                           final minutes =
-                              int.tryParse(durationController.text.trim());
+                              int.tryParse(durationText.trim());
                           if (minutes == null || minutes <= 0 || minutes > 525600) {
                             ScaffoldMessenger.of(sheetContext).showSnackBar(
                               const SnackBar(
@@ -385,11 +385,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                           final now =
                               DateTime.now().toUtc().millisecondsSinceEpoch;
                           final durationMs = minutes * 60000;
-                          final description = descriptionController.text.trim();
+                          final descriptionText = description.trim();
                           final updated = session.copyWith(
                             subjectId: selectedProject,
-                            note: description,
-                            clearNote: description.isEmpty,
+                            note: descriptionText,
+                            clearNote: descriptionText.isEmpty,
                             durationMs: durationMs,
                             startedAtUtc:
                                 session.endedAtUtc! -
@@ -435,13 +435,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           ),
         ),
       ),
-    ).whenComplete(() async {
-      // The modal route can complete before its final overlay rebuild. Wait
-      // for that frame so TextFields are removed before controllers are freed.
-      await WidgetsBinding.instance.endOfFrame;
-      descriptionController.dispose();
-      durationController.dispose();
-    });
+    );
   }
 
   Future<void> _deleteSessionWithUndo(
