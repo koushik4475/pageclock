@@ -44,12 +44,11 @@ class MainActivity : FlutterActivity() {
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
-                    if (installIntent.resolveActivity(packageManager) == null) {
-                        result.error("NO_PACKAGE_INSTALLER", "Android Package Installer is unavailable.", null)
-                    } else {
-                        startActivity(installIntent)
-                        result.success(true)
-                    }
+                    // Launch directly instead of preflighting resolveActivity().
+                    // Android 11+ package-visibility filtering can make resolver
+                    // queries return null even when startActivity can resolve it.
+                    startActivity(installIntent)
+                    result.success(true)
                 } catch (error: ActivityNotFoundException) {
                     result.error("NO_PACKAGE_INSTALLER", "Android Package Installer is unavailable.", error.message)
                 } catch (error: Exception) {
