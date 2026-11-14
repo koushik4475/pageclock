@@ -120,6 +120,15 @@ void main() {
       }
     });
 
+    test('web reset is safe when the session key does not exist yet', () async {
+      SharedPreferences.setMockInitialValues({});
+      final preferences = await SharedPreferences.getInstance();
+      final repository = WebSessionRepository(preferences);
+
+      await expectLater(repository.hardDeleteAll(), completes);
+      expect(await repository.getAllSessions(), isEmpty);
+    });
+
     test('web repository persists delete and undo across repository recreation', () async {
       SharedPreferences.setMockInitialValues({});
       final preferences = await SharedPreferences.getInstance();
