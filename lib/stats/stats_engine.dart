@@ -182,28 +182,20 @@ class StatsEngine {
   }) {
     final capturedNowUtcMs =
         nowUtcMs ?? DateTime.now().toUtc().millisecondsSinceEpoch;
-    final completedSessions = sessions.where((session) {
-      return session.endedAtUtc != null &&
-          activeDurationInLocalRange(
-                session,
-                localStart,
-                localEnd,
-                nowUtcMs: capturedNowUtcMs,
-              ) >
-              0;
-    }).toList(growable: false);
-
-    final completedMilliseconds = completedSessions.fold<int>(
-      0,
-      (total, session) =>
-          total +
-          activeDurationInLocalRange(
-            session,
-            localStart,
-            localEnd,
-            nowUtcMs: capturedNowUtcMs,
-          ),
-    );
+    final completedSessions = <ReadingSession>[];
+    var completedMilliseconds = 0;
+    for (final session in sessions) {
+      if (session.endedAtUtc == null) continue;
+      final focusedMilliseconds = activeDurationInLocalRange(
+        session,
+        localStart,
+        localEnd,
+        nowUtcMs: capturedNowUtcMs,
+      );
+      if (focusedMilliseconds <= 0) continue;
+      completedSessions.add(session);
+      completedMilliseconds += focusedMilliseconds;
+    }
     final currentSessionMilliseconds = currentSession == null
         ? 0
         : activeDurationInLocalRange(
