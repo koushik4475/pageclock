@@ -26,7 +26,7 @@ void main() {
       expect(palette.background, const Color(0xFF080B12));
       expect(palette.surface, const Color(0xFF141824));
       expect(palette.primary, const Color(0xFFFF7A00));
-      expect(palette.text, const Color(0xFFF8FAFC));
+      expect(palette.text, const Color(0xFFE5E7EB));
       expect(
         _contrastRatio(palette.primary, palette.onPrimary),
         greaterThanOrEqualTo(4.5),
