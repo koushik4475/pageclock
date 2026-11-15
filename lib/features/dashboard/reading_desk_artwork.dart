@@ -106,7 +106,7 @@ class _ReadingDeskPainter extends CustomPainter {
             Colors.transparent,
           ],
         ).createShader(
-          const Rect.fromCircle(center: Offset(167, 61), radius: 49),
+          Rect.fromCircle(center: Offset(167, 61), radius: 49),
         ),
     );
     canvas.drawCircle(
