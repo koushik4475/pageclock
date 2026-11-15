@@ -1657,6 +1657,10 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
   void _showThemeSelector(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final currentTheme = ref.read(appThemeIdProvider);
+    final themeOptions = <AppThemeId>[
+      AppThemeId.pageClockClassic,
+      ...AppThemeId.values.where((theme) => theme != AppThemeId.pageClockClassic),
+    ];
 
     showModalBottomSheet(
       context: context,
@@ -1701,7 +1705,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '11 carefully balanced colour worlds',
+                            '${themeOptions.length} carefully balanced colour worlds',
                             style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
                               color: colors.onSurfaceVariant,
                             ),
@@ -1720,7 +1724,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                 GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: AppThemeId.values.length,
+                  itemCount: themeOptions.length,
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     crossAxisSpacing: 10,
@@ -1728,7 +1732,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                     mainAxisExtent: 142,
                   ),
                   itemBuilder: (context, index) {
-                    final themeId = AppThemeId.values[index];
+                    final themeId = themeOptions[index];
                     return _buildThemeOption(
                       ctx: ctx,
                       themeId: themeId,
