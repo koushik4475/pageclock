@@ -14,6 +14,7 @@ enum AppThemeId {
   roseQuartz,
   nordicFrost,
   solarCitrus,
+  pageClockClassic,
 }
 
 extension AppThemeIdExtension on AppThemeId {
@@ -30,6 +31,7 @@ extension AppThemeIdExtension on AppThemeId {
       case AppThemeId.roseQuartz: return 'rose_quartz';
       case AppThemeId.nordicFrost: return 'nordic_frost';
       case AppThemeId.solarCitrus: return 'solar_citrus';
+      case AppThemeId.pageClockClassic: return 'pageclock_classic';
     }
   }
 
@@ -46,6 +48,7 @@ extension AppThemeIdExtension on AppThemeId {
       case AppThemeId.roseQuartz: return 'Rose Quartz';
       case AppThemeId.nordicFrost: return 'Nordic Frost';
       case AppThemeId.solarCitrus: return 'Solar Citrus';
+      case AppThemeId.pageClockClassic: return 'PageClock Classic';
     }
   }
 
@@ -62,6 +65,7 @@ extension AppThemeIdExtension on AppThemeId {
       case AppThemeId.roseQuartz: return 'Blush surfaces with elegant rose accents';
       case AppThemeId.nordicFrost: return 'Cool porcelain, fjord blue and soft lilac';
       case AppThemeId.solarCitrus: return 'Warm ivory with golden citrus highlights';
+      case AppThemeId.pageClockClassic: return 'The signature PageClock cream, charcoal and focus orange';
     }
   }
 
@@ -260,6 +264,25 @@ const Map<AppThemeId, ThemePalette> themePalettes = {
     ringTrack: Color(0xFFF5EAC9),
     isDark: false,
     previewColors: [Color(0xFFFFFAE8), Color(0xFF855300), Color(0xFFD97706), Color(0xFF659A2D)],
+  ),
+  AppThemeId.pageClockClassic: ThemePalette(
+    background: Color(0xFFFFF4E6),
+    surface: Color(0xFFFFFAF3),
+    primary: Color(0xFFF97316),
+    onPrimary: Color(0xFF111827),
+    secondary: Color(0xFFC45A0E),
+    tertiary: Color(0xFFE6D5C0),
+    text: Color(0xFF111827),
+    textMuted: Color(0xFF586174),
+    outline: Color(0xFFE6D5C0),
+    ringTrack: Color(0xFFF1E5D6),
+    isDark: false,
+    previewColors: [
+      Color(0xFFFFF4E6),
+      Color(0xFFF97316),
+      Color(0xFF111827),
+      Color(0xFFE6D5C0),
+    ],
   ),
 };
 

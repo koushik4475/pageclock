@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="black">#FF000000</color>
+    <color name="pageclock_cream">#FFFFF4E6</color>
+    <color name="pageclock_ink">#FF111827</color>
+    <color name="pageclock_orange">#FFF97316</color>
+    <color name="pageclock_beige">#FFE6D5C0</color>
 </resources>
