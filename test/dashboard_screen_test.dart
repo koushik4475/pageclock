@@ -43,6 +43,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Recent sessions'), findsOneWidget);
+        expect(find.text('Your weekly rhythm starts here'), findsOneWidget);
         expect(
           find.byType(ReadingDeskArtwork),
           viewport.width >= 600 ? findsOneWidget : findsNothing,
