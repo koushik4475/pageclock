@@ -94,7 +94,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Scroll to bottom
-      await tester.drag(find.byType(ListView), const Offset(0, -1000));
+      await tester.drag(find.byType(SingleChildScrollView).first, const Offset(0, -1000));
       await tester.pumpAndSettle();
 
       expect(find.text('ACCOUNT & CLOUD SYNC'), findsOneWidget);
