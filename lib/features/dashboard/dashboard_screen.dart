@@ -128,6 +128,7 @@ class DashboardScreen extends StatelessWidget {
                                   _WeeklyActivityCard(
                                     days: week,
                                     totalMinutes: weekMinutes,
+                                    onOpenTimer: () => onNavigate(1),
                                   ),
                                   const SizedBox(height: 20),
                                   _RecentSessionsCard(
@@ -211,6 +212,7 @@ class DashboardScreen extends StatelessWidget {
                         _WeeklyActivityCard(
                           days: week,
                           totalMinutes: weekMinutes,
+                          onOpenTimer: () => onNavigate(1),
                         ),
                         const SizedBox(height: 16),
                         _RecentSessionsCard(
@@ -705,10 +707,12 @@ class _MomentumCard extends StatelessWidget {
 class _WeeklyActivityCard extends StatelessWidget {
   final List<_DayActivity> days;
   final int totalMinutes;
+  final VoidCallback onOpenTimer;
 
   const _WeeklyActivityCard({
     required this.days,
     required this.totalMinutes,
+    required this.onOpenTimer,
   });
 
   @override
@@ -724,68 +728,126 @@ class _WeeklyActivityCard extends StatelessWidget {
         '${hours}h ${minutes}m total',
         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: colors.primary),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Your focused time, day by day',
-            style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
-          ),
-          const SizedBox(height: 18),
-          SizedBox(
-            height: 132,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: days.map((day) {
-                final ratio = day.minutes / maxMinutes;
-                final barHeight = day.minutes == 0 ? 4.0 : (ratio * 88).clamp(8.0, 88.0).toDouble();
-                final isToday = DateUtils.isSameDay(day.date, DateTime.now());
-                return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 5),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          day.minutes == 0 ? '—' : '${day.minutes}m',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: colors.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 7),
-                        Container(
-                          height: barHeight,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(7),
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: isToday
-                                  ? [colors.primary, colors.primary.withOpacity(.58)]
-                                  : [colors.primary.withOpacity(.7), colors.primary.withOpacity(.28)],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          DateFormat('E').format(day.date),
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
-                            color: isToday ? colors.primary : colors.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
+      child: totalMinutes == 0
+          ? Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+              decoration: BoxDecoration(
+                color: colors.primary.withOpacity(.055),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: colors.outline.withOpacity(.55)),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: BoxDecoration(
+                      color: colors.primary.withOpacity(.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.auto_graph_rounded,
+                      color: colors.primary,
+                      size: 26,
                     ),
                   ),
-                );
-              }).toList(),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Your weekly rhythm starts here',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: colors.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'Start a focus session and your real reading activity will appear here.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.4,
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  OutlinedButton.icon(
+                    onPressed: onOpenTimer,
+                    icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                    label: const Text('Open Focus Timer'),
+                  ),
+                ],
+              ),
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Your focused time, day by day',
+                  style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  height: 132,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: days.map((day) {
+                      final ratio = day.minutes / maxMinutes;
+                      final barHeight = day.minutes == 0
+                          ? 4.0
+                          : (ratio * 88).clamp(8.0, 88.0).toDouble();
+                      final isToday = DateUtils.isSameDay(day.date, DateTime.now());
+                      return Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 5),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Text(
+                                day.minutes == 0 ? '—' : '${day.minutes}m',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 7),
+                              Container(
+                                height: barHeight,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(7),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: isToday
+                                        ? [colors.primary, colors.primary.withOpacity(.58)]
+                                        : [
+                                            colors.primary.withOpacity(.7),
+                                            colors.primary.withOpacity(.28),
+                                          ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                DateFormat('E').format(day.date),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
+                                  color: isToday ? colors.primary : colors.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
