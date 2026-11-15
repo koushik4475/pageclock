@@ -11,11 +11,28 @@ double _contrastRatio(Color a, Color b) {
 
 void main() {
   group('PageClock theme gallery', () {
-    test('offers eleven named themes, including eight new palettes', () {
-      expect(AppThemeId.values, hasLength(11));
+    test('offers twelve named themes, including the PageClock brand palette', () {
+      expect(AppThemeId.values, hasLength(12));
       expect(
         AppThemeId.values.map((theme) => theme.displayName).toSet(),
         hasLength(11),
+      );
+    });
+
+    test('PageClock Classic uses the approved brand palette and accessible contrast', () {
+      final palette = AppThemeId.pageClockClassic.palette;
+      expect(AppThemeId.pageClockClassic.storageId, 'pageclock_classic');
+      expect(palette.background, const Color(0xFFFFF4E6));
+      expect(palette.primary, const Color(0xFFF97316));
+      expect(palette.onPrimary, const Color(0xFF111827));
+      expect(palette.text, const Color(0xFF111827));
+      expect(
+        _contrastRatio(palette.primary, palette.onPrimary),
+        greaterThanOrEqualTo(4.5),
+      );
+      expect(
+        _contrastRatio(palette.surface, palette.text),
+        greaterThanOrEqualTo(4.5),
       );
     });
 
