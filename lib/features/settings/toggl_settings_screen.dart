@@ -1659,7 +1659,12 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     final currentTheme = ref.read(appThemeIdProvider);
     final themeOptions = <AppThemeId>[
       AppThemeId.pageClockClassic,
-      ...AppThemeId.values.where((theme) => theme != AppThemeId.pageClockClassic),
+      AppThemeId.defaultDark,
+      ...AppThemeId.values.where(
+        (theme) =>
+            theme != AppThemeId.pageClockClassic &&
+            theme != AppThemeId.defaultDark,
+      ),
     ];
 
     showModalBottomSheet(
