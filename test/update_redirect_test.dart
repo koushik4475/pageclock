@@ -32,6 +32,38 @@ class _OversizedContentLengthClient extends http.BaseClient {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('trusted download origins require exact HTTPS hosts, default port and no user-info', () {
+    final accepted = [
+      'https://github.com/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
+      'https://github.com:443/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
+      'https://objects.githubusercontent.com/release/app.apk',
+      'https://release-assets.githubusercontent.com/release/app.apk',
+    ];
+    for (final value in accepted) {
+      expect(
+        ApkDownloader.isTrustedDownloadUri(Uri.parse(value)),
+        isTrue,
+        reason: 'Expected trusted GitHub release origin: $value',
+      );
+    }
+
+    final rejected = [
+      'http://github.com/koushik4475/pageclock/app.apk',
+      'https://github.com:444/koushik4475/pageclock/app.apk',
+      'https://user@github.com/koushik4475/pageclock/app.apk',
+      'https://github.com.attacker.example/app.apk',
+      'https://attacker.github.com/app.apk',
+      'https://attacker.example/app.apk',
+    ];
+    for (final value in rejected) {
+      expect(
+        ApkDownloader.isTrustedDownloadUri(Uri.parse(value)),
+        isFalse,
+        reason: 'Expected untrusted download origin to be rejected: $value',
+      );
+    }
+  });
+
   Directory? testTempDirectory;
 
   setUpAll(() {
