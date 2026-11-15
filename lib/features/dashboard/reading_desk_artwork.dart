@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 /// A quiet, reusable reading-desk illustration for the dashboard focus card.
