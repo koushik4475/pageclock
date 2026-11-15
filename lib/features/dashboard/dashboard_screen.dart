@@ -122,7 +122,6 @@ class DashboardScreen extends StatelessWidget {
                                   _WeeklyActivityCard(
                                     days: week,
                                     totalMinutes: weekMinutes,
-                                    isDark: isDark,
                                   ),
                                   const SizedBox(height: 20),
                                   _RecentSessionsCard(
@@ -130,7 +129,6 @@ class DashboardScreen extends StatelessWidget {
                                     durationFormat: settings.durationFormat,
                                     onOpenTimer: () => onNavigate(1),
                                     onViewReports: () => onNavigate(3),
-                                    isDark: isDark,
                                   ),
                                 ],
                               ),
@@ -144,19 +142,16 @@ class DashboardScreen extends StatelessWidget {
                                     todayMinutes: todayMinutes,
                                     goalMinutes: goalMinutes,
                                     progress: goalProgress,
-                                    isDark: isDark,
                                   ),
                                   const SizedBox(height: 20),
                                   _MomentumCard(
                                     currentStreak: streaks.currentStreak,
                                     bestStreak: streaks.bestStreak,
                                     weeklyMinutes: weekMinutes,
-                                    isDark: isDark,
                                   ),
                                   const SizedBox(height: 20),
                                   _QuickActionsCard(
                                     onNavigate: onNavigate,
-                                    isDark: isDark,
                                   ),
                                 ],
                               ),
@@ -180,7 +175,6 @@ class DashboardScreen extends StatelessWidget {
                                   todayMinutes: todayMinutes,
                                   goalMinutes: goalMinutes,
                                   progress: goalProgress,
-                                  isDark: isDark,
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -189,7 +183,6 @@ class DashboardScreen extends StatelessWidget {
                                   currentStreak: streaks.currentStreak,
                                   bestStreak: streaks.bestStreak,
                                   weeklyMinutes: weekMinutes,
-                                  isDark: isDark,
                                 ),
                               ),
                             ],
@@ -199,21 +192,18 @@ class DashboardScreen extends StatelessWidget {
                             todayMinutes: todayMinutes,
                             goalMinutes: goalMinutes,
                             progress: goalProgress,
-                            isDark: isDark,
                           ),
                           const SizedBox(height: 16),
                           _MomentumCard(
                             currentStreak: streaks.currentStreak,
                             bestStreak: streaks.bestStreak,
                             weeklyMinutes: weekMinutes,
-                            isDark: isDark,
                           ),
                         ],
                         const SizedBox(height: 16),
                         _WeeklyActivityCard(
                           days: week,
                           totalMinutes: weekMinutes,
-                          isDark: isDark,
                         ),
                         const SizedBox(height: 16),
                         _RecentSessionsCard(
@@ -221,12 +211,10 @@ class DashboardScreen extends StatelessWidget {
                           durationFormat: settings.durationFormat,
                           onOpenTimer: () => onNavigate(1),
                           onViewReports: () => onNavigate(3),
-                          isDark: isDark,
                         ),
                         const SizedBox(height: 16),
                         _QuickActionsCard(
                           onNavigate: onNavigate,
-                          isDark: isDark,
                         ),
                       ],
                     ],
@@ -518,13 +506,11 @@ class _TodayProgressCard extends StatelessWidget {
   final int todayMinutes;
   final int goalMinutes;
   final double progress;
-  final bool isDark;
 
   const _TodayProgressCard({
     required this.todayMinutes,
     required this.goalMinutes,
     required this.progress,
-    required this.isDark,
   });
 
   @override
@@ -605,13 +591,11 @@ class _MomentumCard extends StatelessWidget {
   final int currentStreak;
   final int bestStreak;
   final int weeklyMinutes;
-  final bool isDark;
 
   const _MomentumCard({
     required this.currentStreak,
     required this.bestStreak,
     required this.weeklyMinutes,
-    required this.isDark,
   });
 
   @override
@@ -674,12 +658,10 @@ class _MomentumCard extends StatelessWidget {
 class _WeeklyActivityCard extends StatelessWidget {
   final List<_DayActivity> days;
   final int totalMinutes;
-  final bool isDark;
 
   const _WeeklyActivityCard({
     required this.days,
     required this.totalMinutes,
-    required this.isDark,
   });
 
   @override
@@ -766,14 +748,12 @@ class _RecentSessionsCard extends StatelessWidget {
   final String durationFormat;
   final VoidCallback onOpenTimer;
   final VoidCallback onViewReports;
-  final bool isDark;
 
   const _RecentSessionsCard({
     required this.sessions,
     required this.durationFormat,
     required this.onOpenTimer,
     required this.onViewReports,
-    required this.isDark,
   });
 
   String _sessionName(ReadingSession session) {
@@ -863,9 +843,8 @@ class _RecentSessionsCard extends StatelessWidget {
 
 class _QuickActionsCard extends StatelessWidget {
   final ValueChanged<int> onNavigate;
-  final bool isDark;
 
-  const _QuickActionsCard({required this.onNavigate, required this.isDark});
+  const _QuickActionsCard({required this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
