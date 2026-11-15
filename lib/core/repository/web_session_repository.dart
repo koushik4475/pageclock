@@ -68,6 +68,27 @@ class WebSessionRepository implements SessionRepository {
   /// Commits current cache to disk.
   Future<void> _commit() async {
     try {
+      await _prefs.reload();
+      final diskRaw = _prefs.getString(_storageKey);
+      if (diskRaw != null && diskRaw.isNotEmpty) {
+        try {
+          final diskList = json.decode(diskRaw) as List<dynamic>;
+          for (final item in diskList) {
+            final diskSession = ReadingSession.fromMap(
+              Map<String, dynamic>.from(item as Map),
+            );
+            final memorySession = _cache[diskSession.id];
+            if (memorySession == null) {
+              _cache[diskSession.id] = diskSession;
+            } else {
+              if (diskSession.updatedAt > memorySession.updatedAt) {
+                _cache[diskSession.id] = diskSession;
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
       final list = _cache.values.map((s) => s.toMap()).toList();
       final saved = await _prefs.setString(_storageKey, json.encode(list));
       if (!saved) {

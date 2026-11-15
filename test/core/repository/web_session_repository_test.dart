@@ -67,15 +67,13 @@ void main() {
       // Tab A writes session A
       await tabA.saveSession(makeSession(id: 'sess_A', updatedAt: 1000, note: 'From Tab A'));
 
-      // Tab B reloads from storage and writes session B
-      await tabB.reloadFromStorage();
+      // Tab B writes session B (commit reloads disk and merges session A)
       await tabB.saveSession(makeSession(id: 'sess_B', updatedAt: 1000, note: 'From Tab B'));
 
-      // Tab A updates session A with a newer timestamp
+      // Tab A updates session A with a newer timestamp (commit merges session B from disk)
       await tabA.saveSession(makeSession(id: 'sess_A', updatedAt: 2000, note: 'Updated from Tab A'));
 
-      // Tab A also writes session B that tab B added when reloading
-      await tabA.reloadFromStorage();
+      // Tab B reloads from storage
       await tabB.reloadFromStorage();
 
       final tabBAll = await tabB.getAllSessions();
