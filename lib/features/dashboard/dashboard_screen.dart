@@ -504,8 +504,8 @@ class _FocusHeroCard extends StatelessWidget {
                         if (!compact) ...[
                           const SizedBox(width: 16),
                           ReadingDeskArtwork(
-                            width: 176,
-                            height: 144,
+                            width: 248,
+                            height: 186,
                             isDark: isDark,
                           ),
                         ],
