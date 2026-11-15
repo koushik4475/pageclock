@@ -58,7 +58,7 @@ class PageClockDashboardScreen extends ConsumerWidget {
     final maxDayMinutes = math.max(
       1,
       weekMinutes.fold<int>(0, (maxValue, value) => math.max(maxValue, value)),
-    );
+    ).toInt();
     final completed = sessions
         .where((s) => s.endedAtUtc != null && s.deletedAt == null)
         .toList()
