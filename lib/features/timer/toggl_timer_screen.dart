@@ -13,6 +13,7 @@ import '../../core/settings/app_settings.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/theme/theme_provider.dart';
 import '../../main.dart';
+import '../../stats/stats_engine.dart';
 import '../settings/toggl_settings_screen.dart';
 import 'widgets/fullscreen_ambient_focus_screen.dart';
 
@@ -935,19 +936,15 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
     final todayEnd = todayStart.add(const Duration(days: 1));
-    final todaySessions = allSessions.where((session) {
-      return session.deletedAt == null &&
-          session.endedAtUtc != null &&
-          session.startedAtUtc >= todayStart.millisecondsSinceEpoch &&
-          session.startedAtUtc < todayEnd.millisecondsSinceEpoch;
-    }).toList();
-    final todayCompletedMs =
-        todaySessions.fold<int>(0, (sum, session) => sum + session.durationMs);
-    final activeSessionIsToday = stopwatchState.currentSession != null &&
-        stopwatchState.currentSession!.startedAtUtc >=
-            todayStart.millisecondsSinceEpoch;
-    final todayTotalMs =
-        todayCompletedMs + (activeSessionIsToday ? stopwatchState.elapsedMs : 0);
+    final todayFocusSummary = StatsEngine.calculateDailyFocusSummary(
+      sessions: allSessions,
+      localStart: todayStart,
+      localEnd: todayEnd,
+      currentSession: stopwatchState.currentSession,
+      nowUtcMs: now.toUtc().millisecondsSinceEpoch,
+    );
+    final todaySessions = todayFocusSummary.completedSessions;
+    final todayTotalMs = todayFocusSummary.totalMilliseconds;
     final taskDescription = ref.watch(focusTaskDescriptionProvider);
     final selectedProject = ref.watch(focusSelectedProjectProvider);
     ref.listen<StopwatchState>(stopwatchProvider, (previous, next) {

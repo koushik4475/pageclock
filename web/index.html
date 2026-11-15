@@ -4,70 +4,107 @@
   <base href="$FLUTTER_BASE_HREF">
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="PageClock - Offline-first reading focus tracker with precision analytics and PDF reports.">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="PageClock helps you read with focus, track study sessions, use Pomodoro timers and keep a beautiful fullscreen clock. Works offline.">
+  <meta name="theme-color" content="#FFF4E6">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="PageClock">
+  <meta property="og:title" content="PageClock — Read · Focus · Track">
+  <meta property="og:description" content="A calm, offline-first reading and focus timer with beautiful clock faces.">
+  <meta property="og:url" content="https://pageclock.pages.dev/">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="PageClock — Read · Focus · Track">
+  <meta name="twitter:description" content="Read with focus. Track your study sessions. Stay on time.">
+  <link rel="canonical" href="https://pageclock.pages.dev/">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
 
-  <!-- iOS meta tags & icons -->
+  <!-- iOS / iPadOS Home Screen metadata -->
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="PageClock">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>PageClock</title>
+  <!-- Browser icon and installable web app manifest -->
+  <link rel="icon" type="image/png" sizes="48x48" href="favicon.png">
   <link rel="manifest" href="manifest.json">
 
+  <title>PageClock — Read · Focus · Track</title>
+
   <style>
-    body {
-      background-color: #09090B;
+    :root {
+      color-scheme: light;
+      --pageclock-cream: #FFF4E6;
+      --pageclock-ink: #111827;
+      --pageclock-orange: #F97316;
+      --pageclock-beige: #E6D5C0;
+    }
+    * { box-sizing: border-box; }
+    html, body {
       margin: 0;
-      padding: 0;
-      overflow: hidden;
+      width: 100%;
+      min-height: 100%;
+      background: var(--pageclock-cream);
+    }
+    body {
+      min-height: 100vh;
+      min-height: 100svh;
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      padding: 24px;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--pageclock-ink);
     }
     .loading-container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
+      text-align: center;
     }
-    .logo-badge {
-      width: 44px;
-      height: 44px;
-      background: linear-gradient(135deg, #6366F1, #8B5CF6);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-weight: 900;
-      font-size: 24px;
-      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+    .brand-icon {
+      display: block;
+      width: 76px;
+      height: 76px;
+      border-radius: 18px;
+      object-fit: contain;
+    }
+    .brand-name {
+      font-size: 27px;
+      line-height: 1.05;
+      font-weight: 800;
+      letter-spacing: -1.1px;
+    }
+    .brand-name .clock { color: var(--pageclock-orange); }
+    .brand-tagline {
+      margin-top: 4px;
+      color: #586174;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2.2px;
     }
     .loading-bar {
-      width: 140px;
-      height: 2px;
-      background: #27272A;
+      width: 144px;
+      height: 3px;
+      margin-top: 14px;
+      background: var(--pageclock-beige);
       overflow: hidden;
-      border-radius: 2px;
+      border-radius: 999px;
     }
     .loading-fill {
       width: 100%;
       height: 100%;
-      background: #6366F1;
+      background: var(--pageclock-orange);
+      transform-origin: 0 50%;
       animation: progress 1.5s infinite ease-in-out;
-      transform-origin: 0% 50%;
     }
     @keyframes progress {
-      0% { transform: scaleX(0); }
-      50% { transform: scaleX(0.7); }
+      0% { transform: scaleX(0); opacity: .75; }
+      60% { transform: scaleX(.72); opacity: 1; }
       100% { transform: scaleX(1); opacity: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .loading-fill { animation: none; transform: scaleX(.65); }
     }
   </style>
 
@@ -80,9 +117,13 @@
   </script>
 </head>
 <body>
-  <div class="loading-container" id="splash">
-    <div class="logo-badge">⚡</div>
-    <div class="loading-bar">
+  <div class="loading-container" id="splash" role="status" aria-label="Loading PageClock">
+    <img class="brand-icon" src="icons/Icon-192.png" alt="">
+    <div>
+      <div class="brand-name"><span>Page</span><span class="clock">Clock</span></div>
+      <div class="brand-tagline">READ · FOCUS · TRACK</div>
+    </div>
+    <div class="loading-bar" aria-hidden="true">
       <div class="loading-fill"></div>
     </div>
   </div>

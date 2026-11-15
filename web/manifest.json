@@ -3,12 +3,16 @@
   "short_name": "PageClock",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#09090B",
-  "theme_color": "#E040FB",
-  "description": "Offline-first reading focus tracker with precision analytics and PDF reports.",
+  "background_color": "#FFF4E6",
+  "theme_color": "#FFF4E6",
+  "description": "Offline-first reading focus tracker — read, focus and track your time.",
   "orientation": "any",
   "prefer_related_applications": false,
-  "categories": ["productivity", "education", "utilities"],
+  "categories": [
+    "productivity",
+    "education",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "icons/Icon-192.png",

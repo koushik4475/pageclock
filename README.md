@@ -1,4 +1,7 @@
-# PageClock ⏱️ (Reading Focus Tracker)
+# PageClock | Offline Reading Focus Tracker, Pomodoro Timer and Study Analytics App
+
+PageClock is an offline-first reading and focus tracker built with Flutter, Riverpod, Drift (SQLite), and fl_chart. It combines reading-session timing, Pomodoro-style focus sessions, progress analytics, customizable clock themes, and local data storage so users can track focused study without an account or cloud dependency. The repository also documents Android release updates and installation options.
+
 
 [![PageClock CI / CD & Automated Release](https://github.com/koushik4475/pageclock/actions/workflows/ci.yml/badge.svg)](https://github.com/koushik4475/pageclock/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -12,11 +15,12 @@ PageClock is an offline-first reading focus tracker built with Flutter, Riverpod
 
 - **Dual-Mode Focus Experience**: Switch seamlessly between a high-density Toggl Track timeline / entry list and a full-featured Pomodoro ring countdown.
 - **Apple Mac Retro Flip Clock**: Ambient Fliqlo-style flip clock with authentic matte plates, central creasing slit, and StandBy clock mode.
-- **Eleven Refined Themes**:
+- **Twelve Refined Themes**:
   - `Obsidian`: Quiet dark surfaces with an indigo glow.
   - `Porcelain`: Crisp light surfaces with refined slate.
   - `Pastel Waves`: Cream, rose, butter yellow, and sky blue.
   - `Midnight Aurora`, `Ocean Mist`, `Lavender Haze`, `Forest Grove`, `Sunset Ember`, `Rose Quartz`, `Nordic Frost`, and `Solar Citrus`.
+  - `PageClock Classic`: the signature warm cream, charcoal and focus-orange brand palette.
   - Theme selection is persisted locally.
 - **100% Offline-First Persistence**: Powered by SQLite via Drift on mobile and desktop, and SharedPreferences-backed storage on Web.
 - **Complete Data Portability**:
