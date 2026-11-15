@@ -8,7 +8,7 @@ import '../../core/engine/stopwatch_engine.dart';
 import '../../core/format/formatters.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/settings/app_settings.dart';
-import '../../core/widgets/pageclock_brand_mark.dart';
+import 'reading_desk_artwork.dart';
 import '../../stats/stats_engine.dart';
 
 /// Responsive home dashboard using only data already tracked by PageClock.
@@ -101,7 +101,8 @@ class DashboardScreen extends StatelessWidget {
                       _DashboardHeader(
                         greeting: greetingLine,
                         date: now,
-                        isDark: isDark,
+                        profileName: profile,
+                        onOpenSettings: () => onNavigate(4),
                       ),
                       const SizedBox(height: 24),
                       if (isDesktop)
@@ -234,12 +235,14 @@ class DashboardScreen extends StatelessWidget {
 class _DashboardHeader extends StatelessWidget {
   final String greeting;
   final DateTime date;
-  final bool isDark;
+  final String profileName;
+  final VoidCallback onOpenSettings;
 
   const _DashboardHeader({
     required this.greeting,
     required this.date,
-    required this.isDark,
+    required this.profileName,
+    required this.onOpenSettings,
   });
 
   @override
@@ -273,25 +276,44 @@ class _DashboardHeader extends StatelessWidget {
             ],
           ),
         ),
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: colors.surface,
-            shape: BoxShape.circle,
-            border: Border.all(color: colors.outline),
-          ),
-          child: Center(
-            child: PageClockBrandMark(
-              size: 30,
-              inkColor: colors.onSurface,
-              accentColor: colors.primary,
+        Tooltip(
+          message: 'Open settings',
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onOpenSettings,
+              borderRadius: BorderRadius.circular(24),
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: colors.primary.withOpacity(.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: colors.outline),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  _profileInitials(profileName),
+                  style: TextStyle(
+                    color: colors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: .4,
+                  ),
+                ),
+              ),
             ),
           ),
         ),
       ],
     );
   }
+}
+
+String _profileInitials(String name) {
+  final parts = name.trim().split(RegExp(r'\\s+')).where((part) => part.isNotEmpty).toList();
+  if (parts.isEmpty) return 'PC';
+  return parts.take(2).map((part) => part.substring(0, 1)).join().toUpperCase();
 }
 
 class _FocusHeroCard extends StatelessWidget {
@@ -460,10 +482,10 @@ class _FocusHeroCard extends StatelessWidget {
                         ),
                         if (!compact) ...[
                           const SizedBox(width: 16),
-                          PageClockBrandMark(
-                            size: 112,
-                            inkColor: isDark ? const Color(0xFFE7EDF4) : const Color(0xFF26303B),
-                            accentColor: colors.primary,
+                          ReadingDeskArtwork(
+                            width: 176,
+                            height: 144,
+                            isDark: isDark,
                           ),
                         ],
                       ],
