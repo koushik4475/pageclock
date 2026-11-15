@@ -11,9 +11,53 @@ class ApkInstallResult {
   const ApkInstallResult({required this.success, required this.message});
 }
 
+/// Thin, testable bridge to the native Android Package Installer handler.
+class AndroidApkInstallerChannel {
+  static const String channelName = 'com.example.pageclock/apk_installer';
+
+  final MethodChannel _channel;
+
+  const AndroidApkInstallerChannel({MethodChannel? channel})
+      : _channel = channel ?? const MethodChannel(channelName);
+
+  Future<ApkInstallResult> install(File apkFile) async {
+    if (!await apkFile.exists()) {
+      return const ApkInstallResult(
+        success: false,
+        message: 'The verified APK is no longer available. Please download it again.',
+      );
+    }
+
+    try {
+      final launched = await _channel.invokeMethod<bool>(
+        'installApk',
+        <String, Object>{'path': apkFile.absolute.path},
+      );
+      if (launched != true) {
+        return const ApkInstallResult(
+          success: false,
+          message: 'Android Package Installer did not confirm that it opened. Please try again or use Share APK.',
+        );
+      }
+      return const ApkInstallResult(
+        success: true,
+        message: 'Android Package Installer opened. Confirm Install in the system prompt to complete the update.',
+      );
+    } on PlatformException catch (error) {
+      return ApkInstallResult(
+        success: false,
+        message: error.message ?? 'Could not open Android Package Installer.',
+      );
+    } catch (error) {
+      return ApkInstallResult(
+        success: false,
+        message: 'Failed to launch installer: $error',
+      );
+    }
+  }
+}
+
 class ApkInstaller {
-  static const MethodChannel _installerChannel =
-      MethodChannel('com.example.pageclock/apk_installer');
 
   /// Launches Android's Package Installer directly using a FileProvider URI.
   /// Sharing remains a separate, explicitly selected user action.
@@ -43,14 +87,7 @@ class ApkInstaller {
         }
       }
 
-      await _installerChannel.invokeMethod<bool>(
-        'installApk',
-        <String, Object>{'path': apkFile.absolute.path},
-      );
-      return const ApkInstallResult(
-        success: true,
-        message: 'Android Package Installer opened. Confirm Install in the system prompt to complete the update.',
-      );
+      return await AndroidApkInstallerChannel().install(apkFile);
     } on PlatformException catch (error) {
       return ApkInstallResult(
         success: false,
