@@ -62,7 +62,7 @@ In accordance with GDPR, CCPA, and Apple/Google account management requirements,
 - **Complete In-App Account Deletion:**
   - You can permanently delete your cloud account at any time directly within the application (**Account Menu → Delete Account**).
   - Confirming account deletion invokes a dedicated server-side routine (`delete-account` Edge Function) that immediately and permanently deletes your authentication identity from `auth.users`.
-  - Database foreign keys cascade deletion, permanently erasing all associated reading records and cloud metadata.
+  - Database foreign keys cascade deletion (cascades deletion), permanently erasing all associated reading records and cloud metadata.
   - Your local user partition and sync metadata are wiped from the browser, and your session reverts cleanly to local Guest mode.
 
 ---

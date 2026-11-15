@@ -199,8 +199,6 @@ void main() {
     });
 
     test('deleteAccount is blocked when stopwatch is running', () async {
-      when(() => mockSessionRepo.saveSession(any())).thenAnswer((_) async {});
-      when(() => mockSessionRepo.getActiveSession()).thenAnswer((_) async => null);
       when(() => mockAuthRepo.authStateChanges()).thenAnswer((_) => const Stream.empty());
       when(() => mockAuthRepo.currentUser).thenReturn(
         const AuthUser(id: 'user-del-test', email: 'test@example.com'),
@@ -209,7 +207,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           sharedPreferencesProvider.overrideWithValue(prefs),
-          sessionRepositoryProvider.overrideWithValue(mockSessionRepo),
+          sessionRepositoryProvider.overrideWithValue(InMemorySessionRepository()),
           authRepositoryProvider.overrideWithValue(mockAuthRepo),
         ],
       );
@@ -238,7 +236,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           sharedPreferencesProvider.overrideWithValue(prefs),
-          sessionRepositoryProvider.overrideWithValue(mockSessionRepo),
+          sessionRepositoryProvider.overrideWithValue(InMemorySessionRepository()),
           authRepositoryProvider.overrideWithValue(mockAuthRepo),
         ],
       );
