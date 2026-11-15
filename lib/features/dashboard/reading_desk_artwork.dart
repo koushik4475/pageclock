@@ -67,7 +67,7 @@ class _ReadingDeskPainter extends CustomPainter {
         ..shader = RadialGradient(
           colors: [glow, glow.withOpacity(0)],
         ).createShader(
-          const Rect.fromCircle(center: Offset(138, 72), radius: 92),
+          Rect.fromCircle(center: Offset(138, 72), radius: 92),
         ),
     );
 
