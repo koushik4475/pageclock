@@ -436,7 +436,7 @@ class _FocusHeroCard extends StatelessWidget {
                 const SizedBox(height: 22),
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    final compact = constraints.maxWidth < 520;
+                    final compact = constraints.maxWidth < 480;
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
