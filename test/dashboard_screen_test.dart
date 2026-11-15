@@ -85,7 +85,8 @@ void main() {
 
     testWidgets('quick actions navigate to real PageClock sections', (tester) async {
       var selectedIndex = -1;
-      await tester.view.setPhysicalSize(const Size(390, 844));
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
       await tester.pumpWidget(
         MaterialApp(
           theme: appThemeDataFor(AppThemeId.pageClockClassic),
