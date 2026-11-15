@@ -5,6 +5,7 @@ import 'package:pageclock/core/models/reading_session.dart';
 import 'package:pageclock/core/settings/app_settings.dart';
 import 'package:pageclock/core/theme/theme_provider.dart';
 import 'package:pageclock/features/dashboard/dashboard_screen.dart';
+import 'package:pageclock/features/dashboard/reading_desk_artwork.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -41,6 +42,11 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Recent sessions'), findsOneWidget);
+        expect(
+          find.byType(ReadingDeskArtwork),
+          viewport.width >= 600 ? findsOneWidget : findsNothing,
+          reason: 'Reading artwork should appear only when the hero has room',
+        );
         expect(find.text('Your reading journey starts here'), findsOneWidget);
         expect(find.text('Start your first session'), findsOneWidget);
         expect(tester.takeException(), isNull,
@@ -84,7 +90,7 @@ void main() {
       }
     });
 
-    testWidgets('quick actions navigate to real PageClock sections', (tester) async {
+    testWidgets('quick actions and profile navigate to real PageClock sections', (tester) async {
       var selectedIndex = -1;
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -115,6 +121,9 @@ void main() {
       await tester.ensureVisible(reportsAction);
       await tester.tap(reportsAction);
       expect(selectedIndex, 3);
+
+      await tester.tap(find.byTooltip('Open settings'));
+      expect(selectedIndex, 4);
     });
   });
 }
