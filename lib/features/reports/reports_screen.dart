@@ -527,7 +527,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildFilterPill(String title, bool isDark, ColorScheme colorScheme) {
