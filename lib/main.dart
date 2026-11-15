@@ -126,8 +126,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0C),
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -136,14 +138,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             builder: (context, _) {
               return Center(
                 child: Container(
-                  width: 320,
-                  height: 320,
+                  width: 340,
+                  height: 340,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        Colors.white.withOpacity(0.04 * _glowPulse.value),
-                        const Color(0xFFE4E4E7).withOpacity(0.015 * _glowPulse.value),
+                        colors.primary.withOpacity(0.12 * _glowPulse.value),
+                        colors.secondary.withOpacity(0.04 * _glowPulse.value),
                         Colors.transparent,
                       ],
                       stops: const [0.0, 0.6, 1.0],
@@ -165,49 +167,54 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          width: 76,
-                          height: 76,
+                          width: 88,
+                          height: 88,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF141417),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: const Color(0xFF27272A),
-                              width: 1.2,
-                            ),
+                            color: colors.surface,
+                            borderRadius: BorderRadius.circular(25),
+                            border: Border.all(color: colors.outline),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.4),
-                                blurRadius: 24,
+                                color: Colors.black.withOpacity(theme.brightness == Brightness.dark ? 0.28 : 0.08),
+                                blurRadius: 26,
                                 offset: const Offset(0, 10),
                               ),
                             ],
                           ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.menu_book_rounded,
-                              size: 34,
-                              color: Color(0xFFE040FB),
+                          child: Center(
+                            child: PageClockBrandMark(
+                              size: 60,
+                              inkColor: colors.onSurface,
+                              accentColor: colors.primary,
                             ),
                           ),
                         ),
                         const SizedBox(height: 20),
-                        const Text(
-                          'PageClock',
-                          style: TextStyle(
-                            color: Color(0xFFFAFAFA),
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
+                        RichText(
+                          text: TextSpan(
+                            style: TextStyle(
+                              fontSize: 25,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.8,
+                              color: colors.onSurface,
+                            ),
+                            children: [
+                              const TextSpan(text: 'Page'),
+                              TextSpan(
+                                text: 'Clock',
+                                style: TextStyle(color: colors.primary),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Offline-First Reading & Focus Tracker',
+                        const SizedBox(height: 7),
+                        Text(
+                          'READ · FOCUS · TRACK',
                           style: TextStyle(
-                            color: Color(0xFF71717A),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: 0.3,
+                            color: colors.onSurfaceVariant,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 2.0,
                           ),
                         ),
                       ],
@@ -221,7 +228,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       ),
     );
   }
-}
+}}
 
 // -------------------------------------------------------------
 // Main Navigation Shell (Responsive Desktop Sidebar & Mobile Tabs)
