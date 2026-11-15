@@ -1,11 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/account/account_scope.dart';
 import '../../../core/settings/app_settings.dart';
-import '../../../core/theme/theme_provider.dart';
 import '../../../core/widgets/pageclock_brand_mark.dart';
 import '../../../main.dart';
 import '../../auth/presentation/auth_dialogs.dart';
