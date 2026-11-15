@@ -1050,8 +1050,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           ),
         ],
       ),
-      body: Stack(
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1240),
+          child: Stack(
+            children: [
           // Bottom Organic Pastel Waves for special1
           if (isSpecial1)
             const Positioned(
@@ -1187,7 +1190,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 _buildRunningBottomBar(context, isDark, stopwatchState, taskDescription, selectedProject, isSpecial1, colorScheme, accent),
             ],
           ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }
