@@ -71,6 +71,11 @@ extension AppThemeIdExtension on AppThemeId {
 
   ThemePalette get palette => themePalettes[this]!;
 
+  /// The approved PageClock dashboard appearance with the opposite brightness.
+  /// Other gallery themes also switch into the matching Classic/Night Focus pair.
+  AppThemeId get dashboardCounterpart =>
+      palette.isDark ? AppThemeId.pageClockClassic : AppThemeId.defaultDark;
+
   static AppThemeId fromStorage(String? value) {
     for (final id in AppThemeId.values) {
       // Accept the original enum names as well as stable storage IDs.

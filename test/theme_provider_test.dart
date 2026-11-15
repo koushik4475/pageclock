@@ -68,6 +68,20 @@ void main() {
       expect(palette.background, const Color(0xFF080B12));
     });
 
+    test('dashboard toggle always selects the opposite PageClock appearance', () {
+      for (final theme in AppThemeId.values) {
+        final counterpart = theme.dashboardCounterpart;
+        expect(
+          counterpart,
+          theme.palette.isDark
+              ? AppThemeId.pageClockClassic
+              : AppThemeId.defaultDark,
+          reason: '${theme.displayName} should switch to the paired dashboard theme',
+        );
+        expect(counterpart.palette.isDark, isNot(theme.palette.isDark));
+      }
+    });
+
     test('paired dashboard themes persist and update Material brightness', () async {
       final prefs = await SharedPreferences.getInstance();
       final container = ProviderContainer(

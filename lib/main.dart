@@ -291,9 +291,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
 
     void toggleTheme() {
       final currentTheme = ref.read(appThemeIdProvider);
-      final nextTheme = currentTheme == AppThemeId.pageClockClassic
-          ? AppThemeId.defaultDark
-          : AppThemeId.pageClockClassic;
+      final nextTheme = currentTheme.dashboardCounterpart;
       unawaited(
         ref.read(settingsProvider.notifier).update(
           (currentSettings) => currentSettings.copyWith(
