@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -341,10 +342,6 @@ class _FocusHeroCard extends StatelessWidget {
         : ((session?.subjectId?.trim().isNotEmpty ?? false)
             ? session!.subjectId!.trim()
             : 'A focused reading session');
-    final surface = colors.surface;
-    final background = isDark
-        ? const Color(0xFF101720)
-        : const Color(0xFFFFEBD5);
     final glow = colors.primary.withOpacity(isDark ? 0.26 : 0.13);
 
     return Container(
@@ -434,7 +431,7 @@ class _FocusHeroCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                hasSession ? timer : timer,
+                                timer,
                                 maxLines: 1,
                                 style: TextStyle(
                                   fontSize: compact ? 49 : 68,
@@ -712,7 +709,7 @@ class _WeeklyActivityCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: days.map((day) {
                 final ratio = day.minutes / maxMinutes;
-                final barHeight = day.minutes == 0 ? 4.0 : (ratio * 88).clamp(8.0, 88.0);
+                final barHeight = day.minutes == 0 ? 4.0 : (ratio * 88).clamp(8.0, 88.0).toDouble();
                 final isToday = DateUtils.isSameDay(day.date, DateTime.now());
                 return Expanded(
                   child: Padding(
