@@ -55,6 +55,35 @@ void main() {
       }
     });
 
+    testWidgets('reading desk scene paints in both themes at hero size', (tester) async {
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      tester.view.physicalSize = const Size(900, 600);
+      tester.view.devicePixelRatio = 1;
+
+      for (final isDark in [false, true]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: appThemeDataFor(
+              isDark ? AppThemeId.defaultDark : AppThemeId.pageClockClassic,
+            ),
+            home: Scaffold(
+              body: Center(
+                child: ReadingDeskArtwork(
+                  width: 248,
+                  height: 186,
+                  isDark: isDark,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(ReadingDeskArtwork), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+    });
+
     testWidgets('shows actual recent session data in light and dark modes', (tester) async {
       final now = DateTime.now().toUtc().millisecondsSinceEpoch;
       final session = ReadingSession(
