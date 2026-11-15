@@ -37,7 +37,7 @@ extension AppThemeIdExtension on AppThemeId {
 
   String get displayName {
     switch (this) {
-      case AppThemeId.defaultDark: return 'Obsidian';
+      case AppThemeId.defaultDark: return 'PageClock Night';
       case AppThemeId.defaultLight: return 'Porcelain';
       case AppThemeId.special1: return 'Pastel Waves';
       case AppThemeId.midnightAurora: return 'Midnight Aurora';
@@ -54,7 +54,7 @@ extension AppThemeIdExtension on AppThemeId {
 
   String get description {
     switch (this) {
-      case AppThemeId.defaultDark: return 'Quiet obsidian with a vivid indigo glow';
+      case AppThemeId.defaultDark: return 'Midnight navy, warm orange and focused contrast';
       case AppThemeId.defaultLight: return 'Crisp white surfaces and refined slate';
       case AppThemeId.special1: return 'Cream, rose, butter yellow and sky blue';
       case AppThemeId.midnightAurora: return 'Deep teal with luminous mint and ice';
@@ -112,18 +112,23 @@ class ThemePalette {
 
 const Map<AppThemeId, ThemePalette> themePalettes = {
   AppThemeId.defaultDark: ThemePalette(
-    background: Color(0xFF09090F),
-    surface: Color(0xFF15151F),
-    primary: Color(0xFF796BFF),
-    onPrimary: Color(0xFF100D32),
-    secondary: Color(0xFF38BDF8),
-    tertiary: Color(0xFF34D399),
-    text: Color(0xFFF7F7FC),
-    textMuted: Color(0xFFA6A6B8),
-    outline: Color(0xFF303041),
-    ringTrack: Color(0xFF29263F),
+    background: Color(0xFF080B12),
+    surface: Color(0xFF141824),
+    primary: Color(0xFFFF7A00),
+    onPrimary: Color(0xFF111827),
+    secondary: Color(0xFFFFB366),
+    tertiary: Color(0xFF334155),
+    text: Color(0xFFE5E7EB),
+    textMuted: Color(0xFF94A3B8),
+    outline: Color(0xFF334155),
+    ringTrack: Color(0xFF263244),
     isDark: true,
-    previewColors: [Color(0xFF09090F), Color(0xFF796BFF), Color(0xFF38BDF8), Color(0xFF34D399)],
+    previewColors: [
+      Color(0xFF080B12),
+      Color(0xFFFF7A00),
+      Color(0xFF141824),
+      Color(0xFFE5E7EB),
+    ],
   ),
   AppThemeId.defaultLight: ThemePalette(
     background: Color(0xFFF7F8FC),
