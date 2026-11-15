@@ -64,6 +64,7 @@ void main() {
 
       for (final themeId in [AppThemeId.pageClockClassic, AppThemeId.defaultDark]) {
         tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1;
         await tester.pumpWidget(
           MaterialApp(
             theme: appThemeDataFor(themeId),
@@ -100,11 +101,19 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Focus timer'));
+      final focusAction = find.text('Focus timer');
+      await tester.ensureVisible(focusAction);
+      await tester.tap(focusAction);
       expect(selectedIndex, 1);
-      await tester.tap(find.text('Calendar'));
+
+      final calendarAction = find.text('Calendar');
+      await tester.ensureVisible(calendarAction);
+      await tester.tap(calendarAction);
       expect(selectedIndex, 2);
-      await tester.tap(find.text('Reports'));
+
+      final reportsAction = find.text('Reports');
+      await tester.ensureVisible(reportsAction);
+      await tester.tap(reportsAction);
       expect(selectedIndex, 3);
     });
   });
