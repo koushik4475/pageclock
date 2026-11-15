@@ -1,4 +1,7 @@
-# PageClock ⏱️ (Reading Focus Tracker)
+# PageClock | Offline Reading Focus Tracker, Pomodoro Timer and Study Analytics App
+
+PageClock is an offline-first reading and focus tracker built with Flutter, Riverpod, Drift (SQLite), and fl_chart. It combines reading-session timing, Pomodoro-style focus sessions, progress analytics, customizable clock themes, and local data storage so users can track focused study without an account or cloud dependency. The repository also documents Android release updates and installation options.
+
 
 [![PageClock CI / CD & Automated Release](https://github.com/koushik4475/pageclock/actions/workflows/ci.yml/badge.svg)](https://github.com/koushik4475/pageclock/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
