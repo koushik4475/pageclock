@@ -37,7 +37,7 @@ extension AppThemeIdExtension on AppThemeId {
 
   String get displayName {
     switch (this) {
-      case AppThemeId.defaultDark: return 'Obsidian';
+      case AppThemeId.defaultDark: return 'Night Focus';
       case AppThemeId.defaultLight: return 'Porcelain';
       case AppThemeId.special1: return 'Pastel Waves';
       case AppThemeId.midnightAurora: return 'Midnight Aurora';
@@ -54,7 +54,7 @@ extension AppThemeIdExtension on AppThemeId {
 
   String get description {
     switch (this) {
-      case AppThemeId.defaultDark: return 'Quiet obsidian with a vivid indigo glow';
+      case AppThemeId.defaultDark: return 'Cinematic charcoal with a warm focus-orange glow';
       case AppThemeId.defaultLight: return 'Crisp white surfaces and refined slate';
       case AppThemeId.special1: return 'Cream, rose, butter yellow and sky blue';
       case AppThemeId.midnightAurora: return 'Deep teal with luminous mint and ice';
@@ -112,18 +112,18 @@ class ThemePalette {
 
 const Map<AppThemeId, ThemePalette> themePalettes = {
   AppThemeId.defaultDark: ThemePalette(
-    background: Color(0xFF09090F),
-    surface: Color(0xFF15151F),
-    primary: Color(0xFF796BFF),
-    onPrimary: Color(0xFF100D32),
-    secondary: Color(0xFF38BDF8),
-    tertiary: Color(0xFF34D399),
-    text: Color(0xFFF7F7FC),
-    textMuted: Color(0xFFA6A6B8),
-    outline: Color(0xFF303041),
-    ringTrack: Color(0xFF29263F),
+    background: Color(0xFF090B10),
+    surface: Color(0xFF151A23),
+    primary: Color(0xFFFF7A00),
+    onPrimary: Color(0xFF111827),
+    secondary: Color(0xFFFFB36A),
+    tertiary: Color(0xFF6D7D91),
+    text: Color(0xFFF8FAFC),
+    textMuted: Color(0xFFA3ADBA),
+    outline: Color(0xFF2D3542),
+    ringTrack: Color(0xFF28313D),
     isDark: true,
-    previewColors: [Color(0xFF09090F), Color(0xFF796BFF), Color(0xFF38BDF8), Color(0xFF34D399)],
+    previewColors: [Color(0xFF090B10), Color(0xFFFF7A00), Color(0xFF151A23), Color(0xFFF8FAFC)],
   ),
   AppThemeId.defaultLight: ThemePalette(
     background: Color(0xFFF7F8FC),
