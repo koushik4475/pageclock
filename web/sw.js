@@ -1,6 +1,6 @@
 // PageClock offline cache. Use network-first so web deployments are not
 // hidden behind a stale cache-first main.dart.js or index.html.
-const CACHE_NAME = 'pageclock-brand-v3';
+const CACHE_NAME = 'pageclock-brand-v4';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -42,6 +42,9 @@ self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(request.url);
   if (requestUrl.origin !== self.location.origin) return;
 
+  // Bypass caching and cache writes for requests carrying auth callback/error params.
+  const hasAuthParams = requestUrl.searchParams.has('code') || requestUrl.searchParams.has('error');
+
   event.respondWith((async () => {
     const cache = await caches.open(CACHE_NAME);
 
@@ -50,13 +53,15 @@ self.addEventListener('fetch', (event) => {
     // still have the latest successfully downloaded shell and assets.
     try {
       const response = await fetch(request);
-      if (response && response.status === 200 && response.type === 'basic') {
+      if (response && response.status === 200 && response.type === 'basic' && !hasAuthParams) {
         await cache.put(request, response.clone());
       }
       return response;
     } catch (_) {
-      const cached = await cache.match(request);
-      if (cached) return cached;
+      if (!hasAuthParams) {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+      }
 
       if (request.mode === 'navigate') {
         const shell = await cache.match('./index.html');
