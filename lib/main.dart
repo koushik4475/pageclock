@@ -228,7 +228,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       ),
     );
   }
-}}
+}
 
 // -------------------------------------------------------------
 // Main Navigation Shell (Responsive Desktop Sidebar & Mobile Tabs)
@@ -589,3 +589,4 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
     );
   }
 
+}
