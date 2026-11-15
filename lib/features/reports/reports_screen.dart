@@ -181,7 +181,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ),
             tooltip: 'Settings',
             onPressed: () {
-              ref.read(mainTabNavigationIndexProvider.notifier).state = 3;
+              ref.read(mainTabNavigationIndexProvider.notifier).state = 4;
             },
           ),
         ],
