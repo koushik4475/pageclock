@@ -153,13 +153,16 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             ),
             tooltip: 'Settings',
             onPressed: () {
-              ref.read(mainTabNavigationIndexProvider.notifier).state = 3;
+              ref.read(mainTabNavigationIndexProvider.notifier).state = 4;
             },
           ),
         ],
       ),
-      body: Column(
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1240),
+          child: Column(
+            children: [
           // Selected date row + Total time header
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -303,7 +306,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               ),
             ),
           ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }
