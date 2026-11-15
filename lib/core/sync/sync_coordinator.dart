@@ -36,6 +36,7 @@ class SyncCoordinator extends StateNotifier<SyncState> {
   bool _syncInProgress = false;
   bool _queuedSync = false;
   Timer? _debounceTimer;
+  int consecutiveFailures = 0;
 
   SyncCoordinator({
     required SharedPreferences prefs,
@@ -92,9 +93,9 @@ class SyncCoordinator extends StateNotifier<SyncState> {
       await SyncWebLock.runWithLock(lockName, () async {
         await _performSyncCycle(firstPullOverlap: firstPullOverlap);
       });
-      _consecutiveFailures = 0;
+      consecutiveFailures = 0;
     } catch (e, st) {
-      _consecutiveFailures++;
+      consecutiveFailures++;
       debugPrint('[SyncCoordinator] Sync failed: $e\n$st');
       final errorMsg = e.toString();
       if (errorMsg.contains('reading_sessions_user_cap') ||

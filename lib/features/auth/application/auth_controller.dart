@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState, AuthUser;
 import '../../../core/account/account_scope.dart';
 import '../../../core/cloud/auth_callback.dart';
 import '../../../core/cloud/cloud_config.dart';
