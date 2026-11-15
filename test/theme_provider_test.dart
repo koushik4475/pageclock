@@ -19,6 +19,24 @@ void main() {
       );
     });
 
+    test('Night Focus uses the Option C charcoal and orange palette', () {
+      final palette = AppThemeId.defaultDark.palette;
+      expect(AppThemeId.defaultDark.storageId, 'default_dark');
+      expect(AppThemeId.defaultDark.displayName, 'Night Focus');
+      expect(palette.background, const Color(0xFF090B10));
+      expect(palette.surface, const Color(0xFF151A23));
+      expect(palette.primary, const Color(0xFFFF7A00));
+      expect(palette.text, const Color(0xFFF8FAFC));
+      expect(
+        _contrastRatio(palette.primary, palette.onPrimary),
+        greaterThanOrEqualTo(4.5),
+      );
+      expect(
+        _contrastRatio(palette.surface, palette.text),
+        greaterThanOrEqualTo(4.5),
+      );
+    });
+
     test('PageClock Classic uses the approved brand palette and accessible contrast', () {
       final palette = AppThemeId.pageClockClassic.palette;
       expect(AppThemeId.pageClockClassic.storageId, 'pageclock_classic');
