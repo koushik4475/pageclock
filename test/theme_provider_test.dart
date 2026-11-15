@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pageclock/core/settings/app_settings.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pageclock/core/theme/theme_provider.dart';
 
@@ -10,12 +13,33 @@ double _contrastRatio(Color a, Color b) {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   group('PageClock theme gallery', () {
     test('offers twelve named themes, including the PageClock brand palette', () {
       expect(AppThemeId.values, hasLength(12));
       expect(
         AppThemeId.values.map((theme) => theme.displayName).toSet(),
         hasLength(12),
+      );
+    });
+
+    test('Night Focus uses the Option C charcoal and orange palette', () {
+      final palette = AppThemeId.defaultDark.palette;
+      expect(AppThemeId.defaultDark.storageId, 'default_dark');
+      expect(AppThemeId.defaultDark.displayName, 'Night Focus');
+      expect(palette.background, const Color(0xFF080B12));
+      expect(palette.surface, const Color(0xFF141824));
+      expect(palette.primary, const Color(0xFFFF7A00));
+      expect(palette.text, const Color(0xFFE5E7EB));
+      expect(
+        _contrastRatio(palette.primary, palette.onPrimary),
+        greaterThanOrEqualTo(4.5),
+      );
+      expect(
+        _contrastRatio(palette.surface, palette.text),
+        greaterThanOrEqualTo(4.5),
       );
     });
 
@@ -33,6 +57,63 @@ void main() {
       expect(
         _contrastRatio(palette.surface, palette.text),
         greaterThanOrEqualTo(4.5),
+      );
+    });
+
+    test('Night Focus is the approved dark-mode identity', () {
+      final palette = AppThemeId.defaultDark.palette;
+      expect(AppThemeId.defaultDark.displayName, 'Night Focus');
+      expect(palette.isDark, isTrue);
+      expect(palette.primary, const Color(0xFFFF7A00));
+      expect(palette.background, const Color(0xFF080B12));
+    });
+
+    test('dashboard toggle always selects the opposite PageClock appearance', () {
+      for (final theme in AppThemeId.values) {
+        final counterpart = theme.dashboardCounterpart;
+        expect(
+          counterpart,
+          theme.palette.isDark
+              ? AppThemeId.pageClockClassic
+              : AppThemeId.defaultDark,
+          reason: '${theme.displayName} should switch to the paired dashboard theme',
+        );
+        expect(counterpart.palette.isDark, isNot(theme.palette.isDark));
+      }
+    });
+
+    test('paired dashboard themes persist and update Material brightness', () async {
+      final prefs = await SharedPreferences.getInstance();
+      final container = ProviderContainer(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      );
+      addTearDown(container.dispose);
+
+      expect(container.read(appThemeIdProvider), AppThemeId.defaultDark);
+      expect(container.read(themeModeProvider), ThemeMode.dark);
+
+      await container.read(settingsProvider.notifier).update(
+            (settings) => settings.copyWith(
+              themeId: AppThemeId.pageClockClassic.storageId,
+            ),
+          );
+      expect(container.read(appThemeIdProvider), AppThemeId.pageClockClassic);
+      expect(container.read(themeModeProvider), ThemeMode.light);
+      expect(
+        prefs.getString('pageclock_app_settings_v1'),
+        contains('pageclock_classic'),
+      );
+
+      await container.read(settingsProvider.notifier).update(
+            (settings) => settings.copyWith(
+              themeId: AppThemeId.defaultDark.storageId,
+            ),
+          );
+      expect(container.read(appThemeIdProvider), AppThemeId.defaultDark);
+      expect(container.read(themeModeProvider), ThemeMode.dark);
+      expect(
+        prefs.getString('pageclock_app_settings_v1'),
+        contains('default_dark'),
       );
     });
 
