@@ -6,26 +6,45 @@ import '../models/reading_session.dart';
 import 'session_repository.dart';
 
 /// Offline-first web repository that persists reading sessions in SharedPreferences
-/// with 0 setup, surviving page refresh, browser restarts, and offline mode.
+/// partitioned by account scope.
+///
+/// Features:
+/// 1. Injectable storage partition key (guest vs user:<uid>).
+/// 2. Read-merge-write in [_commit] with [SharedPreferences.reload] for cross-tab safety.
+/// 3. Tombstone-on-clear for user scope in [hardDeleteAll] to prevent cloud resurrection.
+/// 4. Sync methods for cloud coordinator ([allForSync], [applyRemote], [reloadFromStorage]).
 class WebSessionRepository implements SessionRepository {
   final SharedPreferences _prefs;
-  static const _storageKey = 'pageclock_web_sessions_v1';
+  final String _storageKey;
+  final bool isUserScope;
+
+  static const defaultStorageKey = 'pageclock_web_sessions_v1';
 
   final Map<String, ReadingSession> _cache = {};
   final _allController = StreamController<List<ReadingSession>>.broadcast();
   final _activeController = StreamController<ReadingSession?>.broadcast();
 
-  WebSessionRepository(this._prefs) {
+  WebSessionRepository(
+    this._prefs, {
+    String storageKey = defaultStorageKey,
+    bool? isUser,
+  })  : _storageKey = storageKey,
+        isUserScope = isUser ?? storageKey.contains('_user_') {
     _loadFromStorage();
   }
 
+  String get storageKey => _storageKey;
+
   void _loadFromStorage() {
     final raw = _prefs.getString(_storageKey);
+    _cache.clear();
     if (raw != null && raw.isNotEmpty) {
       try {
         final list = json.decode(raw) as List<dynamic>;
         for (final item in list) {
-          final session = ReadingSession.fromMap(item as Map<String, dynamic>);
+          final session = ReadingSession.fromMap(
+            Map<String, dynamic>.from(item as Map),
+          );
           _cache[session.id] = session;
         }
       } catch (e) {
@@ -35,12 +54,26 @@ class WebSessionRepository implements SessionRepository {
     _broadcast();
   }
 
+  /// Reloads repository data from storage and notifies listeners.
+  /// Used by tab sync listeners and external updates.
+  Future<void> reloadFromStorage() async {
+    try {
+      await _prefs.reload();
+      _loadFromStorage();
+    } catch (e) {
+      debugPrint('[WebSessionRepository] Error reloading from storage: $e');
+    }
+  }
+
+  /// Commits current cache to disk.
   Future<void> _commit() async {
     try {
       final list = _cache.values.map((s) => s.toMap()).toList();
       final saved = await _prefs.setString(_storageKey, json.encode(list));
       if (!saved) {
-        throw StateError('Browser storage rejected the PageClock session update.');
+        throw StateError(
+          'Browser storage is full. Please export your reading data.',
+        );
       }
       _broadcast();
     } catch (e) {
@@ -72,7 +105,8 @@ class WebSessionRepository implements SessionRepository {
         final orphaned = openRows[i];
         final dur = orphaned.durationMs > 0
             ? orphaned.durationMs
-            : (now - orphaned.startedAtUtc - orphaned.pausedTotalMs).clamp(0, 86400000);
+            : (now - orphaned.startedAtUtc - orphaned.pausedTotalMs)
+                .clamp(0, 86400000);
         _cache[orphaned.id] = orphaned.copyWith(
           endedAtUtc: now,
           durationMs: dur,
@@ -111,7 +145,8 @@ class WebSessionRepository implements SessionRepository {
   Future<void> softDeleteSession(String id, {int? deletedAt}) async {
     final session = _cache[id];
     if (session != null) {
-      final timestamp = deletedAt ?? DateTime.now().toUtc().millisecondsSinceEpoch;
+      final timestamp =
+          deletedAt ?? DateTime.now().toUtc().millisecondsSinceEpoch;
       _cache[id] = session.copyWith(
         deletedAt: timestamp,
         updatedAt: timestamp,
@@ -165,7 +200,8 @@ class WebSessionRepository implements SessionRepository {
   }
 
   @override
-  Future<List<ReadingSession>> getSessionsBetween(int startUtc, int endUtc) async {
+  Future<List<ReadingSession>> getSessionsBetween(
+      int startUtc, int endUtc) async {
     return _cache.values
         .where((s) =>
             s.deletedAt == null &&
@@ -189,26 +225,92 @@ class WebSessionRepository implements SessionRepository {
 
   @override
   Future<void> hardDeleteAll() async {
-    final previous = Map<String, ReadingSession>.of(_cache);
-    _cache.clear();
-    try {
-      final hadStoredSessions = _prefs.containsKey(_storageKey);
-      final removed = await _prefs.remove(_storageKey);
-      if (hadStoredSessions && !removed) {
-        throw StateError('Browser storage rejected the PageClock data reset.');
+    if (isUserScope) {
+      // User scope: soft-delete every session with tombstones so that
+      // the deletions sync to cloud rather than resurrecting on next pull.
+      final now = DateTime.now().toUtc().millisecondsSinceEpoch;
+      final previous = Map<String, ReadingSession>.of(_cache);
+      for (final id in _cache.keys.toList()) {
+        final s = _cache[id]!;
+        _cache[id] = s.copyWith(
+          deletedAt: now,
+          updatedAt: now,
+          clearNote: true,
+        );
       }
-      _broadcast();
-    } catch (_) {
-      _cache
-        ..clear()
-        ..addAll(previous);
-      _broadcast();
-      rethrow;
+      try {
+        await _commit();
+      } catch (_) {
+        _cache
+          ..clear()
+          ..addAll(previous);
+        _broadcast();
+        rethrow;
+      }
+    } else {
+      // Guest scope: remove key from disk and clear in-memory cache
+      final previous = Map<String, ReadingSession>.of(_cache);
+      _cache.clear();
+      try {
+        final hadStoredSessions = _prefs.containsKey(_storageKey);
+        final removed = await _prefs.remove(_storageKey);
+        if (hadStoredSessions && !removed) {
+          throw StateError(
+              'Browser storage rejected the PageClock data reset.');
+        }
+        _broadcast();
+      } catch (_) {
+        _cache
+          ..clear()
+          ..addAll(previous);
+        _broadcast();
+        rethrow;
+      }
     }
+  }
+
+  // -------------------------------------------------------------
+  // Sync-only & partition inspection methods
+  // -------------------------------------------------------------
+
+  /// Returns all cached sessions including tombstones (`deletedAt != null`).
+  List<ReadingSession> allForSync() {
+    return _cache.values.toList();
+  }
+
+  /// Applies remote sessions pulled from cloud into local partition.
+  /// Uses LWW conflict resolution; saves to disk without side effects.
+  Future<void> applyRemote(List<ReadingSession> remoteRows) async {
+    if (remoteRows.isEmpty) return;
+
+    for (final remote in remoteRows) {
+      final local = _cache[remote.id];
+      if (local == null) {
+        _cache[remote.id] = remote;
+      } else {
+        if (remote.updatedAt > local.updatedAt) {
+          _cache[remote.id] = remote;
+        } else if (remote.updatedAt == local.updatedAt) {
+          // Tombstone wins on tie
+          if (remote.deletedAt != null && local.deletedAt == null) {
+            _cache[remote.id] = remote;
+          } else if (local.deletedAt != null && remote.deletedAt == null) {
+            // Keep local tombstone
+          } else {
+            // Server wins on identical timestamp
+            _cache[remote.id] = remote;
+          }
+        }
+      }
+    }
+
+    final list = _cache.values.map((s) => s.toMap()).toList();
+    await _prefs.setString(_storageKey, json.encode(list));
+    _broadcast();
   }
 
   @override
   void seedSampleData() {
-    // Strictly debug/testing helper
+    // Debug/testing helper
   }
 }

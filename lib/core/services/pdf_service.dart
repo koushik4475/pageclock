@@ -10,6 +10,8 @@ class SessionPdfService {
   static Future<Uint8List> generatePdf(
     List<ReadingSession> sessions, {
     Map<String, dynamic>? settingsSnapshot,
+    bool isCloudSync = false,
+    String? customFooterText,
   }) async {
     final pdf = pw.Document();
 
@@ -114,7 +116,9 @@ class SessionPdfService {
             ),
             pw.SizedBox(height: 4),
             pw.Text(
-              'Offline-First Reading Tracker | Generated ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())} (${DateTime.now().timeZoneName}) | v1.0.0',
+              isCloudSync
+                  ? 'Cloud-Synced Reading Tracker | Generated ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())} (${DateTime.now().timeZoneName}) | v1.0.0'
+                  : 'Offline-First Reading Tracker | Generated ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())} (${DateTime.now().timeZoneName}) | v1.0.0',
               style: pw.TextStyle(fontSize: 8.5, color: PdfColor.fromHex('#6B7280'), fontWeight: pw.FontWeight.bold),
             ),
             pw.SizedBox(height: 8),
@@ -130,7 +134,10 @@ class SessionPdfService {
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text(
-                  'PageClock • 100% Offline-First & Private',
+                  customFooterText ??
+                      (isCloudSync
+                          ? 'PageClock • Synced to your account'
+                          : 'PageClock • 100% Offline-First & Private'),
                   style: pw.TextStyle(fontSize: 8, color: PdfColor.fromHex('#9CA3AF')),
                 ),
                 pw.Text(
@@ -336,8 +343,15 @@ class SessionPdfService {
   static Future<void> printOrSharePdf(
     List<ReadingSession> sessions, {
     Map<String, dynamic>? settingsSnapshot,
+    bool isCloudSync = false,
+    String? customFooterText,
   }) async {
-    final pdfBytes = await generatePdf(sessions, settingsSnapshot: settingsSnapshot);
+    final pdfBytes = await generatePdf(
+      sessions,
+      settingsSnapshot: settingsSnapshot,
+      isCloudSync: isCloudSync,
+      customFooterText: customFooterText,
+    );
     await Printing.sharePdf(
       bytes: pdfBytes,
       filename: 'pageclock-export-${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf',

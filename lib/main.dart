@@ -4,7 +4,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'core/account/account_scope.dart';
+import 'core/cloud/auth_callback.dart';
+import 'core/cloud/cloud_config.dart';
+import 'core/repository/web_session_migration.dart';
 import 'core/models/reading_session.dart';
 import 'core/navigation/main_tab_navigation.dart';
 import 'core/engine/stopwatch_engine.dart';
@@ -30,7 +35,35 @@ final sessionsStreamProvider = StreamProvider<List<ReadingSession>>((ref) {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 1. Sanitize OAuth callback URLs on web before Flutter router mounts
+  AuthCallbackSanitizer.sanitizeFragment();
+
   final prefs = await SharedPreferences.getInstance();
+
+  // 2. Run legacy v1 -> v2 guest migration safely & idempotently on web
+  if (kIsWeb) {
+    try {
+      await WebSessionMigration.migrateLegacyV1ToV2Guest(prefs);
+    } catch (e) {
+      debugPrint('[Main] Legacy migration error: $e');
+    }
+  }
+
+  // 3. Initialize Supabase if cloud auth is enabled
+  if (CloudConfig.isEnabled) {
+    try {
+      await Supabase.initialize(
+        url: CloudConfig.supabaseUrl,
+        publishableKey: CloudConfig.supabasePublishableKey,
+        authOptions: const FlutterAuthClientOptions(
+          authFlowType: AuthFlowType.pkce,
+        ),
+      ).timeout(const Duration(seconds: 4));
+    } catch (e) {
+      debugPrint('[Main] Cloud auth initialization warning: $e');
+    }
+  }
+
   await NotificationService.initialize();
 
   runApp(
@@ -420,7 +453,9 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Your sessions stay private and on this device.',
+                                (kIsWeb && ref.watch(accountScopeProvider).isUser)
+                                    ? 'Your sessions sync securely with your account.'
+                                    : 'Your sessions stay private and on this device.',
                                 style: TextStyle(
                                   fontSize: 10,
                                   height: 1.4,

@@ -1,0 +1,96 @@
+[
+  {
+    "id": "sess_completed_001",
+    "started_at_utc": 1700000000000,
+    "ended_at_utc": 1700001800000,
+    "paused_at_utc": null,
+    "paused_total_ms": 0,
+    "duration_ms": 1800000,
+    "tz_offset_min": 0,
+    "subject_id": "subj_math",
+    "note": "Calculus chapter 1",
+    "source": "timer",
+    "device_id": "local",
+    "created_at": 1700000000000,
+    "updated_at": 1700001800000,
+    "deleted_at": null,
+    "pause_intervals": []
+  },
+  {
+    "id": "sess_paused_intervals_002",
+    "started_at_utc": 1700010000000,
+    "ended_at_utc": 1700014000000,
+    "paused_at_utc": null,
+    "paused_total_ms": 1000000,
+    "duration_ms": 3000000,
+    "tz_offset_min": 60,
+    "subject_id": "subj_history",
+    "note": "Roman Republic",
+    "source": "timer",
+    "device_id": "local",
+    "created_at": 1700010000000,
+    "updated_at": 1700014000000,
+    "deleted_at": null,
+    "pause_intervals": [
+      {
+        "start_utc": 1700011000000,
+        "end_utc": 1700011600000
+      },
+      {
+        "start_utc": 1700012400000,
+        "end_utc": 1700012800000
+      }
+    ]
+  },
+  {
+    "id": "sess_legacy_no_intervals_003",
+    "started_at_utc": 1700020000000,
+    "ended_at_utc": 1700022400000,
+    "paused_at_utc": null,
+    "paused_total_ms": 600000,
+    "duration_ms": 1800000,
+    "tz_offset_min": -300,
+    "subject_id": null,
+    "note": "Old legacy session",
+    "source": "manual",
+    "device_id": "local",
+    "created_at": 1700020000000,
+    "updated_at": 1700022400000,
+    "deleted_at": null,
+    "pause_intervals": []
+  },
+  {
+    "id": "sess_soft_deleted_004",
+    "started_at_utc": 1700030000000,
+    "ended_at_utc": 1700031800000,
+    "paused_at_utc": null,
+    "paused_total_ms": 0,
+    "duration_ms": 1800000,
+    "tz_offset_min": 0,
+    "subject_id": "subj_physics",
+    "note": "Discarded draft",
+    "source": "timer",
+    "device_id": "local",
+    "created_at": 1700030000000,
+    "updated_at": 1700032000000,
+    "deleted_at": 1700032000000,
+    "pause_intervals": []
+  },
+  {
+    "id": "sess_running_005",
+    "started_at_utc": 1700040000000,
+    "ended_at_utc": null,
+    "paused_at_utc": null,
+    "paused_total_ms": 0,
+    "duration_ms": 0,
+    "tz_offset_min": 0,
+    "subject_id": "subj_coding",
+    "note": "Active reading timer",
+    "source": "timer",
+    "device_id": "local",
+    "created_at": 1700040000000,
+    "updated_at": 1700040500000,
+    "deleted_at": null,
+    "pause_intervals": []
+  }
+]

@@ -1,7 +1,9 @@
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../core/account/account_scope.dart';
 import '../../core/format/formatters.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/services/pdf_service.dart';
@@ -159,7 +161,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             onPressed: () async {
               try {
                 final settings = ref.read(settingsProvider).toJson();
-                await SessionPdfService.printOrSharePdf(widget.sessions, settingsSnapshot: settings);
+                final isCloud = kIsWeb && ref.read(accountScopeProvider).isUser;
+                await SessionPdfService.printOrSharePdf(
+                  widget.sessions,
+                  settingsSnapshot: settings,
+                  isCloudSync: isCloud,
+                );
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('PDF report shared successfully.')),
