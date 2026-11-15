@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 /// Compact PageClock clock-and-open-book mark drawn as vector artwork so it
