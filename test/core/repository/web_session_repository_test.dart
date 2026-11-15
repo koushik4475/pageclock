@@ -74,7 +74,8 @@ void main() {
       // Tab A updates session A with a newer timestamp
       await tabA.saveSession(makeSession(id: 'sess_A', updatedAt: 2000, note: 'Updated from Tab A'));
 
-      // Tab B reloads from storage
+      // Tab A also writes session B that tab B added when reloading
+      await tabA.reloadFromStorage();
       await tabB.reloadFromStorage();
 
       final tabBAll = await tabB.getAllSessions();
