@@ -62,7 +62,7 @@ class _ReadingDeskPainter extends CustomPainter {
     // Scenic reading-hour backdrop: warm horizon, layered mountains and a
     // softly glowing sun. The illustration stays self-contained and offline.
     final sceneRect = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(4, 5, 232, 164),
+      Rect.fromLTWH(4, 5, 232, 164),
       const Radius.circular(18),
     );
     canvas.save();
@@ -87,7 +87,7 @@ class _ReadingDeskPainter extends CustomPainter {
                   Color(0xFFE99B70),
                 ],
           stops: const [0, .42, .76, 1],
-        ).createShader(const Rect.fromLTWH(4, 5, 232, 164)),
+        ).createShader(Rect.fromLTWH(4, 5, 232, 164)),
     );
 
     // Diffused sunset glow behind the mountain ridge.
@@ -163,7 +163,7 @@ class _ReadingDeskPainter extends CustomPainter {
 
     // A quiet foreground desk/horizon band.
     canvas.drawRect(
-      const Rect.fromLTWH(4, 139, 232, 30),
+      Rect.fromLTWH(4, 139, 232, 30),
       Paint()
         ..shader = LinearGradient(
           begin: Alignment.topCenter,
@@ -171,7 +171,7 @@ class _ReadingDeskPainter extends CustomPainter {
           colors: isDark
               ? const [Color(0xFF243644), Color(0xFF182632)]
               : const [Color(0xFFC17A5B), Color(0xFF8F5847)],
-        ).createShader(const Rect.fromLTWH(4, 139, 232, 30)),
+        ).createShader(Rect.fromLTWH(4, 139, 232, 30)),
     );
 
     if (isDark) {
@@ -247,7 +247,7 @@ class _ReadingDeskPainter extends CustomPainter {
         : const Color(0xFFC97A4D));
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        const Rect.fromLTWH(167, 115, 47, 9),
+        Rect.fromLTWH(167, 115, 47, 9),
         const Radius.circular(4),
       ),
       Paint()..color = isDark ? const Color(0xFFD08A5A) : const Color(0xFFE4A06B),
