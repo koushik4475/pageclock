@@ -112,18 +112,23 @@ class ThemePalette {
 
 const Map<AppThemeId, ThemePalette> themePalettes = {
   AppThemeId.defaultDark: ThemePalette(
-    background: Color(0xFF090B10),
-    surface: Color(0xFF151A23),
+    background: Color(0xFF080B12),
+    surface: Color(0xFF141824),
     primary: Color(0xFFFF7A00),
     onPrimary: Color(0xFF111827),
-    secondary: Color(0xFFFFB36A),
-    tertiary: Color(0xFF6D7D91),
-    text: Color(0xFFF8FAFC),
-    textMuted: Color(0xFFA3ADBA),
-    outline: Color(0xFF2D3542),
-    ringTrack: Color(0xFF28313D),
+    secondary: Color(0xFFFFB366),
+    tertiary: Color(0xFF334155),
+    text: Color(0xFFE5E7EB),
+    textMuted: Color(0xFF94A3B8),
+    outline: Color(0xFF334155),
+    ringTrack: Color(0xFF263244),
     isDark: true,
-    previewColors: [Color(0xFF090B10), Color(0xFFFF7A00), Color(0xFF151A23), Color(0xFFF8FAFC)],
+    previewColors: [
+      Color(0xFF080B12),
+      Color(0xFFFF7A00),
+      Color(0xFF141824),
+      Color(0xFFE5E7EB),
+    ],
   ),
   AppThemeId.defaultLight: ThemePalette(
     background: Color(0xFFF7F8FC),

@@ -54,6 +54,14 @@ void main() {
       );
     });
 
+    test('Night Focus is the approved dark-mode identity', () {
+      final palette = AppThemeId.defaultDark.palette;
+      expect(AppThemeId.defaultDark.displayName, 'Night Focus');
+      expect(palette.isDark, isTrue);
+      expect(palette.primary, const Color(0xFFFF7A00));
+      expect(palette.background, const Color(0xFF080B12));
+    });
+
     test('every theme round-trips through stable and legacy storage IDs', () {
       for (final theme in AppThemeId.values) {
         expect(AppThemeIdExtension.fromStorage(theme.storageId), theme);

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -287,12 +289,27 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
       ref.read(mainTabNavigationIndexProvider.notifier).state = index;
     }
 
+    void toggleTheme() {
+      final currentTheme = ref.read(appThemeIdProvider);
+      final nextTheme = currentTheme == AppThemeId.pageClockClassic
+          ? AppThemeId.defaultDark
+          : AppThemeId.pageClockClassic;
+      unawaited(
+        ref.read(settingsProvider.notifier).update(
+          (currentSettings) => currentSettings.copyWith(
+            themeId: nextTheme.storageId,
+          ),
+        ),
+      );
+    }
+
     final screens = [
       DashboardScreen(
         sessions: sessions,
         settings: settings,
         stopwatchState: stopwatchState,
         onNavigate: navigate,
+        onToggleTheme: toggleTheme,
       ),
       const TogglTimerScreen(),
       CalendarScreen(sessions: sessions),
@@ -421,7 +438,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
             Expanded(
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1600),
+                  constraints: const BoxConstraints(maxWidth: 1440),
                   child: SizedBox.expand(child: pageStack),
                 ),
               ),
@@ -473,7 +490,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
             Expanded(
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1600),
+                  constraints: const BoxConstraints(maxWidth: 1440),
                   child: SizedBox.expand(child: pageStack),
                 ),
               ),

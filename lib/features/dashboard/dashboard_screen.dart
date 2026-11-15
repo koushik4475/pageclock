@@ -20,6 +20,7 @@ class DashboardScreen extends StatelessWidget {
   final AppSettings settings;
   final StopwatchState stopwatchState;
   final ValueChanged<int> onNavigate;
+  final VoidCallback onToggleTheme;
 
   const DashboardScreen({
     super.key,
@@ -27,6 +28,7 @@ class DashboardScreen extends StatelessWidget {
     required this.settings,
     required this.stopwatchState,
     required this.onNavigate,
+    required this.onToggleTheme,
   });
 
   @override
@@ -102,6 +104,8 @@ class DashboardScreen extends StatelessWidget {
                         greeting: greetingLine,
                         date: now,
                         profileName: profile,
+                        isDark: isDark,
+                        onToggleTheme: onToggleTheme,
                         onOpenSettings: () => onNavigate(4),
                       ),
                       const SizedBox(height: 24),
@@ -236,12 +240,16 @@ class _DashboardHeader extends StatelessWidget {
   final String greeting;
   final DateTime date;
   final String profileName;
+  final bool isDark;
+  final VoidCallback onToggleTheme;
   final VoidCallback onOpenSettings;
 
   const _DashboardHeader({
     required this.greeting,
     required this.date,
     required this.profileName,
+    required this.isDark,
+    required this.onToggleTheme,
     required this.onOpenSettings,
   });
 
@@ -276,6 +284,19 @@ class _DashboardHeader extends StatelessWidget {
             ],
           ),
         ),
+        IconButton(
+          tooltip: isDark
+              ? 'Switch to PageClock Classic light mode'
+              : 'Switch to Night Focus dark mode',
+          onPressed: onToggleTheme,
+          icon: Icon(
+            isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+          ),
+          color: colors.onSurfaceVariant,
+          constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+          padding: EdgeInsets.zero,
+        ),
+        const SizedBox(width: 4),
         Tooltip(
           message: 'Open settings',
           child: Material(

@@ -36,6 +36,7 @@ void main() {
               settings: const AppSettings(themeId: 'pageclock_classic'),
               stopwatchState: const StopwatchState(status: StopwatchStatus.idle),
               onNavigate: (_) {},
+              onToggleTheme: () {},
             ),
           ),
         );
@@ -79,6 +80,7 @@ void main() {
               settings: const AppSettings(),
               stopwatchState: const StopwatchState(status: StopwatchStatus.idle),
               onNavigate: (_) {},
+              onToggleTheme: () {},
             ),
           ),
         );
@@ -102,6 +104,7 @@ void main() {
             settings: const AppSettings(),
             stopwatchState: const StopwatchState(status: StopwatchStatus.idle),
             onNavigate: (index) => selectedIndex = index,
+          onToggleTheme: () {},
           ),
         ),
       );
@@ -125,5 +128,40 @@ void main() {
       await tester.tap(find.byTooltip('Open settings'));
       expect(selectedIndex, 4);
     });
+    testWidgets('theme switch exposes the paired PageClock appearance', (tester) async {
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+
+      for (final themeId in [
+        AppThemeId.defaultDark,
+        AppThemeId.pageClockClassic,
+      ]) {
+        var toggled = false;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: appThemeDataFor(themeId),
+            home: DashboardScreen(
+              sessions: const [],
+              settings: const AppSettings(),
+              stopwatchState: const StopwatchState(status: StopwatchStatus.idle),
+              onNavigate: (_) {},
+              onToggleTheme: () => toggled = true,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final tooltip = themeId == AppThemeId.defaultDark
+            ? 'Switch to PageClock Classic light mode'
+            : 'Switch to Night Focus dark mode';
+        final themeButton = find.byTooltip(tooltip);
+        expect(themeButton, findsOneWidget);
+        await tester.tap(themeButton);
+        expect(toggled, isTrue);
+      }
+    });
+
   });
 }
