@@ -12,11 +12,12 @@ PageClock is an offline-first reading focus tracker built with Flutter, Riverpod
 
 - **Dual-Mode Focus Experience**: Switch seamlessly between a high-density Toggl Track timeline / entry list and a full-featured Pomodoro ring countdown.
 - **Apple Mac Retro Flip Clock**: Ambient Fliqlo-style flip clock with authentic matte plates, central creasing slit, and StandBy clock mode.
-- **Eleven Refined Themes**:
+- **Twelve Refined Themes**:
   - `Obsidian`: Quiet dark surfaces with an indigo glow.
   - `Porcelain`: Crisp light surfaces with refined slate.
   - `Pastel Waves`: Cream, rose, butter yellow, and sky blue.
   - `Midnight Aurora`, `Ocean Mist`, `Lavender Haze`, `Forest Grove`, `Sunset Ember`, `Rose Quartz`, `Nordic Frost`, and `Solar Citrus`.
+  - `PageClock Classic`: the signature warm cream, charcoal and focus-orange brand palette.
   - Theme selection is persisted locally.
 - **100% Offline-First Persistence**: Powered by SQLite via Drift on mobile and desktop, and SharedPreferences-backed storage on Web.
 - **Complete Data Portability**:
