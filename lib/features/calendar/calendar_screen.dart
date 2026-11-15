@@ -149,7 +149,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           IconButton(
             icon: Icon(
               Icons.settings_outlined,
-              color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+              color: colorScheme.onSurfaceVariant,
             ),
             tooltip: 'Settings',
             onPressed: () {
@@ -185,7 +185,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.5,
                     fontFeatures: const [FontFeature.tabularFigures()],
-                    color: isDark ? Colors.white : const Color(0xFF111827),
+                    color: colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -198,7 +198,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
           Divider(
             height: 1,
-            color: isDark ? const Color(0xFF1E172B) : const Color(0xFFE5E7EB),
+            color: colorScheme.outline,
           ),
 
           // 24-Hour Timeline Grid
