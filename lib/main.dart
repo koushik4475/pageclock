@@ -188,20 +188,20 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                           ),
                         ),
                         const SizedBox(height: 20),
-                        const Text(
+                        Text(
                           'PageClock',
                           style: TextStyle(
-                            color: Color(0xFFFAFAFA),
+                            color: Theme.of(context).colorScheme.onSurface,
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
                             letterSpacing: -0.5,
                           ),
                         ),
                         const SizedBox(height: 6),
-                        const Text(
-                          'Offline-First Reading & Focus Tracker',
+                        Text(
+                          'READ · FOCUS · TRACK',
                           style: TextStyle(
-                            color: Color(0xFF71717A),
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
                             letterSpacing: 0.3,
