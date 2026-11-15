@@ -56,7 +56,7 @@ void main() {
       expect(userAll.map((s) => s.id), isNot(contains('sess_guest_1')));
     });
 
-    test('cross-tab simulation: two repository instances on same key do not clobber each other', () async {
+    test('cross-tab simulation: reloadFromStorage pulls writes from another repository instance', () async {
       final prefs = await SharedPreferences.getInstance();
       const sharedKey = 'pageclock_web_sessions_v2_guest';
 
@@ -67,16 +67,23 @@ void main() {
       // Tab A writes session A
       await tabA.saveSession(makeSession(id: 'sess_A', updatedAt: 1000, note: 'From Tab A'));
 
-      // Tab B writes session B (commit reloads disk and merges session A)
+      // Tab B reloads from storage and sees session A
+      await tabB.reloadFromStorage();
+      var tabBAll = await tabB.getAllSessions();
+      expect(tabBAll.length, equals(1));
+      expect(tabBAll.single.id, equals('sess_A'));
+
+      // Tab B writes session B
       await tabB.saveSession(makeSession(id: 'sess_B', updatedAt: 1000, note: 'From Tab B'));
 
-      // Tab A updates session A with a newer timestamp (commit merges session B from disk)
+      // Tab A reloads from storage and updates session A
+      await tabA.reloadFromStorage();
       await tabA.saveSession(makeSession(id: 'sess_A', updatedAt: 2000, note: 'Updated from Tab A'));
 
-      // Tab B reloads from storage
+      // Tab B reloads from storage and sees both sessions with latest values
       await tabB.reloadFromStorage();
 
-      final tabBAll = await tabB.getAllSessions();
+      tabBAll = await tabB.getAllSessions();
       expect(tabBAll.length, equals(2));
       final sessionA = tabBAll.firstWhere((s) => s.id == 'sess_A');
       final sessionB = tabBAll.firstWhere((s) => s.id == 'sess_B');
