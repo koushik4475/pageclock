@@ -185,7 +185,6 @@ void main() {
   group('M5: Account Deletion Flow Tests', () {
     late SharedPreferences prefs;
     late MockAuthRepository mockAuthRepo;
-    late MockSessionRepository mockSessionRepo;
 
     setUp(() async {
       SharedPreferences.setMockInitialValues({
@@ -195,7 +194,6 @@ void main() {
       });
       prefs = await SharedPreferences.getInstance();
       mockAuthRepo = MockAuthRepository();
-      mockSessionRepo = MockSessionRepository();
     });
 
     test('deleteAccount is blocked when stopwatch is running', () async {
