@@ -14,6 +14,7 @@ enum AppThemeId {
   roseQuartz,
   nordicFrost,
   solarCitrus,
+  pageClockClassic,
 }
 
 extension AppThemeIdExtension on AppThemeId {
@@ -30,12 +31,13 @@ extension AppThemeIdExtension on AppThemeId {
       case AppThemeId.roseQuartz: return 'rose_quartz';
       case AppThemeId.nordicFrost: return 'nordic_frost';
       case AppThemeId.solarCitrus: return 'solar_citrus';
+      case AppThemeId.pageClockClassic: return 'pageclock_classic';
     }
   }
 
   String get displayName {
     switch (this) {
-      case AppThemeId.defaultDark: return 'Obsidian';
+      case AppThemeId.defaultDark: return 'PageClock Night';
       case AppThemeId.defaultLight: return 'Porcelain';
       case AppThemeId.special1: return 'Pastel Waves';
       case AppThemeId.midnightAurora: return 'Midnight Aurora';
@@ -46,12 +48,13 @@ extension AppThemeIdExtension on AppThemeId {
       case AppThemeId.roseQuartz: return 'Rose Quartz';
       case AppThemeId.nordicFrost: return 'Nordic Frost';
       case AppThemeId.solarCitrus: return 'Solar Citrus';
+      case AppThemeId.pageClockClassic: return 'PageClock Classic';
     }
   }
 
   String get description {
     switch (this) {
-      case AppThemeId.defaultDark: return 'Quiet obsidian with a vivid indigo glow';
+      case AppThemeId.defaultDark: return 'Midnight navy, warm orange and focused contrast';
       case AppThemeId.defaultLight: return 'Crisp white surfaces and refined slate';
       case AppThemeId.special1: return 'Cream, rose, butter yellow and sky blue';
       case AppThemeId.midnightAurora: return 'Deep teal with luminous mint and ice';
@@ -62,6 +65,7 @@ extension AppThemeIdExtension on AppThemeId {
       case AppThemeId.roseQuartz: return 'Blush surfaces with elegant rose accents';
       case AppThemeId.nordicFrost: return 'Cool porcelain, fjord blue and soft lilac';
       case AppThemeId.solarCitrus: return 'Warm ivory with golden citrus highlights';
+      case AppThemeId.pageClockClassic: return 'The signature PageClock cream, charcoal and focus orange';
     }
   }
 
@@ -108,18 +112,23 @@ class ThemePalette {
 
 const Map<AppThemeId, ThemePalette> themePalettes = {
   AppThemeId.defaultDark: ThemePalette(
-    background: Color(0xFF09090F),
-    surface: Color(0xFF15151F),
-    primary: Color(0xFF796BFF),
-    onPrimary: Color(0xFF100D32),
-    secondary: Color(0xFF38BDF8),
-    tertiary: Color(0xFF34D399),
-    text: Color(0xFFF7F7FC),
-    textMuted: Color(0xFFA6A6B8),
-    outline: Color(0xFF303041),
-    ringTrack: Color(0xFF29263F),
+    background: Color(0xFF080B12),
+    surface: Color(0xFF141824),
+    primary: Color(0xFFFF7A00),
+    onPrimary: Color(0xFF111827),
+    secondary: Color(0xFFFFB366),
+    tertiary: Color(0xFF334155),
+    text: Color(0xFFE5E7EB),
+    textMuted: Color(0xFF94A3B8),
+    outline: Color(0xFF334155),
+    ringTrack: Color(0xFF263244),
     isDark: true,
-    previewColors: [Color(0xFF09090F), Color(0xFF796BFF), Color(0xFF38BDF8), Color(0xFF34D399)],
+    previewColors: [
+      Color(0xFF080B12),
+      Color(0xFFFF7A00),
+      Color(0xFF141824),
+      Color(0xFFE5E7EB),
+    ],
   ),
   AppThemeId.defaultLight: ThemePalette(
     background: Color(0xFFF7F8FC),
@@ -260,6 +269,25 @@ const Map<AppThemeId, ThemePalette> themePalettes = {
     ringTrack: Color(0xFFF5EAC9),
     isDark: false,
     previewColors: [Color(0xFFFFFAE8), Color(0xFF855300), Color(0xFFD97706), Color(0xFF659A2D)],
+  ),
+  AppThemeId.pageClockClassic: ThemePalette(
+    background: Color(0xFFFFF4E6),
+    surface: Color(0xFFFFFAF3),
+    primary: Color(0xFFF97316),
+    onPrimary: Color(0xFF111827),
+    secondary: Color(0xFFC45A0E),
+    tertiary: Color(0xFFE6D5C0),
+    text: Color(0xFF111827),
+    textMuted: Color(0xFF586174),
+    outline: Color(0xFFE6D5C0),
+    ringTrack: Color(0xFFF1E5D6),
+    isDark: false,
+    previewColors: [
+      Color(0xFFFFF4E6),
+      Color(0xFFF97316),
+      Color(0xFF111827),
+      Color(0xFFE6D5C0),
+    ],
   ),
 };
 

@@ -15,6 +15,12 @@ class AppColors {
   static const accentEmerald = Color(0xFF10B981); // Crisp success green
   static const accentOrange = Color(0xFFF97316); // StandBy flame
 
+  // PageClock signature identity: warm cream, charcoal and focus orange.
+  static const pageClockCream = Color(0xFFFFF4E6);
+  static const pageClockInk = Color(0xFF111827);
+  static const pageClockOrange = Color(0xFFF97316);
+  static const pageClockBeige = Color(0xFFE6D5C0);
+
   // Light Mode Tokens
   static const bgLight = Color(0xFFFBFBFB);
   static const surfaceLight = Color(0xFFFFFFFF);

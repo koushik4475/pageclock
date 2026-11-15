@@ -15,19 +15,21 @@ void main() {
   testWidgets('daily focus goal reflects today tracked session time', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
-    final now = DateTime.now();
-    final startedAt = now.subtract(const Duration(minutes: 10));
+    final todayStart = DateTime.now();
+    final localMidnight = DateTime(todayStart.year, todayStart.month, todayStart.day);
+    final startedAt = localMidnight.subtract(const Duration(minutes: 10));
+    final endedAt = localMidnight.add(const Duration(minutes: 10));
     final session = ReadingSession(
       id: 'daily-goal-test-session',
-      startedAtUtc: startedAt.millisecondsSinceEpoch,
-      endedAtUtc: now.millisecondsSinceEpoch,
-      durationMs: 10 * 60 * 1000,
-      tzOffsetMin: now.timeZoneOffset.inMinutes,
+      startedAtUtc: startedAt.toUtc().millisecondsSinceEpoch,
+      endedAtUtc: endedAt.toUtc().millisecondsSinceEpoch,
+      durationMs: 20 * 60 * 1000,
+      tzOffsetMin: startedAt.timeZoneOffset.inMinutes,
       subjectId: 'Reading',
       note: 'Test chapter',
       source: 'manual',
-      createdAt: startedAt.millisecondsSinceEpoch,
-      updatedAt: now.millisecondsSinceEpoch,
+      createdAt: startedAt.toUtc().millisecondsSinceEpoch,
+      updatedAt: endedAt.toUtc().millisecondsSinceEpoch,
     );
     final repository = InMemorySessionRepository([session]);
 

@@ -6,8 +6,8 @@ void main() {
   group('StatsEngine Unit & Edge Case Tests', () {
     test('Midnight Split: session spanning local midnight is split across two days', () {
       // 11:30 PM to 12:30 AM local time (60 mins total)
-      final localStart = DateTime(2026, 11, 6, 23, 30);
-      final localEnd = DateTime(2026, 11, 7, 0, 30);
+      final localStart = DateTime.utc(2026, 11, 6, 23, 30);
+      final localEnd = DateTime.utc(2026, 11, 7, 0, 30);
 
       final session = ReadingSession(
         id: 'midnight-1',
@@ -110,6 +110,216 @@ void main() {
           equals(0.0),
         );
       }
+    });
+
+    test('Completed pauses are excluded and split exactly across local midnight', () {
+      final start = DateTime.utc(2026, 11, 6, 23, 30).millisecondsSinceEpoch;
+      final pauseStart = DateTime.utc(2026, 11, 6, 23, 45).millisecondsSinceEpoch;
+      final pauseEnd = DateTime.utc(2026, 11, 7, 0, 15).millisecondsSinceEpoch;
+      final end = DateTime.utc(2026, 11, 7, 0, 30).millisecondsSinceEpoch;
+      final session = ReadingSession(
+        id: 'pause-midnight',
+        startedAtUtc: start,
+        endedAtUtc: end,
+        pausedTotalMs: 30 * 60000,
+        durationMs: 30 * 60000,
+        tzOffsetMin: 0,
+        pauseIntervals: [
+          PauseInterval(startedAtUtc: pauseStart, endedAtUtc: pauseEnd),
+        ],
+        createdAt: start,
+        updatedAt: end,
+      );
+
+      final daily = StatsEngine.splitSessionByLocalDay(session);
+      expect(daily[DateTime(2026, 11, 6)], 15);
+      expect(daily[DateTime(2026, 11, 7)], 15);
+      expect(daily.values.fold<int>(0, (sum, value) => sum + value), 30);
+    });
+
+    test('Multiple pauses are excluded from period totals and project duration', () {
+      final start = DateTime.utc(2026, 11, 9, 9).millisecondsSinceEpoch;
+      final end = DateTime.utc(2026, 11, 9, 10, 30).millisecondsSinceEpoch;
+      final session = ReadingSession(
+        id: 'multiple-pauses',
+        startedAtUtc: start,
+        endedAtUtc: end,
+        pausedTotalMs: 30 * 60000,
+        durationMs: 60 * 60000,
+        tzOffsetMin: 0,
+        pauseIntervals: [
+          PauseInterval(
+            startedAtUtc: DateTime.utc(2026, 11, 9, 9, 15).millisecondsSinceEpoch,
+            endedAtUtc: DateTime.utc(2026, 11, 9, 9, 30).millisecondsSinceEpoch,
+          ),
+          PauseInterval(
+            startedAtUtc: DateTime.utc(2026, 11, 9, 9, 45).millisecondsSinceEpoch,
+            endedAtUtc: DateTime.utc(2026, 11, 9, 10).millisecondsSinceEpoch,
+          ),
+        ],
+        createdAt: start,
+        updatedAt: end,
+      );
+
+      expect(StatsEngine.activeDurationMs(session), 60 * 60000);
+      expect(
+        StatsEngine.activeDurationInLocalRange(
+          session,
+          DateTime(2026, 11, 9, 9, 30),
+          DateTime(2026, 11, 9, 10, 15),
+        ),
+        30 * 60000,
+      );
+      expect(
+        StatsEngine.calculateDailyTotals([session])[DateTime(2026, 11, 9)],
+        60,
+      );
+    });
+
+    test('Currently paused sessions stop accumulating at the pause timestamp', () {
+      final start = DateTime.utc(2026, 11, 6, 23, 30).millisecondsSinceEpoch;
+      final pausedAt = DateTime.utc(2026, 11, 7, 0, 15).millisecondsSinceEpoch;
+      final session = ReadingSession(
+        id: 'currently-paused',
+        startedAtUtc: start,
+        pausedAtUtc: pausedAt,
+        durationMs: 0,
+        tzOffsetMin: 0,
+        createdAt: start,
+        updatedAt: pausedAt,
+      );
+
+      final daily = StatsEngine.splitSessionByLocalDay(
+        session,
+        nowUtcMs: pausedAt + 60 * 60000,
+      );
+      expect(daily[DateTime(2026, 11, 6)], 30);
+      expect(daily[DateTime(2026, 11, 7)], 15);
+      expect(session.activeDurationMs(nowUtcMs: pausedAt + 60 * 60000), 45 * 60000);
+    });
+
+    test('Legacy sessions keep net totals with documented start-anchored allocation', () {
+      final start = DateTime.utc(2026, 11, 6, 23, 30).millisecondsSinceEpoch;
+      final end = DateTime.utc(2026, 11, 7, 0, 30).millisecondsSinceEpoch;
+      final legacy = ReadingSession(
+        id: 'legacy-paused',
+        startedAtUtc: start,
+        endedAtUtc: end,
+        pausedTotalMs: 30 * 60000,
+        durationMs: 30 * 60000,
+        tzOffsetMin: 0,
+        createdAt: start,
+        updatedAt: end,
+      );
+
+      final daily = StatsEngine.splitSessionByLocalDay(legacy);
+      expect(daily[DateTime(2026, 11, 6)], 30);
+      expect(daily.containsKey(DateTime(2026, 11, 7)), isFalse);
+      expect(StatsEngine.activeDurationMs(legacy), 30 * 60000);
+    });
+
+    test('Pause-aware period totals split correctly across week and month boundaries', () {
+      final weekStart = DateTime.utc(2026, 10, 25, 23, 30).millisecondsSinceEpoch;
+      final weekEnd = DateTime.utc(2026, 10, 26, 0, 30).millisecondsSinceEpoch;
+      final weekSession = ReadingSession(
+        id: 'week-boundary',
+        startedAtUtc: weekStart,
+        endedAtUtc: weekEnd,
+        pausedTotalMs: 30 * 60000,
+        durationMs: 30 * 60000,
+        tzOffsetMin: 0,
+        pauseIntervals: [
+          PauseInterval(
+            startedAtUtc: DateTime.utc(2026, 10, 25, 23, 45).millisecondsSinceEpoch,
+            endedAtUtc: DateTime.utc(2026, 10, 26, 0, 15).millisecondsSinceEpoch,
+          ),
+        ],
+        createdAt: weekStart,
+        updatedAt: weekEnd,
+      );
+      expect(
+        StatsEngine.activeDurationInLocalRange(
+          weekSession,
+          DateTime(2026, 10, 25),
+          DateTime(2026, 10, 26),
+        ),
+        15 * 60000,
+      );
+      expect(
+        StatsEngine.activeDurationInLocalRange(
+          weekSession,
+          DateTime(2026, 10, 26),
+          DateTime(2026, 10, 27),
+        ),
+        15 * 60000,
+      );
+
+      final monthStart = DateTime.utc(2026, 10, 31, 23).millisecondsSinceEpoch;
+      final monthEnd = DateTime.utc(2026, 11, 1, 0, 45).millisecondsSinceEpoch;
+      final monthSession = ReadingSession(
+        id: 'month-boundary',
+        startedAtUtc: monthStart,
+        endedAtUtc: monthEnd,
+        pausedTotalMs: 45 * 60000,
+        durationMs: 60 * 60000,
+        tzOffsetMin: 0,
+        pauseIntervals: [
+          PauseInterval(
+            startedAtUtc: DateTime.utc(2026, 10, 31, 23, 15).millisecondsSinceEpoch,
+            endedAtUtc: DateTime.utc(2026, 10, 31, 23, 30).millisecondsSinceEpoch,
+          ),
+          PauseInterval(
+            startedAtUtc: DateTime.utc(2026, 10, 31, 23, 45).millisecondsSinceEpoch,
+            endedAtUtc: DateTime.utc(2026, 11, 1, 0, 15).millisecondsSinceEpoch,
+          ),
+        ],
+        createdAt: monthStart,
+        updatedAt: monthEnd,
+      );
+      expect(
+        StatsEngine.activeDurationInLocalRange(
+          monthSession,
+          DateTime(2026, 10, 1),
+          DateTime(2026, 11, 1),
+        ),
+        30 * 60000,
+      );
+      expect(
+        StatsEngine.activeDurationInLocalRange(
+          monthSession,
+          DateTime(2026, 11, 1),
+          DateTime(2026, 12, 1),
+        ),
+        30 * 60000,
+      );
+    });
+
+    test('upgraded sessions preserve earlier unlocated pauses alongside new intervals', () {
+      final start = DateTime.utc(2026, 11, 9, 9).millisecondsSinceEpoch;
+      final end = DateTime.utc(2026, 11, 9, 10, 30).millisecondsSinceEpoch;
+      final upgradedSession = ReadingSession(
+        id: 'upgraded-active-session',
+        startedAtUtc: start,
+        endedAtUtc: end,
+        pausedTotalMs: 30 * 60000,
+        durationMs: 60 * 60000,
+        tzOffsetMin: 0,
+        // The first 15-minute pause happened before upgrade and has no exact
+        // position. The later pause is recorded by the new app version.
+        pauseIntervals: [
+          PauseInterval(
+            startedAtUtc: DateTime.utc(2026, 11, 9, 9, 45).millisecondsSinceEpoch,
+            endedAtUtc: DateTime.utc(2026, 11, 9, 10).millisecondsSinceEpoch,
+          ),
+        ],
+        createdAt: start,
+        updatedAt: end,
+      );
+
+      expect(upgradedSession.activeDurationMs(), 60 * 60000);
+      final active = upgradedSession.activeIntervals();
+      expect(active.first.startUtc, start + 15 * 60000);
+      expect(active.last.endUtc, end);
     });
   });
 }

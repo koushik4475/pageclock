@@ -7,6 +7,7 @@ class ReadingSessions extends Table {
   IntColumn get endedAtUtc => integer().nullable()();
   IntColumn get pausedAtUtc => integer().nullable()();
   IntColumn get pausedTotalMs => integer().withDefault(const Constant(0))();
+  TextColumn get pauseIntervalsJson => text().withDefault(const Constant('[]'))();
   IntColumn get durationMs => integer().withDefault(const Constant(0))();
   IntColumn get tzOffsetMin => integer().withDefault(const Constant(0))();
   TextColumn get subjectId => text().nullable()();

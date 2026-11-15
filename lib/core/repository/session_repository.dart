@@ -8,7 +8,11 @@ import 'session_repository_platform_stub.dart'
 abstract class SessionRepository {
   Future<void> saveSession(ReadingSession session);
   Future<void> updateSession(ReadingSession session);
-  Future<void> softDeleteSession(String id);
+  Future<void> softDeleteSession(String id, {int? deletedAt});
+  Future<bool> restoreSoftDeletedSession({
+    required ReadingSession session,
+    required int expectedDeletedAt,
+  });
   Future<ReadingSession?> getActiveSession();
   Future<List<ReadingSession>> getAllSessions();
   Future<List<ReadingSession>> getSessionsBetween(int startUtc, int endUtc);
@@ -100,15 +104,36 @@ class InMemorySessionRepository implements SessionRepository {
   }
 
   @override
-  Future<void> softDeleteSession(String id) async {
+  Future<void> softDeleteSession(String id, {int? deletedAt}) async {
     final existing = _storage[id];
     if (existing != null) {
+      final timestamp = deletedAt ?? DateTime.now().toUtc().millisecondsSinceEpoch;
       _storage[id] = existing.copyWith(
-        deletedAt: DateTime.now().toUtc().millisecondsSinceEpoch,
-        updatedAt: DateTime.now().toUtc().millisecondsSinceEpoch,
+        deletedAt: timestamp,
+        updatedAt: timestamp,
       );
       _notify();
     }
+  }
+
+  @override
+  Future<bool> restoreSoftDeletedSession({
+    required ReadingSession session,
+    required int expectedDeletedAt,
+  }) async {
+    final current = _storage[session.id];
+    if (current == null ||
+        current.deletedAt != expectedDeletedAt ||
+        current.updatedAt != expectedDeletedAt) {
+      return false;
+    }
+
+    _storage[session.id] = session.copyWith(
+      clearDeletedAt: true,
+      updatedAt: DateTime.now().toUtc().millisecondsSinceEpoch,
+    );
+    _notify();
+    return true;
   }
 
   @override

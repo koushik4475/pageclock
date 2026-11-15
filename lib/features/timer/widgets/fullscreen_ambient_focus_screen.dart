@@ -7,6 +7,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../core/engine/stopwatch_engine.dart';
 import '../../../core/settings/app_settings.dart';
 import '../../../core/theme/theme_provider.dart';
+import 'clock_face.dart';
 
 /// Apple Mac Retro Flip Clock & Fullscreen Focus Countdown Screen (Fliqlo Screensaver Style)
 /// Matches Toggl Track & Apple StandBy aesthetic:
@@ -246,94 +247,53 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
             ),
           ),
 
-          // Center: Responsive Apple Mac Twin Flip Plates
+          // Center: user-customizable Clock Studio face.
           Center(
-            child: LayoutBuilder(
-              builder: (ctx, constraints) {
-                final isLandscape = constraints.maxWidth > constraints.maxHeight;
-                final double plateWidth = isLandscape
-                    ? (constraints.maxWidth * 0.30).clamp(160.0, 320.0)
-                    : ((constraints.maxWidth - 56) / 2).clamp(130.0, 220.0);
-                final double plateHeight = plateWidth * 1.25;
-                final double fontSize = plateWidth * 0.72;
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ClockFaceView(
+                    styleId: settings.clockStyleId,
+                    leftText: leftVal,
+                    rightText: rightVal,
+                    secondsText: now.second.toString().padLeft(2, '0'),
+                    badge: subBadge,
+                    accentColor: ClockFaceView.colorFromHex(settings.clockAccentColor),
+                    showSeconds: settings.clockShowSeconds && _showWallClock,
+                    showDate: settings.clockShowDate && _showWallClock,
+                    date: now,
+                    isDark: isDark,
+                  ),
+                  if (widget.description.isNotEmpty || widget.projectName.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: surfaceColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: borderColor),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          _buildFlipPlate(
-                            value: leftVal,
-                            badge: subBadge,
-                            isLeft: true,
-                            isDark: isDark,
-                            plateWidth: plateWidth,
-                            plateHeight: plateHeight,
-                            fontSize: fontSize,
-                            colorScheme: colorScheme,
-                            isOledBackdrop: isOledBackdrop,
-                          ),
-                          SizedBox(width: plateWidth * 0.08),
-                          _buildFlipPlate(
-                            value: rightVal,
-                            badge: null,
-                            isLeft: false,
-                            isDark: isDark,
-                            plateWidth: plateWidth,
-                            plateHeight: plateHeight,
-                            fontSize: fontSize,
-                            colorScheme: colorScheme,
-                            isOledBackdrop: isOledBackdrop,
+                          Container(width: 6, height: 6, decoration: BoxDecoration(color: colorScheme.primary, shape: BoxShape.circle)),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              widget.description.isNotEmpty ? widget.description : widget.projectName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: primaryTextColor, fontSize: 13, fontWeight: FontWeight.w600),
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 28),
-
-                      // Task Description & Project Badge
-                      if (widget.description.isNotEmpty || widget.projectName.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: surfaceColor,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: borderColor,
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  color: colorScheme.primary,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                widget.description.isNotEmpty
-                                    ? widget.description
-                                    : widget.projectName,
-                                style: TextStyle(
-                                  color: primaryTextColor,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                );
-              },
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
 
@@ -501,130 +461,4 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
     );
   }
 
-  Widget _buildFlipPlate({
-    required String value,
-    required String? badge,
-    required bool isLeft,
-    required bool isDark,
-    required double plateWidth,
-    required double plateHeight,
-    required double fontSize,
-    required ColorScheme colorScheme,
-    required bool isOledBackdrop,
-  }) {
-    final plateBg = isOledBackdrop
-        ? const Color(0xFF141416)
-        : colorScheme.surface;
-    final plateBorder = isOledBackdrop
-        ? const Color(0xFF222227)
-        : colorScheme.outline;
-
-    return Container(
-      width: plateWidth,
-      height: plateHeight,
-      decoration: BoxDecoration(
-        color: plateBg,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: plateBorder,
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.9 : 0.25),
-            blurRadius: 28,
-            spreadRadius: 2,
-            offset: const Offset(0, 14),
-          ),
-          BoxShadow(
-            color: Colors.white.withOpacity(0.05),
-            blurRadius: 1,
-            spreadRadius: 0,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          if (badge != null)
-            Positioned(
-              top: 14,
-              left: 16,
-              child: Text(
-                badge,
-                style: const TextStyle(
-                  color: Color(0xFF8E8E93),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.5,
-                ),
-              ),
-            ),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  value,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  softWrap: false,
-                  style: TextStyle(
-                color: isOledBackdrop
-                    ? Colors.white
-                    : colorScheme.onSurface,
-                fontSize: fontSize,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -4,
-                height: 1.0,
-                fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  height: 1.2,
-                  color: plateBorder.withOpacity(0.7),
-                ),
-                Container(
-                  height: 1.0,
-                  color: plateBorder,
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            left: 0,
-            top: (plateHeight / 2) - 3,
-            child: Container(
-              width: 3,
-              height: 6,
-              decoration: BoxDecoration(
-                color: plateBorder,
-                borderRadius: BorderRadius.horizontal(right: Radius.circular(2)),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 0,
-            top: (plateHeight / 2) - 3,
-            child: Container(
-              width: 3,
-              height: 6,
-              decoration: BoxDecoration(
-                color: plateBorder,
-                borderRadius: BorderRadius.horizontal(left: Radius.circular(2)),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

@@ -54,5 +54,42 @@ void main() {
       expect(hourly[11], equals(15));
       expect(hourly.length, equals(24));
     });
+
+    test('Hourly distribution excludes multiple pauses using the stored timezone offset', () {
+      const offsetMs = 330 * 60000;
+      int utcAt(int hour, int minute) =>
+          DateTime.utc(2026, 11, 9, hour, minute).millisecondsSinceEpoch -
+          offsetMs;
+
+      final session = ReadingSession(
+        id: 'paused-hourly',
+        startedAtUtc: utcAt(9, 0),
+        endedAtUtc: utcAt(10, 30),
+        pausedTotalMs: 30 * 60000,
+        durationMs: 60 * 60000,
+        tzOffsetMin: 330,
+        pauseIntervals: [
+          PauseInterval(
+            startedAtUtc: utcAt(9, 15),
+            endedAtUtc: utcAt(9, 30),
+          ),
+          PauseInterval(
+            startedAtUtc: utcAt(9, 45),
+            endedAtUtc: utcAt(10, 0),
+          ),
+        ],
+        createdAt: utcAt(9, 0),
+        updatedAt: utcAt(10, 30),
+      );
+
+      final hourly = StatsEngine.calculateHourlyDistribution(
+        [session],
+        DateTime(2026, 11, 9),
+      );
+
+      expect(hourly[9], 30);
+      expect(hourly[10], 30);
+      expect(hourly.values.fold<int>(0, (sum, value) => sum + value), 60);
+    });
   });
 }

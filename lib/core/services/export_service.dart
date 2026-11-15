@@ -19,6 +19,7 @@ class SessionExportService {
         'created_at',
         'updated_at',
         'paused_at_utc',
+        'pause_intervals_json',
       ]
     ];
 
@@ -38,6 +39,7 @@ class SessionExportService {
         s.createdAt,
         s.updatedAt,
         s.pausedAtUtc ?? '',
+        jsonEncode(s.pauseIntervals.map((interval) => interval.toMap()).toList()),
       ]);
     }
 
@@ -52,6 +54,25 @@ class SessionExportService {
     for (int i = 1; i < rows.length; i++) {
       final row = rows[i];
       if (row.length < 12) continue;
+
+      final pauseIntervals = <PauseInterval>[];
+      if (row.length > 13 && row[13].toString().isNotEmpty) {
+        try {
+          final decoded = jsonDecode(row[13].toString());
+          if (decoded is List) {
+            for (final item in decoded) {
+              if (item is Map) {
+                pauseIntervals.add(
+                  PauseInterval.fromMap(Map<String, dynamic>.from(item)),
+                );
+              }
+            }
+          }
+        } catch (_) {
+          // Legacy and malformed optional interval metadata must not prevent
+          // the rest of a CSV backup from being restored.
+        }
+      }
 
       result.add(
         ReadingSession(
@@ -72,6 +93,7 @@ class SessionExportService {
           pausedAtUtc: row.length > 12 && row[12].toString().isNotEmpty
               ? int.tryParse(row[12].toString())
               : null,
+          pauseIntervals: pauseIntervals,
         ),
       );
     }
