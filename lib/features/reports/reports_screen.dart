@@ -218,16 +218,16 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1A1426) : Colors.white,
+                      color: colorScheme.surface,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: isDark ? const Color(0xFF2E2242) : const Color(0xFFE5E7EB),
+                        color: colorScheme.outline,
                       ),
                     ),
                     child: Icon(
                       Icons.filter_alt_outlined,
                       size: 16,
-                      color: isDark ? Colors.white70 : Colors.black87,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -246,10 +246,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF15101E) : Colors.white,
+                color: colorScheme.surface,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: isDark ? const Color(0xFF261D36) : const Color(0xFFE5E7EB),
+                  color: colorScheme.outline,
                 ),
               ),
               child: Column(
@@ -309,10 +309,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF15101E) : Colors.white,
+                color: colorScheme.surface,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: isDark ? const Color(0xFF261D36) : const Color(0xFFE5E7EB),
+                  color: colorScheme.outline,
                 ),
               ),
               child: Column(
@@ -333,7 +333,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   Container(
                     height: 40,
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E172B) : const Color(0xFFF3F4F6),
+                      color: colorScheme.surface.withOpacity(.85),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     padding: const EdgeInsets.all(3),
@@ -347,7 +347,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: _groupByIndex == 0
-                                    ? (isDark ? const Color(0xFF2D233F) : Colors.white)
+                                    ? colorScheme.surface
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -357,7 +357,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                   color: _groupByIndex == 0
-                                      ? (isDark ? Colors.white : const Color(0xFF111827))
+                                      ? colorScheme.onSurface
                                       : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
                                 ),
                               ),
@@ -372,7 +372,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: _groupByIndex == 1
-                                    ? (isDark ? const Color(0xFF2D233F) : Colors.white)
+                                    ? colorScheme.surface
                                     : Colors.transparent,
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -382,7 +382,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                   color: _groupByIndex == 1
-                                      ? (isDark ? Colors.white : const Color(0xFF111827))
+                                      ? colorScheme.onSurface
                                       : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
                                 ),
                               ),
@@ -405,7 +405,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                           Icon(
                             Icons.donut_large_rounded,
                             size: 48,
-                            color: isDark ? const Color(0xFF2E2242) : const Color(0xFFE5E7EB),
+                            color: colorScheme.outline,
                           ),
                           const SizedBox(height: 10),
                           Text(
