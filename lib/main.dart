@@ -1,7 +1,5 @@
-import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -11,7 +9,6 @@ import 'core/engine/stopwatch_engine.dart';
 import 'core/services/notification_service.dart';
 import 'core/repository/session_repository.dart';
 import 'core/settings/app_settings.dart';
-import 'core/theme/app_colors.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/widgets/pageclock_brand_mark.dart';
 import 'features/app_update/app_update_service.dart';
