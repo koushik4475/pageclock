@@ -13,9 +13,11 @@ import 'core/repository/session_repository.dart';
 import 'core/settings/app_settings.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/theme_provider.dart';
+import 'core/widgets/pageclock_brand_mark.dart';
 import 'features/app_update/app_update_service.dart';
 import 'features/app_update/update_dialog.dart';
 import 'features/calendar/calendar_screen.dart';
+import 'features/dashboard/dashboard_screen.dart';
 import 'features/reports/reports_screen.dart';
 import 'features/settings/toggl_settings_screen.dart';
 import 'features/timer/toggl_timer_screen.dart';
@@ -125,7 +127,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0C),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -166,10 +168,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                           width: 76,
                           height: 76,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF141417),
+                            color: Theme.of(context).colorScheme.surface,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: const Color(0xFF27272A),
+                              color: Theme.of(context).colorScheme.outline,
                               width: 1.2,
                             ),
                             boxShadow: [
@@ -180,11 +182,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                               ),
                             ],
                           ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.menu_book_rounded,
-                              size: 34,
-                              color: Color(0xFFE040FB),
+                          child: Center(
+                            child: PageClockBrandMark(
+                              size: 58,
+                              inkColor: Theme.of(context).colorScheme.onSurface,
+                              accentColor: Theme.of(context).colorScheme.primary,
                             ),
                           ),
                         ),
@@ -274,117 +276,144 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isWide = MediaQuery.of(context).size.width >= 800;
     final currentIndex = ref.watch(mainTabNavigationIndexProvider);
     final sessionsAsync = ref.watch(sessionsStreamProvider);
-    final sessions = sessionsAsync.value ?? [];
-    final appThemeId = ref.watch(appThemeIdProvider);
-    final isSpecial1 = appThemeId == AppThemeId.special1;
-    final colorScheme = Theme.of(context).colorScheme;
+    final sessions = sessionsAsync.value ?? const <ReadingSession>[];
+    final settings = ref.watch(settingsProvider);
+    final stopwatchState = ref.watch(stopwatchProvider);
+    final colors = Theme.of(context).colorScheme;
+    final width = MediaQuery.sizeOf(context).width;
+    final isDesktop = width >= 1120;
+    final isTablet = width >= 720 && width < 1120;
+
+    void navigate(int index) {
+      ref.read(mainTabNavigationIndexProvider.notifier).state = index;
+    }
 
     final screens = [
+      DashboardScreen(
+        sessions: sessions,
+        settings: settings,
+        stopwatchState: stopwatchState,
+        onNavigate: navigate,
+      ),
       const TogglTimerScreen(),
       CalendarScreen(sessions: sessions),
       ReportsScreen(sessions: sessions),
       const TogglSettingsScreen(),
     ];
+    final selectedIndex = currentIndex.clamp(0, screens.length - 1).toInt();
+    final pageStack = IndexedStack(index: selectedIndex, children: screens);
 
-    if (isWide) {
+    if (isDesktop) {
       return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: Row(
           children: [
             Container(
-              width: 230,
+              width: 248,
               decoration: BoxDecoration(
-                color: colorScheme.surface,
+                color: colors.surface,
                 border: Border(
-                  right: BorderSide(
-                    color: colorScheme.outline,
-                    width: 1,
-                  ),
+                  right: BorderSide(color: colors.outline.withOpacity(.75)),
                 ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
+              padding: const EdgeInsets.fromLTRB(18, 24, 18, 18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [colorScheme.primary, colorScheme.tertiary],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: colorScheme.primary.withOpacity(0.35),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.bolt_rounded, size: 20, color: Colors.white),
+                      PageClockBrandMark(
+                        size: 44,
+                        inkColor: colors.onSurface,
+                        accentColor: colors.primary,
                       ),
                       const SizedBox(width: 10),
-                      Text(
-                        'PageClock',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                          color: colorScheme.onSurface,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            RichText(
+                              text: TextSpan(
+                                style: TextStyle(
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.8,
+                                  color: colors.onSurface,
+                                ),
+                                children: [
+                                  const TextSpan(text: 'Page'),
+                                  TextSpan(text: 'Clock', style: TextStyle(color: colors.primary)),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              'READ · FOCUS · TRACK',
+                              style: TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.2,
+                                color: colors.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 36),
                   Text(
-                    'NAVIGATION',
+                    'WORKSPACE',
                     style: TextStyle(
                       fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
-                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.4,
+                      color: colors.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  _buildSidebarItem(0, 'Timer', Icons.schedule_rounded, isDark, currentIndex, colorScheme),
-                  _buildSidebarItem(1, 'Calendar', Icons.calendar_today_rounded, isDark, currentIndex, colorScheme),
-                  _buildSidebarItem(2, 'Reports', Icons.bar_chart_rounded, isDark, currentIndex, colorScheme),
-                  _buildSidebarItem(3, 'Settings', Icons.settings_outlined, isDark, currentIndex, colorScheme),
+                  const SizedBox(height: 14),
+                  _buildSidebarItem(0, 'Dashboard', Icons.space_dashboard_rounded, selectedIndex, colors, () => navigate(0)),
+                  _buildSidebarItem(1, 'Timer', Icons.timer_outlined, selectedIndex, colors, () => navigate(1)),
+                  _buildSidebarItem(2, 'Calendar', Icons.calendar_month_outlined, selectedIndex, colors, () => navigate(2)),
+                  _buildSidebarItem(3, 'Reports', Icons.insights_outlined, selectedIndex, colors, () => navigate(3)),
+                  _buildSidebarItem(4, 'Settings', Icons.settings_outlined, selectedIndex, colors, () => navigate(4)),
                   const Spacer(),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: colorScheme.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: colorScheme.outline,
-                        width: 1,
-                      ),
+                      color: colors.primary.withOpacity(.08),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: colors.primary.withOpacity(.16)),
                     ),
-                    child: Column(
+                    child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'PageClock Offline',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : AppColors.textPrimaryLight,
+                        Icon(Icons.auto_awesome_rounded, size: 18, color: colors.primary),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'A little progress, daily.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: colors.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Your sessions stay private and on this device.',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  height: 1.4,
+                                  color: colors.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          '100% Private & Local',
-                          style: TextStyle(fontSize: 11, color: Color(0xFFE040FB)),
                         ),
                       ],
                     ),
@@ -393,9 +422,11 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
               ),
             ),
             Expanded(
-              child: IndexedStack(
-                index: currentIndex,
-                children: screens,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1600),
+                  child: SizedBox.expand(child: pageStack),
+                ),
               ),
             ),
           ],
@@ -403,101 +434,121 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
       );
     }
 
-    // Mobile Bottom Navigation Bar matching Toggl Track UI
-    return Scaffold(
-      backgroundColor: isSpecial1
-          ? Special1Palette.background
-          : (isDark ? const Color(0xFF0F0B15) : AppColors.bgLight),
-      body: IndexedStack(
-        index: currentIndex,
-        children: screens,
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          border: Border(
-            top: BorderSide(
-              color: colorScheme.outline,
-              width: 1,
+    if (isTablet) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: Row(
+          children: [
+            NavigationRail(
+              selectedIndex: selectedIndex,
+              onDestinationSelected: navigate,
+              labelType: NavigationRailLabelType.selected,
+              minWidth: 78,
+              backgroundColor: colors.surface,
+              selectedIconTheme: IconThemeData(color: colors.primary),
+              unselectedIconTheme: IconThemeData(color: colors.onSurfaceVariant),
+              selectedLabelTextStyle: TextStyle(
+                color: colors.primary,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+              ),
+              unselectedLabelTextStyle: TextStyle(
+                color: colors.onSurfaceVariant,
+                fontSize: 10,
+              ),
+              leading: Padding(
+                padding: const EdgeInsets.only(bottom: 26, top: 8),
+                child: PageClockBrandMark(
+                  size: 44,
+                  inkColor: colors.onSurface,
+                  accentColor: colors.primary,
+                ),
+              ),
+              destinations: const [
+                NavigationRailDestination(icon: Icon(Icons.space_dashboard_outlined), selectedIcon: Icon(Icons.space_dashboard_rounded), label: Text('Home')),
+                NavigationRailDestination(icon: Icon(Icons.timer_outlined), selectedIcon: Icon(Icons.timer_rounded), label: Text('Timer')),
+                NavigationRailDestination(icon: Icon(Icons.calendar_month_outlined), selectedIcon: Icon(Icons.calendar_month_rounded), label: Text('Calendar')),
+                NavigationRailDestination(icon: Icon(Icons.insights_outlined), selectedIcon: Icon(Icons.insights_rounded), label: Text('Reports')),
+                NavigationRailDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings_rounded), label: Text('Settings')),
+              ],
             ),
-          ),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: currentIndex,
-          onTap: (idx) => ref.read(mainTabNavigationIndexProvider.notifier).state = idx,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: colorScheme.primary,
-          unselectedItemColor: colorScheme.onSurfaceVariant,
-          selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-          unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.access_time_rounded),
-              activeIcon: Icon(Icons.access_time_filled_rounded),
-              label: 'Timer',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_today_outlined),
-              activeIcon: Icon(Icons.calendar_today_rounded),
-              label: 'Calendar',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart_outlined),
-              activeIcon: Icon(Icons.bar_chart_rounded),
-              label: 'Reports',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined),
-              activeIcon: Icon(Icons.settings_rounded),
-              label: 'Settings',
+            VerticalDivider(width: 1, color: colors.outline.withOpacity(.75)),
+            Expanded(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1600),
+                  child: SizedBox.expand(child: pageStack),
+                ),
+              ),
             ),
           ],
         ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: pageStack,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: selectedIndex,
+        onDestinationSelected: navigate,
+        height: 72,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        backgroundColor: colors.surface,
+        indicatorColor: colors.primary.withOpacity(.13),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.space_dashboard_outlined), selectedIcon: Icon(Icons.space_dashboard_rounded), label: 'Home'),
+          NavigationDestination(icon: Icon(Icons.timer_outlined), selectedIcon: Icon(Icons.timer_rounded), label: 'Timer'),
+          NavigationDestination(icon: Icon(Icons.calendar_month_outlined), selectedIcon: Icon(Icons.calendar_month_rounded), label: 'Calendar'),
+          NavigationDestination(icon: Icon(Icons.insights_outlined), selectedIcon: Icon(Icons.insights_rounded), label: 'Reports'),
+          NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings_rounded), label: 'Settings'),
+        ],
       ),
     );
   }
 
-  Widget _buildSidebarItem(int idx, String title, IconData icon, bool isDark, int currentIndex, ColorScheme colorScheme) {
-    final isSelected = currentIndex == idx;
+  Widget _buildSidebarItem(
+    int index,
+    String title,
+    IconData icon,
+    int currentIndex,
+    ColorScheme colors,
+    VoidCallback onTap,
+  ) {
+    final selected = currentIndex == index;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4.0),
-      child: InkWell(
-        onTap: () => ref.read(mainTabNavigationIndexProvider.notifier).state = idx,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? colorScheme.primary.withOpacity(0.13)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isSelected
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant,
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Material(
+        color: selected ? colors.primary.withOpacity(.13) : Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: SizedBox(
+            height: 46,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 13),
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: 19,
+                    color: selected ? colors.primary : colors.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                      color: selected ? colors.onSurface : colors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected
-                      ? colorScheme.onSurface
-                      : colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
-  }
-}
+  }}
