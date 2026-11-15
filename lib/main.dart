@@ -13,9 +13,11 @@ import 'core/repository/session_repository.dart';
 import 'core/settings/app_settings.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/theme_provider.dart';
+import 'core/widgets/pageclock_brand_mark.dart';
 import 'features/app_update/app_update_service.dart';
 import 'features/app_update/update_dialog.dart';
 import 'features/calendar/calendar_screen.dart';
+import 'features/dashboard/pageclock_dashboard_screen.dart';
 import 'features/reports/reports_screen.dart';
 import 'features/settings/toggl_settings_screen.dart';
 import 'features/timer/toggl_timer_screen.dart';
@@ -274,123 +276,96 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isWide = MediaQuery.of(context).size.width >= 800;
+    final colors = Theme.of(context).colorScheme;
     final currentIndex = ref.watch(mainTabNavigationIndexProvider);
-    final sessionsAsync = ref.watch(sessionsStreamProvider);
-    final sessions = sessionsAsync.value ?? [];
-    final appThemeId = ref.watch(appThemeIdProvider);
-    final isSpecial1 = appThemeId == AppThemeId.special1;
-    final colorScheme = Theme.of(context).colorScheme;
+    final sessions = ref.watch(sessionsStreamProvider).value ?? [];
 
     final screens = [
+      PageClockDashboardScreen(
+        sessions: sessions,
+        onOpenTimer: () => _selectTab(1),
+        onNavigate: _selectTab,
+      ),
       const TogglTimerScreen(),
       CalendarScreen(sessions: sessions),
       ReportsScreen(sessions: sessions),
       const TogglSettingsScreen(),
     ];
 
-    if (isWide) {
+    if (width >= 1100) {
+      return Scaffold(
+        backgroundColor: colors.surface,
+        body: Row(
+          children: [
+            _buildDesktopSidebar(currentIndex, isDark, colors),
+            Expanded(
+              child: IndexedStack(
+                index: currentIndex,
+                children: screens,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (width >= 700) {
       return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: Row(
           children: [
-            Container(
-              width: 230,
-              decoration: BoxDecoration(
-                color: colorScheme.surface,
-                border: Border(
-                  right: BorderSide(
-                    color: colorScheme.outline,
-                    width: 1,
-                  ),
+            NavigationRail(
+              selectedIndex: currentIndex,
+              onDestinationSelected: _selectTab,
+              backgroundColor: colors.surface,
+              indicatorColor: colors.primary.withOpacity(isDark ? 0.18 : 0.12),
+              selectedIconTheme: IconThemeData(color: colors.primary, size: 22),
+              unselectedIconTheme: IconThemeData(color: colors.onSurfaceVariant, size: 21),
+              selectedLabelTextStyle: TextStyle(
+                color: colors.onSurface,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+              unselectedLabelTextStyle: TextStyle(
+                color: colors.onSurfaceVariant,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+              labelType: NavigationRailLabelType.all,
+              destinations: const [
+                NavigationRailDestination(
+                  icon: Icon(Icons.dashboard_outlined),
+                  selectedIcon: Icon(Icons.dashboard_rounded),
+                  label: Text('Home'),
                 ),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [colorScheme.primary, colorScheme.tertiary],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: colorScheme.primary.withOpacity(0.35),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.bolt_rounded, size: 20, color: Colors.white),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        'PageClock',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                          color: colorScheme.onSurface,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 36),
-                  Text(
-                    'NAVIGATION',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSidebarItem(0, 'Timer', Icons.schedule_rounded, isDark, currentIndex, colorScheme),
-                  _buildSidebarItem(1, 'Calendar', Icons.calendar_today_rounded, isDark, currentIndex, colorScheme),
-                  _buildSidebarItem(2, 'Reports', Icons.bar_chart_rounded, isDark, currentIndex, colorScheme),
-                  _buildSidebarItem(3, 'Settings', Icons.settings_outlined, isDark, currentIndex, colorScheme),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: colorScheme.outline,
-                        width: 1,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'PageClock Offline',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white : AppColors.textPrimaryLight,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          '100% Private & Local',
-                          style: TextStyle(fontSize: 11, color: Color(0xFFE040FB)),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.timer_outlined),
+                  selectedIcon: Icon(Icons.timer_rounded),
+                  label: Text('Timer'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.calendar_month_outlined),
+                  selectedIcon: Icon(Icons.calendar_month_rounded),
+                  label: Text('Calendar'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.query_stats_outlined),
+                  selectedIcon: Icon(Icons.query_stats_rounded),
+                  label: Text('Reports'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.settings_outlined),
+                  selectedIcon: Icon(Icons.settings_rounded),
+                  label: Text('Settings'),
+                ),
+              ],
+            ),
+            VerticalDivider(
+              width: 1,
+              thickness: 1,
+              color: colors.outline.withOpacity(0.65),
             ),
             Expanded(
               child: IndexedStack(
@@ -403,101 +378,207 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
       );
     }
 
-    // Mobile Bottom Navigation Bar matching Toggl Track UI
     return Scaffold(
-      backgroundColor: isSpecial1
-          ? Special1Palette.background
-          : (isDark ? const Color(0xFF0F0B15) : AppColors.bgLight),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: IndexedStack(
         index: currentIndex,
         children: screens,
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          border: Border(
-            top: BorderSide(
-              color: colorScheme.outline,
-              width: 1,
-            ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: currentIndex,
+        onDestinationSelected: _selectTab,
+        backgroundColor: colors.surface,
+        indicatorColor: colors.primary.withOpacity(isDark ? 0.18 : 0.12),
+        height: 70,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard_rounded),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.timer_outlined),
+            selectedIcon: Icon(Icons.timer_rounded),
+            label: 'Timer',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month_rounded),
+            label: 'Calendar',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.query_stats_outlined),
+            selectedIcon: Icon(Icons.query_stats_rounded),
+            label: 'Reports',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings_rounded),
+            label: 'Settings',
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _selectTab(int index) {
+    ref.read(mainTabNavigationIndexProvider.notifier).state = index;
+  }
+
+  Widget _buildDesktopSidebar(
+    int currentIndex,
+    bool isDark,
+    ColorScheme colors,
+  ) {
+    return Container(
+      width: 248,
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border(
+          right: BorderSide(
+            color: colors.outline.withOpacity(0.65),
+            width: 1,
           ),
         ),
-        child: BottomNavigationBar(
-          currentIndex: currentIndex,
-          onTap: (idx) => ref.read(mainTabNavigationIndexProvider.notifier).state = idx,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: colorScheme.primary,
-          unselectedItemColor: colorScheme.onSurfaceVariant,
-          selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-          unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.access_time_rounded),
-              activeIcon: Icon(Icons.access_time_filled_rounded),
-              label: 'Timer',
+      ),
+      padding: const EdgeInsets.fromLTRB(18, 26, 18, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              PageClockBrandMark(
+                size: 42,
+                inkColor: colors.onSurface,
+                accentColor: colors.primary,
+              ),
+              const SizedBox(width: 10),
+              RichText(
+                text: TextSpan(
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.8,
+                    color: colors.onSurface,
+                  ),
+                  children: [
+                    const TextSpan(text: 'Page'),
+                    TextSpan(
+                      text: 'Clock',
+                      style: TextStyle(color: colors.primary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 38),
+          Text(
+            'WORKSPACE',
+            style: TextStyle(
+              color: colors.onSurfaceVariant,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.5,
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_today_outlined),
-              activeIcon: Icon(Icons.calendar_today_rounded),
-              label: 'Calendar',
+          ),
+          const SizedBox(height: 12),
+          _buildNavItem(0, 'Dashboard', Icons.dashboard_outlined, currentIndex, colors),
+          _buildNavItem(1, 'Timer', Icons.timer_outlined, currentIndex, colors),
+          _buildNavItem(2, 'Calendar', Icons.calendar_month_outlined, currentIndex, colors),
+          _buildNavItem(3, 'Reports', Icons.query_stats_outlined, currentIndex, colors),
+          const Spacer(),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1B2433) : const Color(0xFFFFE9D4),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: isDark ? const Color(0xFF334155) : const Color(0xFFE8CCB1),
+              ),
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart_outlined),
-              activeIcon: Icon(Icons.bar_chart_rounded),
-              label: 'Reports',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.auto_stories_rounded, color: colors.primary, size: 25),
+                const SizedBox(height: 10),
+                Text(
+                  'Read more. Focus better.',
+                  style: TextStyle(
+                    color: colors.onSurface,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'Build a steady reading habit, one session at a time.',
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
+                    fontSize: 11,
+                    height: 1.4,
+                  ),
+                ),
+              ],
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined),
-              activeIcon: Icon(Icons.settings_rounded),
-              label: 'Settings',
+          ),
+          const SizedBox(height: 14),
+          _buildNavItem(4, 'Settings', Icons.settings_outlined, currentIndex, colors),
+          const SizedBox(height: 6),
+          Text(
+            'PRIVATE BY DESIGN · STORED LOCALLY',
+            style: TextStyle(
+              color: colors.onSurfaceVariant,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem(
+    int index,
+    String title,
+    IconData icon,
+    int currentIndex,
+    ColorScheme colors,
+  ) {
+    final selected = index == currentIndex;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Material(
+        color: selected ? colors.primary.withOpacity(0.13) : Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: () => _selectTab(index),
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 20,
+                  color: selected ? colors.primary : colors.onSurfaceVariant,
+                ),
+                const SizedBox(width: 13),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: selected ? colors.onSurface : colors.onSurfaceVariant,
+                    fontSize: 13,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildSidebarItem(int idx, String title, IconData icon, bool isDark, int currentIndex, ColorScheme colorScheme) {
-    final isSelected = currentIndex == idx;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4.0),
-      child: InkWell(
-        onTap: () => ref.read(mainTabNavigationIndexProvider.notifier).state = idx,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? colorScheme.primary.withOpacity(0.13)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isSelected
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected
-                      ? colorScheme.onSurface
-                      : colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
