@@ -84,7 +84,7 @@ class DashboardScreen extends StatelessWidget {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final isDesktop = constraints.maxWidth >= 1120;
+            final isDesktop = constraints.maxWidth >= 960;
             return Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1440),
@@ -116,6 +116,7 @@ class DashboardScreen extends StatelessWidget {
                                     settings: settings,
                                     stopwatchState: stopwatchState,
                                     onOpenTimer: () => onNavigate(1),
+                                    onOpenSettings: () => onNavigate(4),
                                     isDark: isDark,
                                   ),
                                   const SizedBox(height: 20),
@@ -163,6 +164,7 @@ class DashboardScreen extends StatelessWidget {
                           settings: settings,
                           stopwatchState: stopwatchState,
                           onOpenTimer: () => onNavigate(1),
+                          onOpenSettings: () => onNavigate(4),
                           isDark: isDark,
                         ),
                         const SizedBox(height: 16),
@@ -296,12 +298,14 @@ class _FocusHeroCard extends StatelessWidget {
   final AppSettings settings;
   final StopwatchState stopwatchState;
   final VoidCallback onOpenTimer;
+  final VoidCallback onOpenSettings;
   final bool isDark;
 
   const _FocusHeroCard({
     required this.settings,
     required this.stopwatchState,
     required this.onOpenTimer,
+    required this.onOpenSettings,
     required this.isDark,
   });
 
@@ -482,9 +486,9 @@ class _FocusHeroCard extends StatelessWidget {
                       ),
                     ),
                     OutlinedButton.icon(
-                      onPressed: onOpenTimer,
-                      icon: const Icon(Icons.fullscreen_rounded),
-                      label: const Text('Clock Studio'),
+                      onPressed: onOpenSettings,
+                      icon: const Icon(Icons.settings_outlined),
+                      label: const Text('Settings & Clock Studio'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: colors.onSurface,
                         side: BorderSide(color: colors.outline),
