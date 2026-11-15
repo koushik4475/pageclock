@@ -311,7 +311,7 @@ class _DashboardHeader extends StatelessWidget {
 }
 
 String _profileInitials(String name) {
-  final parts = name.trim().split(RegExp(r'\\s+')).where((part) => part.isNotEmpty).toList();
+  final parts = name.trim().split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
   if (parts.isEmpty) return 'PC';
   return parts.take(2).map((part) => part.substring(0, 1)).join().toUpperCase();
 }
