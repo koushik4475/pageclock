@@ -15,7 +15,7 @@ void main() {
       expect(AppThemeId.values, hasLength(12));
       expect(
         AppThemeId.values.map((theme) => theme.displayName).toSet(),
-        hasLength(11),
+        hasLength(12),
       );
     });
 
