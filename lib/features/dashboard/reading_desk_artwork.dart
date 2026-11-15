@@ -59,6 +59,135 @@ class _ReadingDeskPainter extends CustomPainter {
         ? const Color(0xFFE8D9C5)
         : const Color(0xFFFFF5E8);
 
+    // Scenic reading-hour backdrop: warm horizon, layered mountains and a
+    // softly glowing sun. The illustration stays self-contained and offline.
+    final sceneRect = RRect.fromRectAndRadius(
+      const Rect.fromLTWH(4, 5, 232, 164),
+      const Radius.circular(18),
+    );
+    canvas.save();
+    canvas.clipRRect(sceneRect);
+    canvas.drawRRect(
+      sceneRect,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: isDark
+              ? const [
+                  Color(0xFF172B3E),
+                  Color(0xFF664B50),
+                  Color(0xFFD17B50),
+                  Color(0xFFEFAD70),
+                ]
+              : const [
+                  Color(0xFFFFE9CE),
+                  Color(0xFFFFD6AA),
+                  Color(0xFFF4B17D),
+                  Color(0xFFE99B70),
+                ],
+          stops: const [0, .42, .76, 1],
+        ).createShader(const Rect.fromLTWH(4, 5, 232, 164)),
+    );
+
+    // Diffused sunset glow behind the mountain ridge.
+    canvas.drawCircle(
+      const Offset(167, 61),
+      49,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            isDark
+                ? const Color(0x99FFB36A)
+                : const Color(0x99FFF0BF),
+            isDark
+                ? const Color(0x33FF9A52)
+                : const Color(0x22FFF0BF),
+            Colors.transparent,
+          ],
+        ).createShader(
+          const Rect.fromCircle(center: Offset(167, 61), radius: 49),
+        ),
+    );
+    canvas.drawCircle(
+      const Offset(167, 61),
+      22,
+      Paint()
+        ..color = isDark
+            ? const Color(0xFFFFC17A)
+            : const Color(0xFFFFF1C7),
+    );
+
+    // Distant mountain silhouettes.
+    final distant = Path()
+      ..moveTo(4, 119)
+      ..lineTo(31, 91)
+      ..lineTo(51, 105)
+      ..lineTo(84, 69)
+      ..lineTo(111, 100)
+      ..lineTo(139, 78)
+      ..lineTo(173, 111)
+      ..lineTo(205, 83)
+      ..lineTo(236, 108)
+      ..lineTo(236, 169)
+      ..lineTo(4, 169)
+      ..close();
+    canvas.drawPath(
+      distant,
+      Paint()
+        ..color = isDark
+            ? const Color(0xFF46576A)
+            : const Color(0xFFCB8B70),
+    );
+
+    // Near ridge gives the scene depth without competing with the timer.
+    final near = Path()
+      ..moveTo(4, 132)
+      ..lineTo(42, 105)
+      ..lineTo(72, 126)
+      ..lineTo(112, 91)
+      ..lineTo(145, 123)
+      ..lineTo(180, 101)
+      ..lineTo(211, 128)
+      ..lineTo(236, 112)
+      ..lineTo(236, 169)
+      ..lineTo(4, 169)
+      ..close();
+    canvas.drawPath(
+      near,
+      Paint()
+        ..color = isDark
+            ? const Color(0xFF26394B)
+            : const Color(0xFF9D6D5F),
+    );
+
+    // A quiet foreground desk/horizon band.
+    canvas.drawRect(
+      const Rect.fromLTWH(4, 139, 232, 30),
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: isDark
+              ? const [Color(0xFF243644), Color(0xFF182632)]
+              : const [Color(0xFFC17A5B), Color(0xFF8F5847)],
+        ).createShader(const Rect.fromLTWH(4, 139, 232, 30)),
+    );
+
+    if (isDark) {
+      final star = Paint()..color = const Color(0xFFFFE1B4).withOpacity(.75);
+      for (final point in const [
+        Offset(28, 28),
+        Offset(60, 42),
+        Offset(119, 25),
+        Offset(210, 31),
+        Offset(226, 56),
+      ]) {
+        canvas.drawCircle(point, 1.25, star);
+      }
+    }
+    canvas.restore();
+
     // Soft ambient glow, kept within the illustration so it never obscures text.
     canvas.drawCircle(
       const Offset(138, 72),
