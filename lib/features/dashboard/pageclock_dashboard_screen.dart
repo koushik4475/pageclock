@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/engine/stopwatch_engine.dart';
 import '../../core/models/reading_session.dart';
-import '../../core/settings/app_settings.dart';
 import '../../core/theme/theme_provider.dart';
 import '../../stats/stats_engine.dart';
 
