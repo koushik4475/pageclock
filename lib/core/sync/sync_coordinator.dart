@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../account/account_scope.dart';
 import '../models/reading_session.dart';
+import '../repository/session_repository.dart';
 import '../repository/web_session_repository.dart';
 import '../settings/app_settings.dart';
 import 'cloud_session_data_source.dart';
@@ -34,7 +36,6 @@ class SyncCoordinator extends StateNotifier<SyncState> {
   bool _syncInProgress = false;
   bool _queuedSync = false;
   Timer? _debounceTimer;
-  int _consecutiveFailures = 0;
 
   SyncCoordinator({
     required SharedPreferences prefs,

@@ -2,16 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/account/account_scope.dart';
 import '../../../core/engine/stopwatch_engine.dart';
 import '../../../core/repository/session_repository.dart';
 import '../../../core/services/export_service.dart';
 import '../../../core/settings/app_settings.dart';
 import '../../../core/sync/sync_coordinator.dart';
 import '../../../core/sync/sync_meta.dart';
-import '../../../core/sync/sync_status.dart';
 import '../application/auth_controller.dart';
-import '../domain/auth_models.dart';
 
 /// Shows the Sign-in dialog (Google primary, email OTP secondary).
 Future<void> showSignInDialog(BuildContext context) {

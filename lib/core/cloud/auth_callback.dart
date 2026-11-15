@@ -1,6 +1,3 @@
-import 'auth_callback_sanitizer_stub.dart'
-    if (dart.library.html) 'auth_callback_sanitizer_web.dart';
-
 export 'auth_callback_sanitizer_stub.dart'
     if (dart.library.html) 'auth_callback_sanitizer_web.dart';
 

@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pageclock/core/account/account_scope.dart';
 import 'package:pageclock/core/engine/stopwatch_engine.dart';
-import 'package:pageclock/core/repository/session_repository.dart';
 import 'package:pageclock/core/settings/app_settings.dart';
 import 'package:pageclock/features/auth/application/auth_controller.dart';
 import 'package:pageclock/features/auth/data/auth_repository.dart';

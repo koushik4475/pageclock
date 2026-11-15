@@ -22,7 +22,7 @@ class AuthCallbackSanitizer {
           hash.contains('access_token=')) {
         _cachedFragment = hash.startsWith('#') ? hash.substring(1) : hash;
         final cleanUrl = '${html.window.location.pathname}${html.window.location.search}';
-        html.window.history?.replaceState(null, '', cleanUrl);
+        html.window.history.replaceState(null, '', cleanUrl);
         return _cachedFragment;
       }
     } catch (_) {
@@ -47,7 +47,7 @@ class AuthCallbackSanitizer {
         final newUri = uri.replace(
           query: queryParams.isEmpty ? null : Uri(queryParameters: queryParams).query,
         );
-        html.window.history?.replaceState(null, '', newUri.toString());
+        html.window.history.replaceState(null, '', newUri.toString());
       }
     } catch (_) {
       // In case of restricted iframe/sandbox

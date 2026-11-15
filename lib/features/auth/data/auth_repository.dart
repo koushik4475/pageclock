@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import '../domain/auth_models.dart';
 
 /// Abstract contract for authentication operations.
@@ -26,7 +26,7 @@ abstract class AuthRepository {
 
 /// Production implementation of [AuthRepository] backed by Supabase.
 class SupabaseAuthRepository implements AuthRepository {
-  final SupabaseClient _client;
+  final sb.SupabaseClient _client;
 
   SupabaseAuthRepository(this._client);
 
@@ -46,7 +46,7 @@ class SupabaseAuthRepository implements AuthRepository {
     final response = await _client.auth.verifyOTP(
       email: email.trim(),
       token: token.trim(),
-      type: OtpType.email,
+      type: sb.OtpType.email,
     );
 
     if (response.user != null) {
@@ -59,9 +59,9 @@ class SupabaseAuthRepository implements AuthRepository {
   Future<void> signInWithGoogle({String? redirectTo}) async {
     final effectiveRedirect = redirectTo ?? '${Uri.base.origin}/';
     await _client.auth.signInWithOAuth(
-      OAuthProvider.google,
+      sb.OAuthProvider.google,
       redirectTo: effectiveRedirect,
-      authScreenLaunchMode: LaunchMode.platformDefault,
+      authScreenLaunchMode: sb.LaunchMode.platformDefault,
     );
   }
 

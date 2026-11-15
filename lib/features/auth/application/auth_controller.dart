@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/account/account_scope.dart';
 import '../../../core/cloud/auth_callback.dart';
 import '../../../core/cloud/cloud_config.dart';
@@ -59,7 +60,7 @@ class AuthController extends StateNotifier<AuthState> {
       );
     }
 
-    _authSubscription = _authRepository?.authStateChanges().listen((user) {
+    _authSubscription = _authRepository?.authStateChanges().listen((AuthUser? user) {
       if (user != null) {
         if (!isTimerActive()) {
           _ref.read(accountScopeProvider.notifier).setUser(user.id);
@@ -102,7 +103,7 @@ class AuthController extends StateNotifier<AuthState> {
 
     state = AuthState.loading(pendingEmail: trimmedEmail);
     try {
-      await _authRepository!.signInWithOtp(trimmedEmail);
+      await _authRepository.signInWithOtp(trimmedEmail);
 
       final deadline = DateTime.now().millisecondsSinceEpoch + 60000;
       await _prefs.setInt(otpCooldownKey, deadline);
@@ -139,7 +140,7 @@ class AuthController extends StateNotifier<AuthState> {
 
     state = AuthState.loading(pendingEmail: email);
     try {
-      final user = await _authRepository!.verifyOtp(
+      final user = await _authRepository.verifyOtp(
         email: email,
         token: token.trim(),
       );
@@ -175,7 +176,7 @@ class AuthController extends StateNotifier<AuthState> {
 
     state = const AuthState.loading();
     try {
-      await _authRepository!.signInWithGoogle();
+      await _authRepository.signInWithGoogle();
       return true;
     } catch (e) {
       final msg = _mapAuthError(e);
