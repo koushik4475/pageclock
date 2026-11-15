@@ -50,7 +50,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: isDark ? const Color(0xFF0F0B15) : const Color(0xFFF9FAFB),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
           icon: Icon(
@@ -463,10 +463,10 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF15101E) : Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: borderColor ?? (isDark ? const Color(0xFF261D36) : const Color(0xFFE5E7EB)),
+          color: borderColor ?? Theme.of(context).colorScheme.outline,
         ),
       ),
       child: Column(
@@ -479,7 +479,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
   Widget _buildDivider(bool isDark) {
     return Divider(
       height: 1,
-      color: isDark ? const Color(0xFF261D36) : const Color(0xFFF3F4F6),
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
     );
   }
 
