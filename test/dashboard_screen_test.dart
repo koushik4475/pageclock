@@ -125,7 +125,10 @@ void main() {
       await tester.tap(reportsAction);
       expect(selectedIndex, 3);
 
-      await tester.tap(find.byTooltip('Open settings'));
+      final settingsButton = find.byTooltip('Open settings');
+      await tester.ensureVisible(settingsButton);
+      await tester.pumpAndSettle();
+      await tester.tap(settingsButton);
       expect(selectedIndex, 4);
     });
     testWidgets('theme switch exposes the paired PageClock appearance', (tester) async {
