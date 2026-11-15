@@ -58,7 +58,10 @@ class PageClockApp extends ConsumerWidget {
       themeMode: themeMode,
       theme: selectedTheme,
       darkTheme: selectedTheme,
-      home: const SplashScreen(),
+      // The HTML shell already provides the web loading screen. Skip the
+      // animated Flutter splash on web to avoid showing two different screens.
+      // Keep the native splash for Android and iOS.
+      home: kIsWeb ? const MainNavigationShell() : const SplashScreen(),
     );
   }
 }
