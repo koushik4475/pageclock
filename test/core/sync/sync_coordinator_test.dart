@@ -121,9 +121,10 @@ void main() {
         repository: repository,
         dataSource: dataSource,
         userId: userId,
+        autoSync: false,
       );
 
-      // Wait for initialization sync
+      // Trigger sync and wait for it to complete
       await coordinator.sync();
 
       // Local repository now contains both sessions
@@ -151,6 +152,7 @@ void main() {
         repository: repository,
         dataSource: dataSource,
         userId: userId,
+        autoSync: false,
       );
 
       await coordinator.sync();
@@ -166,6 +168,7 @@ void main() {
         repository: repository,
         dataSource: dataSource,
         userId: userId,
+        autoSync: false,
       );
 
       // Suppose device A already progressed cursor to 250
@@ -199,6 +202,7 @@ void main() {
         repository: repository,
         dataSource: dataSource,
         userId: userId,
+        autoSync: false,
       );
 
       await coordinator.sync();
@@ -222,6 +226,7 @@ void main() {
         repository: repository,
         dataSource: dataSource,
         userId: userId,
+        autoSync: false,
       );
 
       await coordinator.sync();
@@ -247,6 +252,7 @@ void main() {
         repository: repository,
         dataSource: dataSource,
         userId: userId,
+        autoSync: false,
       );
 
       // Verify guest prompt is required

@@ -19,6 +19,18 @@ class MockSessionRepository extends Mock implements SessionRepository {}
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  setUpAll(() {
+    registerFallbackValue(ReadingSession(
+      id: 'fallback-dummy',
+      startedAtUtc: 0,
+      durationMs: 0,
+      tzOffsetMin: 0,
+      source: 'timer',
+      createdAt: 0,
+      updatedAt: 0,
+    ));
+  });
+
   group('M5: Mode-Aware PDF Service Tests', () {
     final sampleSessions = [
       ReadingSession(

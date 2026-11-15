@@ -43,13 +43,16 @@ class SyncCoordinator extends StateNotifier<SyncState> {
     required CloudSessionDataSource dataSource,
     required String userId,
     SyncMeta? syncMeta,
+    bool autoSync = true,
   })  : _prefs = prefs,
         _repository = repository,
         _dataSource = dataSource,
         _userId = userId,
         _syncMeta = syncMeta ?? SyncMeta.load(prefs, userId),
-        super(const SyncState.syncing(detail: 'Initializing sync…')) {
-    _init();
+        super(const SyncState.localOnly()) {
+    if (autoSync) {
+      _init();
+    }
   }
 
   SyncMeta get syncMeta => _syncMeta;
