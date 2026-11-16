@@ -42,8 +42,11 @@ void main() {
       find.byKey(const ValueKey('subject-name-field')),
       name,
     );
+    await tester.pump();
+    await tester.ensureVisible(find.text('Save subject'));
     await tester.tap(find.text('Save subject'));
     await tester.pumpAndSettle();
+    expect(find.text('New subject'), findsNothing);
   }
 
   testWidgets('shows a useful empty state and creates a colour-coded subject',
@@ -59,9 +62,13 @@ void main() {
       find.byKey(const ValueKey('subject-name-field')),
       'Reading',
     );
+    await tester.pump();
     await tester.tap(find.text('Teal'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('Save subject'));
     await tester.tap(find.text('Save subject'));
     await tester.pumpAndSettle();
+    expect(find.text('New subject'), findsNothing);
 
     final saved = await repository.getAllSubjects(includeArchived: false);
     expect(saved, hasLength(1));
