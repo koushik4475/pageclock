@@ -541,7 +541,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
             const SizedBox(height: 32),
 
             if (adminAccess.valueOrNull == true) ...[
-              _sectionGap(),
+              const SizedBox(height: 32),
               _buildSectionHeader('ADMINISTRATION', isDark),
               _buildCard(
                 isDark,
