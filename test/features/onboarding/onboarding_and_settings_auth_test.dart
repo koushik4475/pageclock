@@ -15,16 +15,12 @@ void main() {
     late SharedPreferences prefs;
 
     setUp(() async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
       SharedPreferences.setMockInitialValues({});
       prefs = await SharedPreferences.getInstance();
     });
 
-    tearDown(() {
-      debugDefaultTargetPlatformOverride = null;
-    });
-
     testWidgets('OnboardingScreen keeps guest mode available when cloud auth is disabled', (tester) async {
+      tester.platformDispatcher.platform = TargetPlatform.linux;
       await tester.binding.setSurfaceSize(const Size(800, 1000));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -53,6 +49,7 @@ void main() {
     });
 
     testWidgets('OnboardingScreen Skip button sets onboardingCompleted flag to true', (tester) async {
+      tester.platformDispatcher.platform = TargetPlatform.linux;
       await tester.binding.setSurfaceSize(const Size(800, 1000));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -86,6 +83,7 @@ void main() {
     });
 
     testWidgets('TogglSettingsScreen displays ACCOUNT & CLOUD SYNC card at bottom for Guest mode', (tester) async {
+      tester.platformDispatcher.platform = TargetPlatform.linux;
       await tester.binding.setSurfaceSize(const Size(800, 1200));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
