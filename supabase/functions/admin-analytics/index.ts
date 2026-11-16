@@ -101,9 +101,6 @@ function addIntervalByLocalDay(
   }
 }
 
-function activeDuration(row: Record<string, unknown>): number {
-  return activeIntervals(row).reduce((sum, interval) => sum + interval.end - interval.start, 0);
-}
 
 function streaks(daily: Map<string, number>, today: string) {
   const threshold = 10 * 60_000;
