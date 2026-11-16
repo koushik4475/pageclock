@@ -19,6 +19,7 @@ import '../app_update/app_update_service.dart';
 import '../app_update/update_dialog.dart';
 import '../auth/presentation/auth_dialogs.dart';
 import '../timer/widgets/clock_face.dart';
+import '../subjects/subject_management_screen.dart';
 
 /// Full Production Settings Screen matching Toggl Track UI
 /// References:
@@ -89,6 +90,17 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
             _buildCard(
               isDark,
               [
+                _buildTile(
+                  title: 'Manage subjects & projects',
+                  subtitle: 'Create, colour-code, rename and archive reading subjects',
+                  isDark: isDark,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const SubjectManagementScreen(),
+                    ),
+                  ),
+                ),
+                _buildDivider(isDark),
                 _buildTile(
                   title: 'Workspace',
                   subtitle: isUserScope ? 'Cloud Workspace' : 'Personal Workspace',
