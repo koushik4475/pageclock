@@ -275,7 +275,7 @@ class WebSessionRepository implements SessionRepository, CloudSyncSessionReposit
   // -------------------------------------------------------------
 
   /// Returns all cached sessions including tombstones (`deletedAt != null`).
-  List<ReadingSession> allForSync() {
+  Future<List<ReadingSession>> allForSync() async {
     return _cache.values.toList();
   }
 
