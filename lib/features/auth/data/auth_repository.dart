@@ -63,7 +63,7 @@ class SupabaseAuthRepository implements AuthRepository {
     await _client.auth.signInWithOAuth(
       sb.OAuthProvider.google,
       redirectTo: effectiveRedirect,
-      authScreenLaunchMode: sb.LaunchMode.platformDefault,
+      authScreenLaunchMode: sb.LaunchMode.externalApplication,
     );
   }
 
