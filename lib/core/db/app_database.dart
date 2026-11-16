@@ -12,7 +12,12 @@ part 'app_database.g.dart';
 
 @DriftDatabase(tables: [ReadingSessions, Subjects])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
+  AppDatabase() : super(_openConnection('pageclock.sqlite'));
+
+  /// Opens a separate database for an authenticated account while preserving
+  /// the existing guest database and its data.
+  AppDatabase.forScope(String databaseFileName)
+      : super(_openConnection(databaseFileName));
 
   AppDatabase.forTesting(QueryExecutor e) : super(e);
 
@@ -53,10 +58,11 @@ class AppDatabase extends _$AppDatabase {
       );
 }
 
-LazyDatabase _openConnection() {
+LazyDatabase _openConnection(String databaseFileName) {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'pageclock.sqlite'));
+    final safeName = databaseFileName.replaceAll(RegExp(r'[^A-Za-z0-9_.-]'), '_');
+    final file = File(p.join(dbFolder.path, safeName));
     return NativeDatabase.createInBackground(file);
   });
 }
