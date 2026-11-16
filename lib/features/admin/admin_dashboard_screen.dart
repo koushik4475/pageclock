@@ -501,7 +501,7 @@ class AdminClientDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final entries = client.dailyFocusMs.entries.toList()..sort((a,b) => a.key.compareTo(b.key));
-    final points = entries.take(30).map((e) =>
+    final points = entries.skip(entries.length > 30 ? entries.length - 30 : 0).map((e) =>
       AdminDailyPoint(DateTime.tryParse(e.key) ?? DateTime.now(), e.value)).toList();
     return Scaffold(appBar: AppBar(title: const Text('Client analytics')),
       body: ListView(padding: const EdgeInsets.all(20), children: [
