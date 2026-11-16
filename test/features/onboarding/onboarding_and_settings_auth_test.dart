@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,8 +15,13 @@ void main() {
     late SharedPreferences prefs;
 
     setUp(() async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
       SharedPreferences.setMockInitialValues({});
       prefs = await SharedPreferences.getInstance();
+    });
+
+    tearDown(() {
+      debugDefaultTargetPlatformOverride = null;
     });
 
     testWidgets('OnboardingScreen keeps guest mode available when cloud auth is disabled', (tester) async {
