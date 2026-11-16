@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState, AuthUser;
@@ -60,19 +62,43 @@ class AuthController extends StateNotifier<AuthState> {
       );
     }
 
-    _authSubscription = _authRepository?.authStateChanges().listen((AuthUser? user) {
+    _authSubscription = _authRepository?.authStateChanges().listen((AuthUser? user) async {
       if (user != null) {
         if (!isTimerActive()) {
-          _ref.read(accountScopeProvider.notifier).setUser(user.id);
+          await _activateUserScope(user.id);
         }
         state = AuthState.authenticated(user);
       } else {
         if (!isTimerActive()) {
-          _ref.read(accountScopeProvider.notifier).setGuest();
+          await _ref.read(accountScopeProvider.notifier).setGuest();
         }
         state = const AuthState.unauthenticated();
       }
     });
+  }
+
+  /// Switches to an isolated account partition. On native platforms, preserve
+  /// completed guest sessions in the existing import queue before opening the
+  /// account-specific Drift database. Running timers are never migrated.
+  Future<void> _activateUserScope(String userId) async {
+    final currentScope = _ref.read(accountScopeProvider);
+    if (currentScope.isGuest && !kIsWeb) {
+      final localRepository = _ref.read(sessionRepositoryProvider);
+      final sessions = await localRepository.getAllSessions();
+      final completed = sessions
+          .where((session) => session.endedAtUtc != null)
+          .map((session) => session.toMap())
+          .toList();
+      if (completed.isNotEmpty) {
+        await _prefs.setString(
+          AccountScope.guestSessionsKey,
+          jsonEncode(completed),
+        );
+      } else {
+        await _prefs.remove(AccountScope.guestSessionsKey);
+      }
+    }
+    await _ref.read(accountScopeProvider.notifier).setUser(userId);
   }
 
   /// Evaluates whether the stopwatch is currently active (running or paused).
@@ -147,7 +173,7 @@ class AuthController extends StateNotifier<AuthState> {
 
       if (user != null) {
         await _prefs.remove(otpCooldownKey);
-        await _ref.read(accountScopeProvider.notifier).setUser(user.id);
+        await _activateUserScope(user.id);
         AuthCallbackSanitizer.cleanQueryParams();
         state = AuthState.authenticated(user);
         return true;
