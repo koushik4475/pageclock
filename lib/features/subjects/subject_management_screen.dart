@@ -266,7 +266,7 @@ class _SubjectManagementScreenState
                             color: colors.errorContainer,
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(
-                              color: colors.error.withOpacity(0.35),
+                              color: colors.error.withValues(alpha: 0.35),
                             ),
                           ),
                           child: Row(
