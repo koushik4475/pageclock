@@ -362,9 +362,7 @@ class _SubjectManagementScreenState
                                                 children: [
                                                   CircleAvatar(
                                                     backgroundColor:
-                                                        subjectColor.withOpacity(
-                                                      isDark ? 0.22 : 0.14,
-                                                    ),
+                                                        subjectColor.withValues(alpha: isDark ? 0.22 : 0.14),
                                                     child: Icon(
                                                       Icons.menu_book_rounded,
                                                       color: subjectColor,
@@ -479,7 +477,7 @@ class _CountPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(99),
       ),
       child: Text(
