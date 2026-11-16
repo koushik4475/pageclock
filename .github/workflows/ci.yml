@@ -78,8 +78,9 @@ jobs:
               --dart-define=SUPABASE_URL="$SUPABASE_URL" \
               --dart-define=SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"
           else
-            echo "Supabase variables not set; building Flutter Web in offline guest mode."
-            flutter build web --release --no-web-resources-cdn --no-pub
+            echo "Supabase variables not set; using the configured public PageClock client defaults."
+            flutter build web --release --no-web-resources-cdn --no-pub \
+              --dart-define=PAGECLOCK_CLOUD_AUTH_ENABLED=true
           fi
 
       - name: Upload Web Build Artifact
