@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:pageclock/core/models/subject.dart';
 import 'package:pageclock/core/repository/subject_repository.dart';
 import 'package:pageclock/features/subjects/subject_management_screen.dart';
 
