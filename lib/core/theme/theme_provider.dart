@@ -37,7 +37,7 @@ extension AppThemeIdExtension on AppThemeId {
 
   String get displayName {
     switch (this) {
-      case AppThemeId.defaultDark: return 'PageClock Night';
+      case AppThemeId.defaultDark: return 'Night Focus';
       case AppThemeId.defaultLight: return 'Porcelain';
       case AppThemeId.special1: return 'Pastel Waves';
       case AppThemeId.midnightAurora: return 'Midnight Aurora';
@@ -54,7 +54,7 @@ extension AppThemeIdExtension on AppThemeId {
 
   String get description {
     switch (this) {
-      case AppThemeId.defaultDark: return 'Midnight navy, warm orange and focused contrast';
+      case AppThemeId.defaultDark: return 'Cinematic charcoal with a warm focus-orange glow';
       case AppThemeId.defaultLight: return 'Crisp white surfaces and refined slate';
       case AppThemeId.special1: return 'Cream, rose, butter yellow and sky blue';
       case AppThemeId.midnightAurora: return 'Deep teal with luminous mint and ice';
@@ -70,6 +70,11 @@ extension AppThemeIdExtension on AppThemeId {
   }
 
   ThemePalette get palette => themePalettes[this]!;
+
+  /// The approved PageClock dashboard appearance with the opposite brightness.
+  /// Other gallery themes also switch into the matching Classic/Night Focus pair.
+  AppThemeId get dashboardCounterpart =>
+      palette.isDark ? AppThemeId.pageClockClassic : AppThemeId.defaultDark;
 
   static AppThemeId fromStorage(String? value) {
     for (final id in AppThemeId.values) {

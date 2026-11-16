@@ -1,13 +1,13 @@
 # PageClock | Offline Reading Focus Tracker, Pomodoro Timer and Study Analytics App
 
-PageClock is an offline-first reading and focus tracker built with Flutter, Riverpod, Drift (SQLite), and fl_chart. It combines reading-session timing, Pomodoro-style focus sessions, progress analytics, customizable clock themes, and local data storage so users can track focused study without an account or cloud dependency. The repository also documents Android release updates and installation options.
+PageClock is an offline-first reading and focus tracker built with Flutter, Riverpod, Drift (SQLite), and fl_chart. It combines reading-session timing, Pomodoro-style focus sessions, progress analytics, customizable clock themes, and local data storage so users can track focused study without an account or cloud dependency. Native Android and iOS builds are 100% offline-first with zero server dependencies; Web runs locally by default with optional, opt-in cloud synchronization across devices. The repository also documents Android release updates and installation options.
 
 
 [![PageClock CI / CD & Automated Release](https://github.com/koushik4475/pageclock/actions/workflows/ci.yml/badge.svg)](https://github.com/koushik4475/pageclock/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Privacy: Offline-First](https://img.shields.io/badge/Privacy-100%25%20Offline-green.svg)](PRIVACY_POLICY.md)
+[![Privacy: Offline-First & Honest](https://img.shields.io/badge/Privacy-Offline--First%20%7C%20Zero%20Telemetry-green.svg)](PRIVACY_POLICY.md)
 
-PageClock is an offline-first reading focus tracker built with Flutter, Riverpod, Drift (SQLite), and fl_chart. Zero paid services, zero trackers, and zero server costs.
+PageClock is an offline-first reading focus tracker built with Flutter, Riverpod, Drift (SQLite), and fl_chart. Zero trackers, zero behavioral telemetry, and 100% local by default.
 
 ---
 
@@ -22,13 +22,14 @@ PageClock is an offline-first reading focus tracker built with Flutter, Riverpod
   - `Midnight Aurora`, `Ocean Mist`, `Lavender Haze`, `Forest Grove`, `Sunset Ember`, `Rose Quartz`, `Nordic Frost`, and `Solar Citrus`.
   - `PageClock Classic`: the signature warm cream, charcoal and focus-orange brand palette.
   - Theme selection is persisted locally.
-- **100% Offline-First Persistence**: Powered by SQLite via Drift on mobile and desktop, and SharedPreferences-backed storage on Web.
+- **Offline-First Persistence & Optional Web Cloud Sync**: Powered by SQLite via Drift on mobile (100% local, no cloud sync) and partitioned local storage on Web (guest mode by default; optional cloud backup and sync via Supabase Auth & Postgres).
 - **Complete Data Portability**:
   - Export formatted PDF reading reports with streaks and charts.
   - Full JSON v2 database backups with schema versioning.
   - CSV export for spreadsheets.
   - Safe import with duplicate record skipping.
 - **Danger Zone Purge**: Reset all sessions or factory restore the entire app with case-insensitive typed `"confirm"` confirmation dialogues.
+- **Privacy & Account Sovereignty**: In-app full account deletion that cascades and permanently removes all user authentication and cloud session data from the server, reverting the client to Guest mode.
 
 ---
 
@@ -113,7 +114,22 @@ flutter run -d chrome
 
 ---
 
+## ☁️ Web Cloud Synchronization & Data Sovereignty
+
+PageClock Web includes an optional, privacy-respecting cloud backup and multi-device synchronization engine:
+
+1. **Local by Default (Guest Mode)**: When using PageClock on the web, you start in an isolated guest partition. No login or network connectivity is required to track reading sessions.
+2. **Optional Cloud Account**: Users may optionally sign in using Google OAuth or 6-digit email OTP (via Resend) powered by Supabase.
+3. **What Syncs vs What Stays Local**:
+   - **Syncs**: Only completed reading sessions and explicit tombstones sync across your devices.
+   - **Stays Local**: Active/paused timers, visual themes, custom goals, and UI settings remain device-local.
+4. **Opt-In Guest History Merge**: Guest reading sessions are never automatically uploaded. On first sign-in, you choose whether to merge browser history into your cloud account, keep cloud data only, or decide later.
+5. **Cascading Account Deletion**: Deleting your account from the in-app account menu invokes a server-side edge function that permanently purges your identity and cascades deletion of all cloud database records. The browser client wipes local user partitions and reverts cleanly to Guest mode.
+6. **Free-Tier Periodic Backup Notice**: Because the community cloud tier does not provide enterprise disaster recovery, users are advised to periodically export full offline backups (**Settings → Export JSON Backup**).
+
+---
+
 ## ⚖️ License & Policy Compliance
 
 - **License**: MIT License (free and open source). See [LICENSE](LICENSE).
-- **Privacy Policy**: 100% offline-first. No third-party trackers, no cloud sync, zero telemetry. See [PRIVACY_POLICY.md](PRIVACY_POLICY.md).
+- **Privacy Policy**: Offline-first by default. Native Android/iOS builds are 100% offline-first with zero server sync and zero telemetry. Web operates locally by default with optional, opt-in cloud synchronization. See [PRIVACY_POLICY.md](PRIVACY_POLICY.md).
