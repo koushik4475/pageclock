@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/reading_session.dart';
 import 'session_repository.dart';
+import '../sync/cloud_sync_session_repository.dart';
 
 /// Offline-first web repository that persists reading sessions in SharedPreferences
 /// partitioned by account scope.
@@ -13,7 +14,7 @@ import 'session_repository.dart';
 /// 2. Read-merge-write in [_commit] with [SharedPreferences.reload] for cross-tab safety.
 /// 3. Tombstone-on-clear for user scope in [hardDeleteAll] to prevent cloud resurrection.
 /// 4. Sync methods for cloud coordinator ([allForSync], [applyRemote], [reloadFromStorage]).
-class WebSessionRepository implements SessionRepository {
+class WebSessionRepository implements SessionRepository, CloudSyncSessionRepository {
   final SharedPreferences _prefs;
   final String _storageKey;
   final bool isUserScope;
