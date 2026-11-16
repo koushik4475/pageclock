@@ -19,6 +19,7 @@ import 'core/settings/app_settings.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/widgets/pageclock_brand_mark.dart';
 import 'features/app_update/app_update_service.dart';
+import 'features/auth/application/auth_controller.dart';
 import 'features/app_update/update_dialog.dart';
 import 'features/calendar/calendar_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
@@ -59,7 +60,7 @@ Future<void> main() async {
         authOptions: const FlutterAuthClientOptions(
           authFlowType: AuthFlowType.pkce,
         ),
-      ).timeout(const Duration(seconds: 4));
+      );
       final restoredUser = Supabase.instance.client.auth.currentUser;
       if (restoredUser != null) {
         // Restore the correct native/web account partition before repositories
@@ -68,6 +69,10 @@ Future<void> main() async {
           AccountScope.activeScopeKey,
           'user:${restoredUser.id}',
         );
+        // A successful OAuth redirect is a completed onboarding action.
+        // Persist this before the first frame so the welcome screen cannot
+        // trap an authenticated user after Google returns to the web app.
+        await prefs.setBool(OnboardingCompletedNotifier.key, true);
       }
     } catch (e) {
       debugPrint('[Main] Cloud auth initialization warning: $e');
@@ -95,6 +100,11 @@ class PageClockApp extends ConsumerWidget {
     final appThemeId = ref.watch(appThemeIdProvider);
     final selectedTheme = appThemeDataFor(appThemeId);
     final onboardingCompleted = ref.watch(onboardingCompletedProvider);
+    // OAuth returns to the app in a fresh browser load, so the dialog's
+    // original navigation callback cannot run. Observe the restored Supabase
+    // session at the app root and route authenticated users straight to the
+    // workspace.
+    final isAuthenticated = ref.watch(authControllerProvider.select((state) => state.user != null));
 
     return MaterialApp(
       title: 'PageClock',
@@ -105,9 +115,11 @@ class PageClockApp extends ConsumerWidget {
       // The HTML shell already provides the web loading screen. Skip the
       // animated Flutter splash on web to avoid showing two different screens.
       // Keep the native splash for Android and iOS.
-      home: !onboardingCompleted
-          ? const OnboardingScreen()
-          : (kIsWeb ? const MainNavigationShell() : const SplashScreen()),
+      home: isAuthenticated
+          ? const MainNavigationShell()
+          : (!onboardingCompleted
+              ? const OnboardingScreen()
+              : (kIsWeb ? const MainNavigationShell() : const SplashScreen())),
     );
   }
 }
