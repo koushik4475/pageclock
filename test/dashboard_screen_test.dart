@@ -155,7 +155,7 @@ void main() {
       await tester.tap(reportsAction);
       expect(selectedIndex, 3);
 
-      final settingsButton = find.byTooltip('Open settings');
+      final settingsButton = find.byTooltip('Open account menu');
       await tester.ensureVisible(settingsButton);
       await tester.pumpAndSettle();
       await tester.tap(settingsButton);
