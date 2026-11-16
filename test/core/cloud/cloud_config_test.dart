@@ -3,9 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pageclock/core/cloud/cloud_config.dart';
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-  debugDefaultTargetPlatformOverride = TargetPlatform.linux;
-  tearDownAll(() => debugDefaultTargetPlatformOverride = null);
+  final binding = TestWidgetsFlutterBinding.ensureInitialized();
+  binding.platformDispatcher.platform = TargetPlatform.linux;
 
   group('CloudConfig safety guards', () {
     const validUrl = 'https://xyzcompany.supabase.co';
