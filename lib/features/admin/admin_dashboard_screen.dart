@@ -405,7 +405,7 @@ class _AdminClientDirectory extends StatelessWidget {
         const SizedBox(height: 10),
         if (clients.isEmpty) Padding(padding: const EdgeInsets.all(24),
           child: Center(child: Text('No clients match your search.', style: TextStyle(color: muted))))
-        else ...clients.map((c) => _AdminClientRow(client: c)),
+        else ...clients.map((c) => _AdminClientRow(client: c, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminClientDetailScreen(client: c))))),
         const SizedBox(height: 8),
         Row(children: [
           const Icon(Icons.lock_outline_rounded, size: 14, color: Color(0xFF5146E5)),
@@ -420,13 +420,15 @@ class _AdminClientDirectory extends StatelessWidget {
 
 class _AdminClientRow extends StatelessWidget {
   final AdminClient client;
-  const _AdminClientRow({required this.client});
+  final VoidCallback onTap;
+  const _AdminClientRow({required this.client, required this.onTap});
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final muted = dark ? Colors.white54 : const Color(0xFF858BA2);
     return Padding(padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(children: [
+      child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(10),
+        child: Row(children: [
         CircleAvatar(radius: 18, backgroundColor: const Color(0xFF5146E5).withOpacity(.12),
           backgroundImage: client.avatarUrl == null || client.avatarUrl!.isEmpty
             ? null : NetworkImage(client.avatarUrl!),
@@ -450,7 +452,8 @@ class _AdminClientRow extends StatelessWidget {
               style: const TextStyle(fontSize: 9, color: Color(0xFF16834A), fontWeight: FontWeight.w900))),
         ],
         Icon(Icons.chevron_right_rounded, size: 18, color: muted),
-      ]),
+        ]),
+      ),
     );
   }
 }
