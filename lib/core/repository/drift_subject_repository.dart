@@ -10,6 +10,9 @@ class DriftSubjectRepository implements SubjectRepository {
 
   DriftSubjectRepository(this.db);
 
+  @override
+  String? get storageIssue => null;
+
   Subject _mapRow(SubjectEntry row) => Subject(
         id: row.id,
         name: row.name,

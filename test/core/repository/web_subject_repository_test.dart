@@ -120,5 +120,50 @@ void main() {
       await guest.dispose();
       await user.dispose();
     });
+
+    test('preserves malformed stored data and blocks writes until repaired', () async {
+      const key = 'subjects_guest';
+      const malformed = '[{"id":"valid","name":"Reading","color":"#F97316"},17]';
+      SharedPreferences.setMockInitialValues({key: malformed});
+      final prefs = await SharedPreferences.getInstance();
+      final repository = WebSubjectRepository(prefs, storageKey: key);
+
+      expect(repository.storageIssue, isNotNull);
+      expect(await repository.getAllSubjects(), isEmpty);
+      await expectLater(
+        repository.saveSubject(subject('new', 'New subject')),
+        throwsA(isA<SubjectStorageCorruptionException>()),
+      );
+      expect(prefs.getString(key), malformed);
+
+      await prefs.setString(
+        key,
+        '[{"id":"repaired","name":"Reading","color":"#F97316"}]',
+      );
+      await repository.reloadFromStorage();
+
+      expect(repository.storageIssue, isNull);
+      expect(
+        (await repository.getAllSubjects()).map((item) => item.id),
+        ['repaired'],
+      );
+      await repository.dispose();
+    });
+
+    test('does not partially load or overwrite a non-list payload', () async {
+      const key = 'subjects_guest';
+      const malformed = '{"legacy":"unknown"}';
+      SharedPreferences.setMockInitialValues({key: malformed});
+      final prefs = await SharedPreferences.getInstance();
+      final repository = WebSubjectRepository(prefs, storageKey: key);
+
+      expect(repository.storageIssue, isNotNull);
+      await expectLater(
+        repository.setArchived('missing', true),
+        throwsA(isA<SubjectStorageCorruptionException>()),
+      );
+      expect(prefs.getString(key), malformed);
+      await repository.dispose();
+    });
   });
 }

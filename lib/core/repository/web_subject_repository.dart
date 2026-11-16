@@ -16,6 +16,7 @@ class WebSubjectRepository implements SubjectRepository {
   final String storageKey;
   final Map<String, Subject> _subjects = {};
   final StreamController<void> _changes = StreamController<void>.broadcast();
+  String? _storageIssue;
 
   static const defaultStorageKey = 'pageclock_subjects_v1_guest';
 
@@ -26,27 +27,45 @@ class WebSubjectRepository implements SubjectRepository {
     _loadFromStorage();
   }
 
+  @override
+  String? get storageIssue => _storageIssue;
+
   void _loadFromStorage() {
     _subjects.clear();
+    _storageIssue = null;
     final raw = _prefs.getString(storageKey);
     if (raw == null || raw.isEmpty) return;
 
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! List) {
-        throw const FormatException('Subject backup must be a JSON list.');
+        throw const FormatException('Stored subjects must be a JSON list.');
       }
-      for (final item in decoded) {
-        if (item is! Map) continue;
-        try {
-          final subject = Subject.fromMap(Map<String, dynamic>.from(item));
-          _subjects[subject.id] = subject;
-        } catch (error) {
-          debugPrint('[WebSubjectRepository] Skipping invalid subject: $error');
+
+      // Decode into a temporary map. Never expose a partial snapshot or replace
+      // the original payload when one row is malformed or has an unknown shape.
+      final loaded = <String, Subject>{};
+      for (var index = 0; index < decoded.length; index++) {
+        final item = decoded[index];
+        if (item is! Map) {
+          throw FormatException('Stored subject at index $index is not an object.');
         }
+        final subject = Subject.fromMap(Map<String, dynamic>.from(item));
+        if (subject.id.trim().isEmpty ||
+            subject.name.trim().isEmpty ||
+            subject.color.trim().isEmpty) {
+          throw FormatException('Stored subject at index $index has empty required fields.');
+        }
+        if (loaded.containsKey(subject.id)) {
+          throw FormatException('Stored subjects contain duplicate ID "${subject.id}".');
+        }
+        loaded[subject.id] = subject;
       }
+      _subjects.addAll(loaded);
     } catch (error) {
-      debugPrint('[WebSubjectRepository] Could not load subjects: $error');
+      _storageIssue =
+          'Stored subjects could not be read. Existing data is preserved; repair or export the stored data before editing subjects.';
+      debugPrint('[WebSubjectRepository] Could not load stored subjects (${error.runtimeType}).');
     }
   }
 
@@ -67,7 +86,15 @@ class WebSubjectRepository implements SubjectRepository {
     return values;
   }
 
+  void _ensureWritable() {
+    final issue = _storageIssue;
+    if (issue != null) {
+      throw SubjectStorageCorruptionException(issue);
+    }
+  }
+
   Future<void> _commit() async {
+    _ensureWritable();
     final payload = jsonEncode(
       _subjects.values.map((subject) => subject.toMap()).toList(),
     );
@@ -104,6 +131,7 @@ class WebSubjectRepository implements SubjectRepository {
 
   @override
   Future<void> saveSubject(Subject subject) async {
+    _ensureWritable();
     final normalized = subject.copyWith(
       name: normalizeSubjectName(subject.name),
     );
@@ -124,6 +152,7 @@ class WebSubjectRepository implements SubjectRepository {
 
   @override
   Future<void> setArchived(String id, bool archived) async {
+    _ensureWritable();
     final existing = _subjects[id];
     if (existing == null) {
       throw StateError('Subject "$id" was not found.');

@@ -4,6 +4,10 @@ import '../models/subject.dart';
 
 /// Offline persistence contract for user-managed reading subjects.
 abstract class SubjectRepository {
+  /// Non-null when persisted web subject data could not be decoded safely.
+  /// Implementations without a serialized web store always return null.
+  String? get storageIssue;
+
   Future<List<Subject>> getAllSubjects({bool includeArchived = true});
 
   Stream<List<Subject>> watchSubjects({bool includeArchived = true});
@@ -13,6 +17,16 @@ abstract class SubjectRepository {
   Future<void> setArchived(String id, bool archived);
 
   Future<void> dispose();
+}
+
+/// Raised when persisted subject data is malformed and must not be overwritten.
+class SubjectStorageCorruptionException implements Exception {
+  final String message;
+
+  const SubjectStorageCorruptionException(this.message);
+
+  @override
+  String toString() => message;
 }
 
 /// Raised when two active subjects would have the same case-insensitive name.
@@ -60,6 +74,9 @@ class InMemorySubjectRepository implements SubjectRepository {
       _subjects[subject.id] = subject;
     }
   }
+
+  @override
+  String? get storageIssue => null;
 
   List<Subject> _snapshot({required bool includeArchived}) {
     final values = _subjects.values
