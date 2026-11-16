@@ -8,6 +8,7 @@ import '../account/account_scope.dart';
 import '../models/reading_session.dart';
 import '../repository/session_repository.dart';
 import '../repository/web_session_repository.dart';
+import 'cloud_sync_session_repository.dart';
 import '../settings/app_settings.dart';
 import 'cloud_session_data_source.dart';
 import 'sync_meta.dart';
@@ -26,7 +27,7 @@ import 'sync_web_lock_stub.dart'
 /// - Guest history import flows on first sign-in.
 class SyncCoordinator extends StateNotifier<SyncState> {
   final SharedPreferences _prefs;
-  final WebSessionRepository _repository;
+  final CloudSyncSessionRepository _repository;
   final CloudSessionDataSource _dataSource;
   final String _userId;
   final SyncMeta _syncMeta;
@@ -39,7 +40,7 @@ class SyncCoordinator extends StateNotifier<SyncState> {
 
   SyncCoordinator({
     required SharedPreferences prefs,
-    required WebSessionRepository repository,
+    required CloudSyncSessionRepository repository,
     required CloudSessionDataSource dataSource,
     required String userId,
     SyncMeta? syncMeta,
@@ -169,7 +170,7 @@ class SyncCoordinator extends StateNotifier<SyncState> {
     // -----------------------------------------------------------
     // Step 2: PUSH (Dirty completed sessions only, batches <= 200)
     // -----------------------------------------------------------
-    final allLocal = _repository.allForSync();
+    final allLocal = await _repository.allForSync();
     final dirtySessions = allLocal
         .where((s) => _syncMeta.isDirty(s) && s.endedAtUtc != null)
         .toList();
@@ -316,13 +317,13 @@ final syncCoordinatorProvider =
     return _GuestSyncCoordinator(prefs);
   }
 
-  final webRepo = repo as WebSessionRepository;
+  final syncRepo = repo as CloudSyncSessionRepository;
   final client = Supabase.instance.client;
   final dataSource = SupabaseSessionDataSource(client);
 
   return SyncCoordinator(
     prefs: prefs,
-    repository: webRepo,
+    repository: syncRepo,
     dataSource: dataSource,
     userId: scope.userId!,
   );
