@@ -36,7 +36,7 @@ class CloudConfig {
 
   /// Native callback registered in Supabase Auth URL Configuration and Android manifest.
   static const String nativeRedirectUri =
-      'com.example.pageclock://login-callback';
+      'com.example.pageclock://login-callback/';
 
   /// Pure, deterministic guard that evaluates whether cloud sync/auth is active.
   ///
