@@ -581,39 +581,6 @@ class _Panel extends StatelessWidget {
   }
 }
 
-class _ClientRow extends StatelessWidget {
-  final AdminClient client;
-  final VoidCallback onTap;
-  const _ClientRow({required this.client, required this.onTap});
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Material(color: cs.surface, borderRadius: BorderRadius.circular(15),
-      child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(15),
-        child: Container(padding: const EdgeInsets.all(13),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: cs.outlineVariant.withOpacity(.7))),
-          child: Row(children: [
-            _Avatar(url: client.avatarUrl, name: client.name, radius: 23),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(client.name, maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-              Text(client.email, maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
-              const SizedBox(height: 5),
-              Wrap(spacing: 12, children: [
-                Text(formatAdminDuration(client.totalFocusMs),
-                  style: TextStyle(fontSize: 11, color: cs.primary, fontWeight: FontWeight.w800)),
-                Text(client.currentStreak.toString() + ' day streak',
-                  style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
-              ]),
-            ])),
-            const Icon(Icons.chevron_right_rounded),
-          ]))));
-  }
-}
-
 class _Avatar extends StatelessWidget {
   final String? url, name;
   final double radius;
