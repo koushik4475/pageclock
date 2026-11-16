@@ -97,8 +97,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.drag(
         find.byType(SingleChildScrollView).first,
-        const Offset(0, -1600),
+        const Offset(0, -900),
       );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Sign Out'));
       await tester.pumpAndSettle();
       expect(find.text('Sign Out'), findsOneWidget);
       return container;
