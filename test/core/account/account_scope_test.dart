@@ -31,6 +31,7 @@ void main() {
         scope.syncMetaStorageKey,
         equals('pageclock_sync_meta_v1_user_usr_uuid_12345'),
       );
+      expect(scope.subjectsStorageKey, equals('pageclock_subjects_v1_user_usr_uuid_12345'));
       expect(scope.serialize(), equals('user:usr_uuid_12345'));
     });
 
