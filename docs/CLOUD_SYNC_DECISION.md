@@ -1,10 +1,10 @@
-# Architecture Decision Record: Optional Web-Only Cloud Sync
+# Architecture Decision Record: Optional Web + Android Cloud Sync
 
-- **Status:** Proposed / Under Owner Review
+- **Status:** Approved for Web + Android implementation
 - **Date:** 2026-11-15
-- **Scope:** Flutter Web only (Android and iOS native builds remain completely offline-first)
+- **Scope:** Flutter Web and Android (iOS remains offline-first for this release)
 - **Governing Policy:** AGENTS.md §5 (Security and data integrity; no unauthorized telemetry or remote config)
-- **Feature Flag:** `PAGECLOCK_CLOUD_AUTH_ENABLED` (Default: `false`)
+- **Feature Flag:** `PAGECLOCK_CLOUD_AUTH_ENABLED` (Default: `true` on Web/Android; may be explicitly disabled)
 
 ---
 
@@ -23,14 +23,14 @@ Users desire an optional mechanism to back up and synchronize reading sessions a
 
 ## 2. Decision
 
-We will introduce an **optional, web-only cloud authentication and synchronization system** powered by Supabase Auth and PostgreSQL with Row Level Security (RLS).
+We will provide an **optional cloud authentication and synchronization system on Flutter Web and Android** powered by Supabase Auth and PostgreSQL with Row Level Security (RLS).
 
 ### Core Tenets:
-1. **Guest Mode is Sacred:** PageClock web continues to function 100% offline with zero login requirement. First-time visitors enter guest mode instantly.
+1. **Guest Mode is Sacred:** PageClock continues to function 100% locally with zero login requirement on every platform. First-time visitors enter guest mode instantly.
 2. **Opt-In Sync Only:** Account creation is entirely optional ("Back up & sync"). Guest history is never automatically uploaded; users are prompted with an explicit choice (Merge, Cloud-only, or Not now) upon first sign-in.
-3. **Web-Only Isolation:** All cloud authentication and sync capabilities are restricted to Flutter Web. Native Android and iOS builds **never** call `Supabase.initialize` and remain 100% offline-first.
-4. **Compile-Time Feature Flag (Default OFF):** All cloud-related pathways are inert unless compiled with `PAGECLOCK_CLOUD_AUTH_ENABLED=true` alongside valid web credentials.
-5. **Least Privilege & Local-First:** Writes always hit local browser storage first. Sync runs asynchronously in the background. Only completed sessions and tombstones sync; running timers remain strictly device-local.
+3. **Platform Isolation:** Flutter Web and Android can opt into cloud authentication and sync. iOS remains offline-first in this release. Guest mode remains fully local on every platform.
+4. **Compile-Time Feature Flag:** Cloud auth is enabled by default on supported Web/Android builds using the public project URL and publishable key; it can be explicitly disabled with `PAGECLOCK_CLOUD_AUTH_ENABLED=false`.
+5. **Least Privilege & Local-First:** Writes always hit local platform storage first. Sync runs asynchronously in the background. Only completed sessions and tombstones sync; running timers remain strictly device-local.
 
 ---
 
@@ -38,13 +38,14 @@ We will introduce an **optional, web-only cloud authentication and synchronizati
 
 To strictly honor `AGENTS.md` §5 ("Preserve offline-first behavior and least privilege. A release update must not introduce telemetry, remote config, or permissions unless separately justified and reviewed"):
 
-- **Guarded Code Execution:** `CloudConfig.isEnabledFor(isWeb: kIsWeb, flag: authEnabled, url: supabaseUrl, key: supabasePublishableKey)` guarantees that on non-web platforms (`isWeb: false`), cloud features evaluate to `false` unconditionally.
-- **Zero Android Permission Changes:** Merged Android manifests (`AndroidManifest.xml`) must show **zero** new permissions, zero intent filters, and zero background services compared to `main`.
+- **Guarded Code Execution:** `CloudConfig.isEnabledFor` enables cloud features only on Web or Android when the flag and public project configuration are present. iOS and desktop remain disabled.
+- **Android OAuth Callback:** The app registers only the `com.example.pageclock://login-callback` deep-link intent filter. No new Android permissions or background services are required.
+- **Native Data Isolation:** Guest data remains in the existing `pageclock.sqlite`; each authenticated user receives a separate Drift database file. Only completed sessions and tombstones are synchronized.
 - **Release Continuity:** Every merge to `main` continues to ship production-signed Android APKs with identical signing identity and verified checksums (`AGENTS.md` §1–§4).
 
 ---
 
-## 4. What Data Leaves the Browser (and when)
+## 4. What Data Leaves the Device (and when)
 
 ### When Data Leaves:
 Data is transmitted **only** after:
@@ -92,7 +93,7 @@ The following capabilities are **strictly excluded** from this release:
 
 ## 7. Security Architecture & Least Privilege
 
-1. **Client Credential Boundary:** Only the public Supabase project URL and the public `anon`/publishable API key are provided to the Flutter Web build via GitHub Variables (`SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`).
+1. **Client Credential Boundary:** Only the public Supabase project URL and public publishable API key are embedded in Web/Android client builds. These values are designed for client exposure and are constrained by RLS.
 2. **Zero Secrets in Repository or Client Bundle:** Service-role keys, database passwords, SMTP credentials, and Google OAuth client secrets are never committed to git, never passed to `--dart-define`, and never embedded in compiled JavaScript.
 3. **Postgres Row Level Security (RLS):**
    - The `anon` role is completely locked out (`REVOKE ALL`).
@@ -110,10 +111,11 @@ The following capabilities are **strictly excluded** from this release:
 
 Per `AGENTS.md` §5, this decision must be reviewed and approved by the project owner before merging cloud synchronization into the production default branch.
 
-- [ ] Web-only scope and native offline-first invariants verified.
-- [ ] Subprocessors (Supabase, Resend, Google) reviewed and approved.
-- [ ] No telemetry or analytics confirmed.
-- [ ] Android merged manifest and build pipeline safety confirmed.
+- [x] Web + Android scope approved; iOS remains offline-first.
+- [x] No telemetry or analytics introduced.
+- [ ] Google OAuth provider credentials and redirect allowlist configured in Supabase.
+- [ ] Email OTP template and SMTP delivery verified.
+- [ ] Android merged manifest and signed release pipeline verified.
 
-**Approved by:** ________________________  
-**Date:** ________________________
+**Approved by:** Project owner (explicit approval in ChatGPT on 2026-11-16)  
+**Date:** 2026-11-16

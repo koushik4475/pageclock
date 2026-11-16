@@ -85,6 +85,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
       ),
     );
   }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;

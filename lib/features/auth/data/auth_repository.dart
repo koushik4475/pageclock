@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import '../domain/auth_models.dart';
+import '../../../core/cloud/cloud_config.dart';
 
 /// Abstract contract for authentication operations.
 /// Interface decouples presentation and application logic from Supabase SDK.
@@ -56,7 +58,8 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signInWithGoogle({String? redirectTo}) async {
-    final effectiveRedirect = redirectTo ?? '${Uri.base.origin}/';
+    final effectiveRedirect = redirectTo ??
+        (kIsWeb ? '${Uri.base.origin}/' : CloudConfig.nativeRedirectUri);
     await _client.auth.signInWithOAuth(
       sb.OAuthProvider.google,
       redirectTo: effectiveRedirect,
