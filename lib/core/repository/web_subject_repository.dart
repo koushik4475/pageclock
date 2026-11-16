@@ -33,8 +33,18 @@ class WebSubjectRepository implements SubjectRepository {
   void _loadFromStorage() {
     _subjects.clear();
     _storageIssue = null;
-    final raw = _prefs.getString(storageKey);
-    if (raw == null || raw.isEmpty) return;
+    try {
+      _subjects.addAll(_decodeStoredSubjects(_prefs.getString(storageKey)));
+    } on SubjectStorageCorruptionException {
+      // Keep the original browser payload untouched and expose a read-only
+      // issue state until the user repairs or exports the stored data.
+      _subjects.clear();
+    }
+  }
+
+  Map<String, Subject> _decodeStoredSubjects(String? raw) {
+    final loaded = <String, Subject>{};
+    if (raw == null || raw.isEmpty) return loaded;
 
     try {
       final decoded = jsonDecode(raw);
@@ -44,7 +54,6 @@ class WebSubjectRepository implements SubjectRepository {
 
       // Decode into a temporary map. Never expose a partial snapshot or replace
       // the original payload when one row is malformed or has an unknown shape.
-      final loaded = <String, Subject>{};
       for (var index = 0; index < decoded.length; index++) {
         final item = decoded[index];
         if (item is! Map) {
@@ -54,24 +63,54 @@ class WebSubjectRepository implements SubjectRepository {
         if (subject.id.trim().isEmpty ||
             subject.name.trim().isEmpty ||
             subject.color.trim().isEmpty) {
-          throw FormatException('Stored subject at index $index has empty required fields.');
+          throw FormatException(
+            'Stored subject at index $index has empty required fields.',
+          );
         }
         if (loaded.containsKey(subject.id)) {
-          throw FormatException('Stored subjects contain duplicate ID "${subject.id}".');
+          throw FormatException(
+            'Stored subjects contain duplicate ID "${subject.id}".',
+          );
         }
         loaded[subject.id] = subject;
       }
-      _subjects.addAll(loaded);
     } catch (error) {
       _storageIssue =
           'Stored subjects could not be read. Existing data is preserved; repair or export the stored data before editing subjects.';
-      debugPrint('[WebSubjectRepository] Could not load stored subjects (${error.runtimeType}).');
+      debugPrint(
+        '[WebSubjectRepository] Could not load stored subjects (${error.runtimeType}).',
+      );
+      throw SubjectStorageCorruptionException(_storageIssue!);
     }
+    return loaded;
   }
 
-  Future<void> reloadFromStorage() async {
+  Future<Map<String, Subject>> _readLatest() async {
     await _prefs.reload();
-    _loadFromStorage();
+    return _decodeStoredSubjects(_prefs.getString(storageKey));
+  }
+
+  Future<void> _writeChange(
+    Subject Function(Map<String, Subject> latest) buildChange,
+  ) async {
+    _ensureWritable();
+    final latest = await _readLatest();
+    final updated = buildChange(latest);
+    ensureUniqueActiveSubjectName(updated, latest.values);
+    latest[updated.id] = updated;
+
+    final payload = jsonEncode(
+      latest.values.map((subject) => subject.toMap()).toList(),
+    );
+    final saved = await _prefs.setString(storageKey, payload);
+    if (!saved) {
+      throw StateError('Browser storage rejected the subject update.');
+    }
+
+    _subjects
+      ..clear()
+      ..addAll(latest);
+    _storageIssue = null;
     _changes.add(null);
   }
 
@@ -91,18 +130,6 @@ class WebSubjectRepository implements SubjectRepository {
     if (issue != null) {
       throw SubjectStorageCorruptionException(issue);
     }
-  }
-
-  Future<void> _commit() async {
-    _ensureWritable();
-    final payload = jsonEncode(
-      _subjects.values.map((subject) => subject.toMap()).toList(),
-    );
-    final saved = await _prefs.setString(storageKey, payload);
-    if (!saved) {
-      throw StateError('Browser storage rejected the subject update.');
-    }
-    _changes.add(null);
   }
 
   @override
@@ -131,41 +158,21 @@ class WebSubjectRepository implements SubjectRepository {
 
   @override
   Future<void> saveSubject(Subject subject) async {
-    _ensureWritable();
     final normalized = subject.copyWith(
       name: normalizeSubjectName(subject.name),
     );
-    ensureUniqueActiveSubjectName(normalized, _subjects.values);
-    final previous = _subjects[normalized.id];
-    _subjects[normalized.id] = normalized;
-    try {
-      await _commit();
-    } catch (_) {
-      if (previous == null) {
-        _subjects.remove(normalized.id);
-      } else {
-        _subjects[normalized.id] = previous;
-      }
-      rethrow;
-    }
+    await _writeChange((_) => normalized);
   }
 
   @override
   Future<void> setArchived(String id, bool archived) async {
-    _ensureWritable();
-    final existing = _subjects[id];
-    if (existing == null) {
-      throw StateError('Subject "$id" was not found.');
-    }
-    final updated = existing.copyWith(archived: archived);
-    ensureUniqueActiveSubjectName(updated, _subjects.values);
-    _subjects[id] = updated;
-    try {
-      await _commit();
-    } catch (_) {
-      _subjects[id] = existing;
-      rethrow;
-    }
+    await _writeChange((latest) {
+      final existing = latest[id];
+      if (existing == null) {
+        throw StateError('Subject "$id" was not found.');
+      }
+      return existing.copyWith(archived: archived);
+    });
   }
 
   @override

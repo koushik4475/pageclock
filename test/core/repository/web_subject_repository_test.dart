@@ -150,6 +150,36 @@ void main() {
       await repository.dispose();
     });
 
+
+    test('merges sequential writes from other tabs before saving', () async {
+      final prefs = await SharedPreferences.getInstance();
+      final tabA = WebSubjectRepository(prefs, storageKey: 'subjects_guest');
+      final tabB = WebSubjectRepository(prefs, storageKey: 'subjects_guest');
+
+      await tabA.saveSubject(subject('a', 'Reading'));
+      await expectLater(
+        tabB.saveSubject(subject('duplicate', ' reading ')),
+        throwsA(isA<SubjectNameConflictException>()),
+      );
+
+      await tabB.saveSubject(subject('b', 'Research'));
+      await tabA.reloadFromStorage();
+      expect(
+        (await tabA.getAllSubjects()).map((item) => item.id),
+        ['a', 'b'],
+      );
+
+      await tabA.saveSubject(subject('a', 'Deep Reading'));
+      await tabB.reloadFromStorage();
+      expect(
+        (await tabB.getAllSubjects()).map((item) => item.name),
+        ['Deep Reading', 'Research'],
+      );
+
+      await tabA.dispose();
+      await tabB.dispose();
+    });
+
     test('does not partially load or overwrite a non-list payload', () async {
       const key = 'subjects_guest';
       const malformed = '{"legacy":"unknown"}';
