@@ -20,7 +20,7 @@ void main() {
     });
 
     testWidgets('OnboardingScreen keeps guest mode available when cloud auth is disabled', (tester) async {
-      tester.platformDispatcher.platform = TargetPlatform.linux;
+
       await tester.binding.setSurfaceSize(const Size(800, 1000));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -46,10 +46,10 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Skip for now (Continue as Guest)'), findsOneWidget);
-    });
+    }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
     testWidgets('OnboardingScreen Skip button sets onboardingCompleted flag to true', (tester) async {
-      tester.platformDispatcher.platform = TargetPlatform.linux;
+
       await tester.binding.setSurfaceSize(const Size(800, 1000));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -80,10 +80,10 @@ void main() {
 
       expect(container.read(onboardingCompletedProvider), isTrue);
       expect(prefs.getBool(OnboardingCompletedNotifier.key), isTrue);
-    });
+    }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
     testWidgets('TogglSettingsScreen displays ACCOUNT & CLOUD SYNC card at bottom for Guest mode', (tester) async {
-      tester.platformDispatcher.platform = TargetPlatform.linux;
+
       await tester.binding.setSurfaceSize(const Size(800, 1200));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -112,6 +112,6 @@ void main() {
         find.text('Cloud sync is not configured in this build. Your sessions remain stored locally.'),
         findsOneWidget,
       );
-    });
+    }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
   });
 }
