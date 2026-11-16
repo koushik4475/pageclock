@@ -42,7 +42,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           final clients = data.clients.where((c) =>
             c.name.toLowerCase().contains(q) || c.email.toLowerCase().contains(q)).toList();
           return RefreshIndicator(
-            onRefresh: () async { await ref.refresh(adminDashboardProvider.future); },
+            onRefresh: () => ref.refresh(adminDashboardProvider.future).then((_) {}),
             child: ListView(padding: const EdgeInsets.fromLTRB(20, 14, 20, 36), children: [
               Text('OVERVIEW', style: TextStyle(color: cs.primary, fontSize: 11,
                 fontWeight: FontWeight.w900, letterSpacing: 1.5)),
