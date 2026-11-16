@@ -329,7 +329,7 @@ class _SubjectManagementScreenState
                                         canCreate:
                                             !_showArchived &&
                                                 repository.storageIssue == null,
-                                        onCreate: _editSubject,
+                                        onCreate: () => _editSubject(),
                                       )
                                     : ListView.separated(
                                         key: const ValueKey('subject-list'),
