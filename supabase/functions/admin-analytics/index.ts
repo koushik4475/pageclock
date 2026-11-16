@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
       aggregate.offset = offset;
       aggregate.daily.set(day, (aggregate.daily.get(day) ?? 0) + duration);
       byUser.set(uid, aggregate);
-      globalDaily.set(day, (globalDaily.get(day) ?? 0) + duration);
+      const utcDay = dayKey(start, 0);\n      globalDaily.set(utcDay, (globalDaily.get(utcDay) ?? 0) + duration);
     }
 
     const now = Date.now();
@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
       const key = d.toISOString().slice(0, 10);
       chart.push({ date: key, focusMs: globalDaily.get(key) ?? 0 });
     }
-    const activeToday = clients.filter((c) => c.lastActiveAt && dayKey(Date.parse(c.lastActiveAt), 0) === todayKey).length;
+    const activeToday = clients.filter((c) => c.isActiveToday).length;
     const activeSevenDays = clients.filter((c) => c.lastActiveAt && Date.parse(c.lastActiveAt) >= now - 7 * 86_400_000).length;
     return json({
       isAdmin: true,
