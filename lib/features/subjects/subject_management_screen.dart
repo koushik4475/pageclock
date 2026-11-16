@@ -28,97 +28,11 @@ class _SubjectManagementScreenState
   bool _showArchived = false;
 
   Future<void> _editSubject({Subject? subject}) async {
-    var draftName = subject?.name ?? '';
-    var selectedColor = subject?.color ?? _palette.values.first;
-
     final draft = await showDialog<Subject>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          title: Text(subject == null ? 'New subject' : 'Edit subject'),
-          content: SizedBox(
-            width: 420,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextFormField(
-                    key: const ValueKey('subject-name-field'),
-                    initialValue: draftName,
-                    autofocus: true,
-                    maxLength: 32,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Subject name',
-                      hintText: 'e.g. Reading, Mathematics, Research',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (value) =>
-                        setDialogState(() => draftName = value),
-                    onFieldSubmitted: (_) {
-                      final name = draftName.trim();
-                      if (name.isNotEmpty) {
-                        Navigator.pop(
-                          dialogContext,
-                          _buildDraft(subject, name, selectedColor),
-                        );
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'COLOUR',
-                    style: Theme.of(dialogContext).textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1,
-                        ),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _palette.entries.map((entry) {
-                      return ChoiceChip(
-                        label: Text(entry.key),
-                        selected: selectedColor == entry.value,
-                        onSelected: (_) => setDialogState(
-                          () => selectedColor = entry.value,
-                        ),
-                        avatar: CircleAvatar(
-                          radius: 7,
-                          backgroundColor: _parseColor(
-                            entry.value,
-                            Theme.of(dialogContext).colorScheme.primary,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: draftName.trim().isEmpty
-                  ? null
-                  : () => Navigator.pop(
-                        dialogContext,
-                        _buildDraft(
-                          subject,
-                          draftName.trim(),
-                          selectedColor,
-                        ),
-                      ),
-              child: const Text('Save subject'),
-            ),
-          ],
-        ),
+      builder: (_) => _SubjectEditorDialog(
+        existing: subject,
+        palette: _palette,
       ),
     );
 
@@ -133,17 +47,6 @@ class _SubjectManagementScreenState
     } catch (error) {
       _showMessage('Could not save subject: $error');
     }
-  }
-
-  Subject _buildDraft(Subject? existing, String name, String color) {
-    if (existing != null) {
-      return existing.copyWith(name: name, color: color);
-    }
-    return Subject(
-      id: Uuid().v4(),
-      name: name,
-      color: color,
-    );
   }
 
   Future<void> _setArchived(Subject subject, bool archived) async {
@@ -463,6 +366,146 @@ class _SubjectManagementScreenState
           },
         ),
       ),
+    );
+  }
+}
+
+class _SubjectEditorDialog extends StatefulWidget {
+  const _SubjectEditorDialog({
+    required this.existing,
+    required this.palette,
+  });
+
+  final Subject? existing;
+  final Map<String, String> palette;
+
+  @override
+  State<_SubjectEditorDialog> createState() => _SubjectEditorDialogState();
+}
+
+class _SubjectEditorDialogState extends State<_SubjectEditorDialog> {
+  late final TextEditingController _nameController;
+  late String _selectedColor;
+  bool _showNameError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(
+      text: widget.existing?.name ?? '',
+    );
+    _selectedColor =
+        widget.existing?.color ?? widget.palette.values.first;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      setState(() => _showNameError = true);
+      return;
+    }
+
+    final existing = widget.existing;
+    final draft = existing == null
+        ? Subject(
+            id: Uuid().v4(),
+            name: name,
+            color: _selectedColor,
+          )
+        : existing.copyWith(
+            name: name,
+            color: _selectedColor,
+          );
+    Navigator.of(context).pop(draft);
+  }
+
+  Color _parseColor(String value, Color fallback) {
+    final normalized = value.replaceFirst('#', '');
+    final parsed = int.tryParse(normalized, radix: 16);
+    if (parsed == null) return fallback;
+    return Color(0xFF000000 | (parsed & 0x00FFFFFF));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.existing == null ? 'New subject' : 'Edit subject'),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                key: const ValueKey('subject-name-field'),
+                controller: _nameController,
+                autofocus: true,
+                maxLength: 32,
+                textCapitalization: TextCapitalization.words,
+                textInputAction: TextInputAction.done,
+                decoration: InputDecoration(
+                  labelText: 'Subject name',
+                  hintText: 'e.g. Reading, Mathematics, Research',
+                  border: const OutlineInputBorder(),
+                  errorText:
+                      _showNameError ? 'Enter a subject name.' : null,
+                ),
+                onChanged: (_) {
+                  if (_showNameError) {
+                    setState(() => _showNameError = false);
+                  }
+                },
+                onSubmitted: (_) => _submit(),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'COLOUR',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1,
+                    ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: widget.palette.entries.map((entry) {
+                  return ChoiceChip(
+                    label: Text(entry.key),
+                    selected: _selectedColor == entry.value,
+                    onSelected: (_) =>
+                        setState(() => _selectedColor = entry.value),
+                    avatar: CircleAvatar(
+                      radius: 7,
+                      backgroundColor: _parseColor(
+                        entry.value,
+                        Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: const Text('Save subject'),
+        ),
+      ],
     );
   }
 }
