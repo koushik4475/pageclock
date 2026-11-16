@@ -467,7 +467,7 @@ class _AdminPrivacy extends StatelessWidget {
     child: const Row(children: [
       Icon(Icons.verified_user_outlined, color: Color(0xFF5146E5), size: 17),
       SizedBox(width: 9),
-      Expanded(child: Text('Privacy first · Only aggregated reading statistics are visible in the admin portal.',
+      Expanded(child: Text('Privacy first · Only aggregated reading statistics are visible. Streaks use the 10-minute default; custom thresholds are device-local and are not synced to admin analytics.',
         style: TextStyle(color: Color(0xFF34306F), fontSize: 10, fontWeight: FontWeight.w700))),
     ]),
   );
