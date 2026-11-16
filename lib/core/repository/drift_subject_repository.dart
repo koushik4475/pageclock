@@ -72,14 +72,18 @@ class DriftSubjectRepository implements SubjectRepository {
   @override
   Future<void> setArchived(String id, bool archived) async {
     await db.transaction(() async {
-      final rows = await (db.select(db.subjects)..where((table) => table.id.equals(id))).get();
+      final rows = await (db.select(db.subjects)
+            ..where((table) => table.id.equals(id)))
+          .get();
       if (rows.isEmpty) {
         throw StateError('Subject "$id" was not found.');
       }
       final updated = _mapRow(rows.single).copyWith(archived: archived);
       final allRows = await db.select(db.subjects).get();
       ensureUniqueActiveSubjectName(updated, allRows.map(_mapRow));
-      await (db.update(db.subjects)..where((table) => table.id.equals(id))).write(
+      await (db.update(db.subjects)
+            ..where((table) => table.id.equals(id)))
+          .write(
         SubjectsCompanion(archived: Value(archived)),
       );
     });
