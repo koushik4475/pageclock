@@ -119,7 +119,8 @@ Deno.serve(async (req) => {
       aggregate.offset = offset;
       aggregate.daily.set(day, (aggregate.daily.get(day) ?? 0) + duration);
       byUser.set(uid, aggregate);
-      const utcDay = dayKey(start, 0);\n      globalDaily.set(utcDay, (globalDaily.get(utcDay) ?? 0) + duration);
+      const utcDay = dayKey(start, 0);
+      globalDaily.set(utcDay, (globalDaily.get(utcDay) ?? 0) + duration);
     }
 
     const now = Date.now();
@@ -149,6 +150,7 @@ Deno.serve(async (req) => {
         sessionCount: a.count,
         currentStreak: s.currentStreak,
         bestStreak: s.bestStreak,
+        isActiveToday: (a.daily.get(today) ?? 0) > 0,
         dailyFocusMs: Object.fromEntries(a.daily),
       };
     });
