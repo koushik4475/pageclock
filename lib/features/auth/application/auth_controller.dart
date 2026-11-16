@@ -8,6 +8,7 @@ import '../../../core/account/account_scope.dart';
 import '../../../core/cloud/auth_callback.dart';
 import '../../../core/cloud/cloud_config.dart';
 import '../../../core/engine/stopwatch_engine.dart';
+import '../../../core/repository/session_repository.dart';
 import '../../../core/settings/app_settings.dart';
 import '../data/auth_repository.dart';
 import '../domain/auth_models.dart';
