@@ -22,6 +22,7 @@ import 'features/app_update/app_update_service.dart';
 import 'features/app_update/update_dialog.dart';
 import 'features/calendar/calendar_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
+import 'features/onboarding/presentation/onboarding_screen.dart';
 import 'features/reports/reports_screen.dart';
 import 'features/settings/toggl_settings_screen.dart';
 import 'features/timer/toggl_timer_screen.dart';
@@ -84,6 +85,7 @@ class PageClockApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final appThemeId = ref.watch(appThemeIdProvider);
     final selectedTheme = appThemeDataFor(appThemeId);
+    final onboardingCompleted = ref.watch(onboardingCompletedProvider);
 
     return MaterialApp(
       title: 'PageClock',
@@ -94,7 +96,9 @@ class PageClockApp extends ConsumerWidget {
       // The HTML shell already provides the web loading screen. Skip the
       // animated Flutter splash on web to avoid showing two different screens.
       // Keep the native splash for Android and iOS.
-      home: kIsWeb ? const MainNavigationShell() : const SplashScreen(),
+      home: !onboardingCompleted
+          ? const OnboardingScreen()
+          : (kIsWeb ? const MainNavigationShell() : const SplashScreen()),
     );
   }
 }

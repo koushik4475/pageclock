@@ -484,6 +484,116 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
               ],
               borderColor: const Color(0xFFEF4444).withOpacity(0.3),
             ),
+            const SizedBox(height: 32),
+
+            // ACCOUNT & CLOUD SYNC Section
+            _buildSectionHeader('ACCOUNT & CLOUD SYNC', isDark),
+            _buildCard(
+              isDark,
+              [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            isUserScope ? Icons.cloud_done_rounded : Icons.cloud_queue_rounded,
+                            size: 24,
+                            color: isUserScope ? const Color(0xFF10B981) : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isUserScope ? 'Authenticated Account' : 'Guest / Offline Mode',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark ? Colors.white : const Color(0xFF111827),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  isUserScope
+                                      ? 'Cloud sync active. Reading sessions are backed up across your devices.'
+                                      : 'All sessions are stored 100% locally on this device.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      if (isUserScope) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.manage_accounts_outlined, size: 18),
+                                label: const Text('Account Details'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  side: BorderSide(
+                                    color: Theme.of(context).colorScheme.outline,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                onPressed: () => showAccountMenuDialog(context),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                icon: const Icon(Icons.logout_rounded, size: 18),
+                                label: const Text('Sign Out'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFEF4444).withOpacity(0.12),
+                                  foregroundColor: const Color(0xFFEF4444),
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                onPressed: () => showAccountMenuDialog(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.login_rounded, size: 18),
+                            label: const Text('Sign In / Sync Account'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            onPressed: () => showSignInDialog(context),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 36),
           ],
         ),
