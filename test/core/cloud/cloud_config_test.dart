@@ -4,6 +4,13 @@ import 'package:pageclock/core/cloud/cloud_config.dart';
 
 void main() {
   group('CloudConfig safety guards', () {
+    test('native OAuth redirect is the Android manifest callback', () {
+      final uri = Uri.parse(CloudConfig.nativeRedirectUri);
+      expect(uri.scheme, 'com.example.pageclock');
+      expect(uri.host, 'login-callback');
+      expect(uri.path, '/');
+    });
+
     const validUrl = 'https://xyzcompany.supabase.co';
     const validKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
 
