@@ -7,5 +7,13 @@ DriftSessionRepository createSessionRepository(
   String? storageKey,
   bool? isUser,
 }) {
-  return DriftSessionRepository(AppDatabase());
+  final userId = isUser == true && storageKey != null
+      ? storageKey.split('_user_').last
+      : null;
+  final databaseName = userId == null || userId.isEmpty
+      ? 'pageclock.sqlite'
+      : 'pageclock_user_${userId}.sqlite';
+  return DriftSessionRepository(
+    userId == null ? AppDatabase() : AppDatabase.forScope(databaseName),
+  );
 }
