@@ -17,6 +17,8 @@ import '../../core/settings/app_settings.dart';
 import '../../core/theme/theme_provider.dart';
 import '../app_update/app_update_service.dart';
 import '../app_update/update_dialog.dart';
+import '../admin/admin_service.dart';
+import '../admin/admin_dashboard_screen.dart';
 import '../auth/application/auth_controller.dart';
 import '../auth/presentation/auth_dialogs.dart';
 import '../timer/widgets/clock_face.dart';
@@ -94,6 +96,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     final settingsNotifier = ref.read(settingsProvider.notifier);
     final accountScope = ref.watch(accountScopeProvider);
     final isUserScope = CloudConfig.isEnabled && accountScope.isUser;
+    final adminAccess = ref.watch(adminAccessProvider);
 
     final localTzName = DateTime.now().timeZoneName;
     final localTzOffset = DateTime.now().timeZoneOffset;
@@ -536,6 +539,26 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
               borderColor: const Color(0xFFEF4444).withOpacity(0.3),
             ),
             const SizedBox(height: 32),
+
+            if (adminAccess.valueOrNull == true) ...[
+              const SizedBox(height: 32),
+              _buildSectionHeader('ADMINISTRATION', isDark),
+              _buildCard(
+                isDark,
+                [
+                  _buildTile(
+                    title: 'Open Admin Panel',
+                    subtitle: 'Client directory, engagement and reading analytics',
+                    isDark: isDark,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AdminDashboardScreen(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
 
             // ACCOUNT & CLOUD SYNC Section
             _buildSectionHeader('ACCOUNT & CLOUD SYNC', isDark),
