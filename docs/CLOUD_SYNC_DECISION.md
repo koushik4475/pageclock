@@ -1,4 +1,4 @@
-# Architecture Decision Record: Optional Web-Only Cloud Sync
+# Architecture Decision Record: Optional Web + Android Cloud Sync
 
 - **Status:** Approved for Web + Android implementation
 - **Date:** 2026-11-15
@@ -26,11 +26,11 @@ Users desire an optional mechanism to back up and synchronize reading sessions a
 We will provide an **optional cloud authentication and synchronization system on Flutter Web and Android** powered by Supabase Auth and PostgreSQL with Row Level Security (RLS).
 
 ### Core Tenets:
-1. **Guest Mode is Sacred:** PageClock web continues to function 100% offline with zero login requirement. First-time visitors enter guest mode instantly.
+1. **Guest Mode is Sacred:** PageClock continues to function 100% locally with zero login requirement on every platform. First-time visitors enter guest mode instantly.
 2. **Opt-In Sync Only:** Account creation is entirely optional ("Back up & sync"). Guest history is never automatically uploaded; users are prompted with an explicit choice (Merge, Cloud-only, or Not now) upon first sign-in.
 3. **Platform Isolation:** Flutter Web and Android can opt into cloud authentication and sync. iOS remains offline-first in this release. Guest mode remains fully local on every platform.
 4. **Compile-Time Feature Flag:** Cloud auth is enabled by default on supported Web/Android builds using the public project URL and publishable key; it can be explicitly disabled with `PAGECLOCK_CLOUD_AUTH_ENABLED=false`.
-5. **Least Privilege & Local-First:** Writes always hit local browser storage first. Sync runs asynchronously in the background. Only completed sessions and tombstones sync; running timers remain strictly device-local.
+5. **Least Privilege & Local-First:** Writes always hit local platform storage first. Sync runs asynchronously in the background. Only completed sessions and tombstones sync; running timers remain strictly device-local.
 
 ---
 
@@ -45,7 +45,7 @@ To strictly honor `AGENTS.md` §5 ("Preserve offline-first behavior and least pr
 
 ---
 
-## 4. What Data Leaves the Browser (and when)
+## 4. What Data Leaves the Device (and when)
 
 ### When Data Leaves:
 Data is transmitted **only** after:
