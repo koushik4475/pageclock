@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
     }
 
     const now = Date.now();
-    const clients = Object.values(authUsers).map((u: any) => {
+    const clients = Object.values(authUsers).filter((u: any) => u.id !== user.id).map((u: any) => {
       const a = byUser.get(u.id) ?? { total: 0, count: 0, last: 0, offset: 0, daily: new Map<string, number>() };
       const today = dayKey(now, a.offset);
       const sevenDayStart = new Date(`${today}T00:00:00.000Z`);
@@ -156,7 +156,6 @@ Deno.serve(async (req) => {
     });
 
     clients.sort((a, b) => b.totalFocusMs - a.totalFocusMs);
-    const todayKey = new Date(now).toISOString().slice(0, 10);
     const chart = [];
     for (let i = 29; i >= 0; i--) {
       const d = new Date(now);
