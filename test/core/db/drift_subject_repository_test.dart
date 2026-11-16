@@ -17,35 +17,40 @@ void main() {
   test(
     'Drift persists subject edits, archive/restore and duplicate validation',
     () async {
-    final database = AppDatabase.forTesting(NativeDatabase.memory());
-    final repository = DriftSubjectRepository(database);
+      final database = AppDatabase.forTesting(NativeDatabase.memory());
+      final repository = DriftSubjectRepository(database);
 
-    try {
-      await repository.saveSubject(subject('one', 'Reading'));
-      await repository.saveSubject(subject('two', 'Coding'));
-      await repository.saveSubject(subject('one', 'Deep Reading'));
+      try {
+        await repository.saveSubject(subject('one', 'Reading'));
+        await repository.saveSubject(subject('two', 'Coding'));
+        await repository.saveSubject(subject('one', 'Deep Reading'));
 
-      final renamed = await repository.getAllSubjects(includeArchived: false);
-      expect(renamed.map((item) => item.name), ['Coding', 'Deep Reading']);
+        final renamed = await repository.getAllSubjects(
+          includeArchived: false,
+        );
+        expect(renamed.map((item) => item.name), ['Coding', 'Deep Reading']);
 
-      await repository.setArchived('one', true);
-      expect(
-        (await repository.getAllSubjects(includeArchived: false))
-            .map((item) => item.id),
-        ['two'],
-      );
+        await repository.setArchived('one', true);
+        expect(
+          (await repository.getAllSubjects(includeArchived: false))
+              .map((item) => item.id),
+          ['two'],
+        );
 
-      await repository.saveSubject(subject('three', 'Deep Reading'));
-      await expectLater(
-        repository.setArchived('one', false),
-        throwsA(isA<SubjectNameConflictException>()),
-      );
+        await repository.saveSubject(subject('three', 'Deep Reading'));
+        await expectLater(
+          repository.setArchived('one', false),
+          throwsA(isA<SubjectNameConflictException>()),
+        );
 
-      final archived = await repository.getAllSubjects();
-      expect(archived.singleWhere((item) => item.id == 'one').archived, isTrue);
-    } finally {
-      await repository.dispose();
-    }
+        final archived = await repository.getAllSubjects();
+        expect(
+          archived.singleWhere((item) => item.id == 'one').archived,
+          isTrue,
+        );
+      } finally {
+        await repository.dispose();
+      }
     },
   );
 }
