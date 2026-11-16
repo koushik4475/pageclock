@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../account/account_scope.dart';
 import '../settings/app_settings.dart';
 import 'subject_repository_contract.dart';
