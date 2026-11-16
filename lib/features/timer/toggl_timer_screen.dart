@@ -576,39 +576,6 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     );
   }
 
-  void _showWhatsIncludedDialog(BuildContext context, bool isDark) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(ctx).colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          "What's Included in Productivity",
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            color: Theme.of(ctx).colorScheme.onSurface,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            _FeatureRow(icon: Icons.timer_outlined, text: 'Precision Stopwatch & 25m Pomodoro Ring'),
-            _FeatureRow(icon: Icons.crop_square_rounded, text: 'Apple Mac Fliqlo Retro Flip Clock'),
-            _FeatureRow(icon: Icons.grid_view_rounded, text: 'GitHub-Style Contribution Activity Heatmap'),
-            _FeatureRow(icon: Icons.view_timeline_rounded, text: '24-Hour Calendar Timeline with Needle Bar'),
-            _FeatureRow(icon: Icons.storage_rounded, text: 'Offline-First SQLite Drift Engine'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Got it', style: TextStyle(color: Theme.of(ctx).colorScheme.primary, fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
-    );
-  }
 
   String _formatElapsed(int ms) {
     final d = Duration(milliseconds: ms);
@@ -1178,6 +1145,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         settings.durationFormat,
                         colorScheme,
                         accent,
+                        taskDescription,
+                        selectedProject,
                       ),
               ),
 
@@ -1515,6 +1484,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     String durationFormat,
     ColorScheme colorScheme,
     Color accent,
+    String taskDescription,
+    String selectedProject,
   ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -1657,12 +1628,33 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Start a focus session to see it here.',
+                    'Start a focus session to see your progress and recent activity here.',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 11,
-                      color: isDark
-                          ? Theme.of(context).colorScheme.onSurfaceVariant
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: stopwatchState.status == StopwatchStatus.idle
+                        ? () => _startNewSession(
+                              context,
+                              project: selectedProject,
+                              description: taskDescription.trim().isEmpty
+                                  ? 'Reading session'
+                                  : taskDescription,
+                            )
+                        : () => setState(() => _selectedMode = 1),
+                    icon: Icon(
+                      stopwatchState.status == StopwatchStatus.idle
+                          ? Icons.play_arrow_rounded
+                          : Icons.timer_rounded,
+                    ),
+                    label: Text(
+                      stopwatchState.status == StopwatchStatus.idle
+                          ? 'Start focus session'
+                          : 'View active session',
                     ),
                   ),
                 ],
@@ -1676,46 +1668,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
               isDark: isDark,
               durationFormat: durationFormat,
             ),
-          const SizedBox(height: 48),
-
-          // "Keep tracking" Motivational Callout
-          Center(
-            child: Column(
-              children: [
-                const Text('👏', style: TextStyle(fontSize: 42)),
-                const SizedBox(height: 12),
-                Text(
-                  'Keep tracking',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Make sure to explore all the features available.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? Theme.of(context).colorScheme.onSurfaceVariant : Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () => _showWhatsIncludedDialog(context, isDark),
-                  child: const Text(
-                    "What's included?",
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      decoration: TextDecoration.underline,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
@@ -1969,33 +1922,3 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   }
 }
 
-class _FeatureRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
-
-  const _FeatureRow({required this.icon, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: isDark ? Theme.of(context).colorScheme.onSurface : const Color(0xFF374151),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

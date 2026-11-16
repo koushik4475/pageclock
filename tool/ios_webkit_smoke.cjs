@@ -40,7 +40,7 @@ const devices = [
         null,
         { timeout: 120000 },
       );
-      await page.waitForTimeout(1200);
+      await page.waitForTimeout(2200);
 
       const result = await page.evaluate(async () => {
         const appleCapable = document.querySelector('meta[name="apple-mobile-web-app-capable"]')?.content;
