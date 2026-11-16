@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -59,6 +61,22 @@ void main() {
         repository.setArchived('one', false),
         throwsA(isA<SubjectNameConflictException>()),
       );
+      await repository.dispose();
+    });
+
+    test('watch stream does not miss writes after its initial snapshot', () async {
+      final prefs = await SharedPreferences.getInstance();
+      final repository = WebSubjectRepository(prefs, storageKey: 'subjects_guest');
+      final iterator = StreamIterator(repository.watchSubjects());
+
+      expect(await iterator.moveNext(), isTrue);
+      expect(iterator.current, isEmpty);
+
+      await repository.saveSubject(subject('reading', 'Reading'));
+      expect(await iterator.moveNext(), isTrue);
+      expect(iterator.current.single.name, 'Reading');
+
+      await iterator.cancel();
       await repository.dispose();
     });
 
