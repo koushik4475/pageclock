@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/account/account_scope.dart';
+import '../../core/cloud/cloud_config.dart';
 import '../../core/engine/stopwatch_engine.dart';
 import '../../core/navigation/main_tab_navigation.dart';
 import '../../core/models/reading_session.dart';
@@ -42,7 +43,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     final settings = ref.watch(settingsProvider);
     final settingsNotifier = ref.read(settingsProvider.notifier);
     final accountScope = ref.watch(accountScopeProvider);
-    final isUserScope = kIsWeb && accountScope.isUser;
+    final isUserScope = CloudConfig.isEnabled && accountScope.isUser;
 
     final localTzName = DateTime.now().timeZoneName;
     final localTzOffset = DateTime.now().timeZoneOffset;
@@ -181,7 +182,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                         'Account Mode',
                         isUserScope ? 'Synced Account' : 'Local / Anonymous',
                         isDark,
-                        onTap: kIsWeb
+                        onTap: CloudConfig.isEnabled
                             ? () {
                                 if (isUserScope) {
                                   showAccountMenuDialog(context);
@@ -198,7 +199,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                         'Cloud Sync',
                         isUserScope ? 'Synced to your account' : 'None (100% Private)',
                         isDark,
-                        onTap: kIsWeb
+                        onTap: CloudConfig.isEnabled
                             ? () {
                                 if (isUserScope) {
                                   showAccountMenuDialog(context);
@@ -570,7 +571,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                             ),
                           ],
                         ),
-                      ] else ...[
+                      ] else if (CloudConfig.isEnabled) ...[
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
@@ -587,6 +588,14 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                             ),
                             onPressed: () => showSignInDialog(context),
                           ),
+                        ),
+                      ] else ...[
+                        Text(
+                          'Cloud sync is not configured in this build. Your sessions remain stored locally.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                height: 1.4,
+                              ),
                         ),
                       ],
                     ],
