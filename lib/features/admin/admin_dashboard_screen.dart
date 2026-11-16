@@ -222,7 +222,7 @@ class _AdminHeading extends StatelessWidget {
       : section == 'Activity' ? 'Activity & audit'
       : section == 'Settings' ? 'Admin settings' : 'Your reading community';
     final subtitle = section == 'Clients' ? 'Explore client accounts and reading statistics.'
-      : section == 'Analytics' ? 'Understand focus trends across the PageClock community.'
+      : section == 'Analytics' ? 'Understand focus trends across the PageClock community (UTC calendar days).'
       : section == 'Activity' ? 'Administrative history and security events.'
       : section == 'Settings' ? 'Preferences and dashboard configuration.'
       : 'A focused reading community, powered by PageClock.';
