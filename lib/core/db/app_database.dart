@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'tables.dart';
 import '../models/reading_session.dart';
 import '../repository/session_repository.dart';
+import '../sync/cloud_sync_session_repository.dart';
 
 part 'app_database.g.dart';
 
@@ -67,7 +68,7 @@ LazyDatabase _openConnection(String databaseFileName) {
   });
 }
 
-class DriftSessionRepository implements SessionRepository {
+class DriftSessionRepository implements SessionRepository, CloudSyncSessionRepository {
   final AppDatabase db;
 
   DriftSessionRepository(this.db);
@@ -150,6 +151,42 @@ class DriftSessionRepository implements SessionRepository {
   @override
   Future<void> hardDeleteAll() async {
     await db.delete(db.readingSessions).go();
+  }
+
+  /// Returns every local row, including tombstones, for account-scoped sync.
+  @override
+  List<ReadingSession> allForSync() {
+    // The async query is intentionally exposed through a cached future below;
+    // syncCoordinator uses the async-compatible accessor instead.
+    throw UnimplementedError('Use loadAllForSync() for Drift storage.');
+  }
+
+  /// Loads all local rows, including tombstones, for sync.
+  Future<List<ReadingSession>> loadAllForSync() async {
+    final rows = await db.select(db.readingSessions).get();
+    return rows.map(_mapEntryToDomain).toList();
+  }
+
+  /// Applies cloud rows with last-write-wins semantics. A tombstone wins when
+  /// timestamps are equal, preventing deleted sessions from being resurrected.
+  @override
+  Future<void> applyRemote(List<ReadingSession> remoteRows) async {
+    if (remoteRows.isEmpty) return;
+    final localRows = await db.select(db.readingSessions).get();
+    final localById = {
+      for (final row in localRows) row.id: _mapEntryToDomain(row),
+    };
+
+    for (final remote in remoteRows) {
+      final local = localById[remote.id];
+      final shouldReplace = local == null ||
+          remote.updatedAt > local.updatedAt ||
+          (remote.updatedAt == local.updatedAt &&
+              (remote.deletedAt != null || local.deletedAt == null));
+      if (shouldReplace) {
+        await saveSession(remote);
+      }
+    }
   }
 
   @override
