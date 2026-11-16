@@ -1,7 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pageclock/core/cloud/cloud_config.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+  tearDownAll(() => debugDefaultTargetPlatformOverride = null);
+
   group('CloudConfig safety guards', () {
     const validUrl = 'https://xyzcompany.supabase.co';
     const validKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
