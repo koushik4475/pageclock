@@ -104,7 +104,7 @@ void main() {
 
       expect(prefs.containsKey(guestKey), isFalse);
       expect((await repo.getAllSessions()), isEmpty);
-      expect(repo.allForSync(), isEmpty);
+      expect(await repo.allForSync(), isEmpty);
     });
 
     test('hardDeleteAll in user scope tombstones all rows to prevent cloud resurrection (§8.5)', () async {
@@ -125,7 +125,7 @@ void main() {
       expect(visibleSessions, isEmpty);
 
       // Sync methods must retain tombstones with cleared notes so deletions sync to server
-      final syncRows = repo.allForSync();
+      final syncRows = await repo.allForSync();
       expect(syncRows.length, equals(2));
       for (final s in syncRows) {
         expect(s.deletedAt, isNotNull);
