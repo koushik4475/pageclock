@@ -68,7 +68,9 @@ class WebSubjectRepository implements SubjectRepository {
   }
 
   Future<void> _commit() async {
-    final payload = jsonEncode(_subjects.values.map((subject) => subject.toMap()).toList());
+    final payload = jsonEncode(
+      _subjects.values.map((subject) => subject.toMap()).toList(),
+    );
     final saved = await _prefs.setString(storageKey, payload);
     if (!saved) {
       throw StateError('Browser storage rejected the subject update.');
