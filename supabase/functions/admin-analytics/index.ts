@@ -77,6 +77,7 @@ Deno.serve(async (req) => {
   if (!role) return json({ isAdmin: false, error: "Forbidden" }, 403, headers);
 
   const body = await req.json().catch(() => ({}));
+  if (body?.action === "access") return json({ isAdmin: true }, 200, headers);
   if (body?.action !== "dashboard") return json({ error: "Unsupported action" }, 400, headers);
 
   try {
