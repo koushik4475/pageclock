@@ -28,7 +28,7 @@ class _SubjectManagementScreenState
   bool _showArchived = false;
 
   Future<void> _editSubject({Subject? subject}) async {
-    final controller = TextEditingController(text: subject?.name ?? '');
+    var draftName = subject?.name ?? '';
     var selectedColor = subject?.color ?? _palette.values.first;
 
     final draft = await showDialog<Subject>(
@@ -43,9 +43,9 @@ class _SubjectManagementScreenState
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TextField(
+                  TextFormField(
                     key: const ValueKey('subject-name-field'),
-                    controller: controller,
+                    initialValue: draftName,
                     autofocus: true,
                     maxLength: 32,
                     textCapitalization: TextCapitalization.words,
@@ -54,9 +54,10 @@ class _SubjectManagementScreenState
                       hintText: 'e.g. Reading, Mathematics, Research',
                       border: OutlineInputBorder(),
                     ),
-                    onChanged: (_) => setDialogState(() {}),
-                    onSubmitted: (_) {
-                      final name = controller.text.trim();
+                    onChanged: (value) =>
+                        setDialogState(() => draftName = value),
+                    onFieldSubmitted: (_) {
+                      final name = draftName.trim();
                       if (name.isNotEmpty) {
                         Navigator.pop(
                           dialogContext,
@@ -104,13 +105,13 @@ class _SubjectManagementScreenState
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: controller.text.trim().isEmpty
+              onPressed: draftName.trim().isEmpty
                   ? null
                   : () => Navigator.pop(
                         dialogContext,
                         _buildDraft(
                           subject,
-                          controller.text.trim(),
+                          draftName.trim(),
                           selectedColor,
                         ),
                       ),
@@ -120,7 +121,6 @@ class _SubjectManagementScreenState
         ),
       ),
     );
-    controller.dispose();
 
     if (draft == null || !mounted) return;
     try {
@@ -409,6 +409,7 @@ class _SubjectManagementScreenState
                                                     ),
                                                   ),
                                                   IconButton(
+                                                    key: ValueKey('edit-subject-${subject.id}'),
                                                     tooltip:
                                                         'Edit ${subject.name}',
                                                     onPressed: repository
@@ -423,6 +424,11 @@ class _SubjectManagementScreenState
                                                     ),
                                                   ),
                                                   IconButton(
+                                                    key: ValueKey(
+                                                      subject.archived
+                                                          ? 'restore-subject-${subject.id}'
+                                                          : 'archive-subject-${subject.id}',
+                                                    ),
                                                     tooltip: subject.archived
                                                         ? 'Restore ${subject.name}'
                                                         : 'Archive ${subject.name}',
