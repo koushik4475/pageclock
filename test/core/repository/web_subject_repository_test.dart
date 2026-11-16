@@ -22,7 +22,9 @@ void main() {
       );
 
   group('WebSubjectRepository', () {
-    test('persists active and archived subjects across repository instances', () async {
+    test(
+      'persists active and archived subjects across repository instances',
+      () async {
       final prefs = await SharedPreferences.getInstance();
       final first = WebSubjectRepository(prefs, storageKey: 'subjects_guest');
 
@@ -37,9 +39,12 @@ void main() {
       expect(all.single.archived, isTrue);
       expect(await reopened.getAllSubjects(includeArchived: false), isEmpty);
       await reopened.dispose();
-    });
+      },
+    );
 
-    test('rejects duplicate active names but permits reuse after archive', () async {
+    test(
+      'rejects duplicate active names but permits reuse after archive',
+      () async {
       final prefs = await SharedPreferences.getInstance();
       final repository = WebSubjectRepository(prefs, storageKey: 'subjects_guest');
 
@@ -62,7 +67,8 @@ void main() {
         throwsA(isA<SubjectNameConflictException>()),
       );
       await repository.dispose();
-    });
+      },
+    );
 
     test('watch stream does not miss writes after its initial snapshot', () async {
       final prefs = await SharedPreferences.getInstance();
@@ -88,8 +94,14 @@ void main() {
       await guest.saveSubject(subject('guest-reading', 'Guest Reading'));
       await user.saveSubject(subject('user-reading', 'User Reading'));
 
-      expect((await guest.getAllSubjects()).map((item) => item.name), ['Guest Reading']);
-      expect((await user.getAllSubjects()).map((item) => item.name), ['User Reading']);
+      expect(
+        (await guest.getAllSubjects()).map((item) => item.name),
+        ['Guest Reading'],
+      );
+      expect(
+        (await user.getAllSubjects()).map((item) => item.name),
+        ['User Reading'],
+      );
       await guest.dispose();
       await user.dispose();
     });
