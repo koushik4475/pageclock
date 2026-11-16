@@ -14,7 +14,9 @@ void main() {
         archived: archived,
       );
 
-  test('Drift persists subject edits, archive/restore and duplicate validation', () async {
+  test(
+    'Drift persists subject edits, archive/restore and duplicate validation',
+    () async {
     final database = AppDatabase.forTesting(NativeDatabase.memory());
     final repository = DriftSubjectRepository(database);
 
@@ -44,5 +46,6 @@ void main() {
     } finally {
       await repository.dispose();
     }
-  });
+    },
+  );
 }
