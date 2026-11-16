@@ -81,11 +81,21 @@ class WebSubjectRepository implements SubjectRepository {
       _snapshot(includeArchived: includeArchived);
 
   @override
-  Stream<List<Subject>> watchSubjects({bool includeArchived = true}) async* {
-    yield _snapshot(includeArchived: includeArchived);
-    await for (final _ in _changes.stream) {
-      yield _snapshot(includeArchived: includeArchived);
-    }
+  Stream<List<Subject>> watchSubjects({bool includeArchived = true}) {
+    late final StreamController<List<Subject>> controller;
+    StreamSubscription<void>? subscription;
+    controller = StreamController<List<Subject>>(
+      onListen: () {
+        // Subscribe before emitting the initial snapshot so a write between
+        // the first frame and the next stream event cannot be missed.
+        subscription = _changes.stream.listen(
+          (_) => controller.add(_snapshot(includeArchived: includeArchived)),
+        );
+        controller.add(_snapshot(includeArchived: includeArchived));
+      },
+      onCancel: () => subscription?.cancel(),
+    );
+    return controller.stream;
   }
 
   @override
