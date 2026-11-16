@@ -36,7 +36,7 @@ void main() {
     WidgetTester tester,
     String name,
   ) async {
-    await tester.tap(find.byTooltip('Create subject'));
+    await tester.tap(find.byKey(const ValueKey('create-subject')));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey('subject-name-field')),
@@ -91,7 +91,8 @@ void main() {
     await pumpScreen(tester);
     await createSubject(tester, 'Reading');
 
-    await tester.tap(find.byTooltip('Edit Reading'));
+    final subjectId = (await repository.getAllSubjects()).single.id;
+    await tester.tap(find.byKey(ValueKey('edit-subject-$subjectId')));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const ValueKey('subject-name-field')),
@@ -101,7 +102,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Deep Reading'), findsOneWidget);
-    await tester.tap(find.byTooltip('Archive Deep Reading'));
+    await tester.tap(find.byKey(ValueKey('archive-subject-$subjectId')));
     await tester.pumpAndSettle();
     expect(find.text('No subjects yet'), findsOneWidget);
 
@@ -109,7 +110,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Deep Reading'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Restore Deep Reading'));
+    await tester.tap(find.byKey(ValueKey('restore-subject-$subjectId')));
     await tester.pumpAndSettle();
     expect(find.text('Nothing archived yet'), findsOneWidget);
 
@@ -132,9 +133,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Existing data is preserved'), findsOneWidget);
-    expect(find.byTooltip('Create subject'), findsOneWidget);
+    expect(find.byKey(const ValueKey('create-subject')), findsOneWidget);
     expect(
-      tester.widget<IconButton>(find.byTooltip('Create subject')).onPressed,
+      tester.widget<IconButton>(find.byKey(const ValueKey('create-subject'))).onPressed,
       isNull,
     );
     await corruptedRepository.dispose();
