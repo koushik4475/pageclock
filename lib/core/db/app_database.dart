@@ -155,14 +155,7 @@ class DriftSessionRepository implements SessionRepository, CloudSyncSessionRepos
 
   /// Returns every local row, including tombstones, for account-scoped sync.
   @override
-  List<ReadingSession> allForSync() {
-    // The async query is intentionally exposed through a cached future below;
-    // syncCoordinator uses the async-compatible accessor instead.
-    throw UnimplementedError('Use loadAllForSync() for Drift storage.');
-  }
-
-  /// Loads all local rows, including tombstones, for sync.
-  Future<List<ReadingSession>> loadAllForSync() async {
+  Future<List<ReadingSession>> allForSync() async {
     final rows = await db.select(db.readingSessions).get();
     return rows.map(_mapEntryToDomain).toList();
   }
