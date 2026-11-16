@@ -12,6 +12,7 @@ import 'core/cloud/cloud_config.dart';
 import 'core/repository/web_session_migration.dart';
 import 'core/models/reading_session.dart';
 import 'core/navigation/main_tab_navigation.dart';
+import 'core/navigation/initial_destination.dart';
 import 'core/engine/stopwatch_engine.dart';
 import 'core/services/notification_service.dart';
 import 'core/repository/session_repository.dart';
@@ -115,11 +116,15 @@ class PageClockApp extends ConsumerWidget {
       // The HTML shell already provides the web loading screen. Skip the
       // animated Flutter splash on web to avoid showing two different screens.
       // Keep the native splash for Android and iOS.
-      home: isAuthenticated
-          ? const MainNavigationShell()
-          : (!onboardingCompleted
-              ? const OnboardingScreen()
-              : (kIsWeb ? const MainNavigationShell() : const SplashScreen())),
+      home: switch (resolvePageClockInitialDestination(
+        isAuthenticated: isAuthenticated,
+        onboardingCompleted: onboardingCompleted,
+        isWeb: kIsWeb,
+      )) {
+        PageClockInitialDestination.workspace => const MainNavigationShell(),
+        PageClockInitialDestination.onboarding => const OnboardingScreen(),
+        PageClockInitialDestination.splash => const SplashScreen(),
+      },
     );
   }
 }
