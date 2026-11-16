@@ -114,6 +114,15 @@ class WebSubjectRepository implements SubjectRepository {
     _changes.add(null);
   }
 
+  /// Reloads the latest browser storage snapshot, including changes from
+  /// another open tab. Corrupt data remains untouched and is exposed via
+  /// [storageIssue] instead of being silently replaced.
+  Future<void> reloadFromStorage() async {
+    await _prefs.reload();
+    _loadFromStorage();
+    _changes.add(null);
+  }
+
   List<Subject> _snapshot({required bool includeArchived}) {
     final values = _subjects.values
         .where((subject) => includeArchived || !subject.archived)
