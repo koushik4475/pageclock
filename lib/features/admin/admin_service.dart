@@ -137,17 +137,11 @@ final adminServiceProvider = Provider<AdminService>((ref) {
 });
 
 final adminAccessProvider = FutureProvider<bool>((ref) async {
-  final userId = ref.watch(
-    // Re-evaluate access whenever the signed-in account changes.
-    adminSignedInUserIdProvider,
-  );
+  final userId = ref.watch(authControllerProvider.select((state) => state.user?.id));
   if (userId == null) return false;
   return ref.watch(adminServiceProvider).checkAccess();
 });
 
-final adminSignedInUserIdProvider = Provider<String?>((ref) {
-  return Supabase.instance.client.auth.currentUser?.id;
-});
 
 final adminDashboardProvider = FutureProvider<AdminDashboardData>((ref) {
   return ref.watch(adminServiceProvider).loadDashboard();
