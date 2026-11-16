@@ -2,7 +2,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "").split(",").map((v) => v.trim()).filter(Boolean);
 const cors = (origin: string | null) => ({
-  "Access-Control-Allow-Origin": origin && allowedOrigins.includes(origin) ? origin : "",
+  "Access-Control-Allow-Origin": origin && (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) ? origin : "",
   "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Vary": "Origin",
@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
     const globalDaily = new Map<string, number>();
     for (const row of sessions) {
       const uid = String(row.user_id);
-      if (!authUsers[uid]) continue;
+      if (!authUsers[uid] || uid === user.id) continue;
       const duration = activeDuration(row);
       if (duration <= 0) continue;
       const start = Number(row.started_at_utc);
