@@ -60,6 +60,15 @@ Future<void> main() async {
           authFlowType: AuthFlowType.pkce,
         ),
       ).timeout(const Duration(seconds: 4));
+      final restoredUser = Supabase.instance.client.auth.currentUser;
+      if (restoredUser != null) {
+        // Restore the correct native/web account partition before repositories
+        // are created, so offline launches never briefly expose guest history.
+        await prefs.setString(
+          AccountScope.activeScopeKey,
+          'user:${restoredUser.id}',
+        );
+      }
     } catch (e) {
       debugPrint('[Main] Cloud auth initialization warning: $e');
     }
