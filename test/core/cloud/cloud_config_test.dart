@@ -6,18 +6,20 @@ void main() {
     const validUrl = 'https://xyzcompany.supabase.co';
     const validKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
 
-    test('default compile-time values are disabled and empty', () {
-      expect(CloudConfig.authEnabled, isFalse);
-      expect(CloudConfig.supabaseUrl, isEmpty);
-      expect(CloudConfig.supabasePublishableKey, isEmpty);
+    test('default compile-time values point to the configured public project', () {
+      expect(CloudConfig.authEnabled, isTrue);
+      expect(CloudConfig.supabaseUrl, startsWith('https://'));
+      expect(CloudConfig.supabasePublishableKey, startsWith('sb_publishable_'));
+      // The host test runner is not Web or Android.
       expect(CloudConfig.isEnabled, isFalse);
     });
 
-    test('isEnabledFor is strictly false when isWeb is false (native protection)', () {
-      // Even with flag enabled and non-empty keys, native platform must never enable cloud
+    test('unsupported native platforms remain disabled', () {
+      // iOS and desktop remain offline-first.
       expect(
         CloudConfig.isEnabledFor(
           isWeb: false,
+          isAndroid: false,
           flag: true,
           url: validUrl,
           key: validKey,
@@ -28,6 +30,7 @@ void main() {
       expect(
         CloudConfig.isEnabledFor(
           isWeb: false,
+          isAndroid: false,
           flag: false,
           url: validUrl,
           key: validKey,
@@ -38,11 +41,25 @@ void main() {
       expect(
         CloudConfig.isEnabledFor(
           isWeb: false,
+          isAndroid: false,
           flag: true,
           url: '',
           key: '',
         ),
         isFalse,
+      );
+    });
+
+    test('Android is enabled when the flag and public project configuration are present', () {
+      expect(
+        CloudConfig.isEnabledFor(
+          isWeb: false,
+          isAndroid: true,
+          flag: true,
+          url: validUrl,
+          key: validKey,
+        ),
+        isTrue,
       );
     });
 
