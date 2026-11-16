@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart';
 ///
 /// Under the PageClock architecture:
 /// - Cloud authentication is supported on Flutter Web and Android.
-/// - Native builds (Android/iOS) remain 100% offline-first and never initialize cloud services.
-/// - Feature flag [authEnabled] defaults to `false`.
+/// - iOS and desktop builds remain offline-first and do not initialize cloud services.
+/// - The public project URL and publishable key are safe client configuration.
 class CloudConfig {
   const CloudConfig._();
 
