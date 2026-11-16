@@ -70,9 +70,9 @@ class AuthController extends StateNotifier<AuthState> {
         }
         state = AuthState.authenticated(user);
       } else {
-        if (!isTimerActive()) {
-          await _ref.read(accountScopeProvider.notifier).setGuest();
-        }
+        // A null auth event can also occur during offline token refresh or
+        // session restoration. Only explicit signOut/deleteAccount actions
+        // switch the persisted local account partition back to Guest.
         state = const AuthState.unauthenticated();
       }
     });
