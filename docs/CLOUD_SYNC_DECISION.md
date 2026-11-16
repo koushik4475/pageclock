@@ -4,7 +4,7 @@
 - **Date:** 2026-11-15
 - **Scope:** Flutter Web and Android (iOS remains offline-first for this release)
 - **Governing Policy:** AGENTS.md §5 (Security and data integrity; no unauthorized telemetry or remote config)
-- **Feature Flag:** `PAGECLOCK_CLOUD_AUTH_ENABLED` (Default: `false`)
+- **Feature Flag:** `PAGECLOCK_CLOUD_AUTH_ENABLED` (Default: `true` on Web/Android; may be explicitly disabled)
 
 ---
 
@@ -29,7 +29,7 @@ We will provide an **optional cloud authentication and synchronization system on
 1. **Guest Mode is Sacred:** PageClock web continues to function 100% offline with zero login requirement. First-time visitors enter guest mode instantly.
 2. **Opt-In Sync Only:** Account creation is entirely optional ("Back up & sync"). Guest history is never automatically uploaded; users are prompted with an explicit choice (Merge, Cloud-only, or Not now) upon first sign-in.
 3. **Platform Isolation:** Flutter Web and Android can opt into cloud authentication and sync. iOS remains offline-first in this release. Guest mode remains fully local on every platform.
-4. **Compile-Time Feature Flag (Default OFF):** All cloud-related pathways are inert unless compiled with `PAGECLOCK_CLOUD_AUTH_ENABLED=true` alongside valid web credentials.
+4. **Compile-Time Feature Flag:** Cloud auth is enabled by default on supported Web/Android builds using the public project URL and publishable key; it can be explicitly disabled with `PAGECLOCK_CLOUD_AUTH_ENABLED=false`.
 5. **Least Privilege & Local-First:** Writes always hit local browser storage first. Sync runs asynchronously in the background. Only completed sessions and tombstones sync; running timers remain strictly device-local.
 
 ---
