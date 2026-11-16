@@ -152,6 +152,9 @@ void main() {
       expect(find.text(AuthController.timerBlockedMessage), findsOneWidget);
       expect(auth.signOutCalls, 0);
       expect(container.read(accountScopeProvider).isUser, isTrue);
+      // Stop the periodic fake timer before the widget-test binding verifies
+      // that no timers remain after teardown.
+      await container.read(stopwatchProvider.notifier).cancel();
     }, variant: TargetPlatformVariant.only(TargetPlatform.android));
   });
 }
