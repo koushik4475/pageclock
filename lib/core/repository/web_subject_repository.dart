@@ -93,7 +93,9 @@ class WebSubjectRepository implements SubjectRepository {
         );
         controller.add(_snapshot(includeArchived: includeArchived));
       },
-      onCancel: () => subscription?.cancel(),
+      onCancel: () async {
+        await subscription?.cancel();
+      },
     );
     return controller.stream;
   }
@@ -136,5 +138,7 @@ class WebSubjectRepository implements SubjectRepository {
   }
 
   @override
-  Future<void> dispose() => _changes.close();
+  Future<void> dispose() async {
+    await _changes.close();
+  }
 }
