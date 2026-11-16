@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/account/account_scope.dart';
+import '../../../core/cloud/cloud_config.dart';
 import '../../../core/settings/app_settings.dart';
 import '../../../core/widgets/pageclock_brand_mark.dart';
 import '../../../main.dart';
@@ -146,38 +147,53 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     context,
                     icon: Icons.cloud_sync_outlined,
                     title: 'Optional Cloud Backup',
-                    description: 'Sign in to sync reading sessions across devices or continue offline privately.',
+                    description: CloudConfig.isEnabled
+                        ? 'Sign in to sync reading sessions across devices or continue offline privately.'
+                        : 'Cloud backup is not enabled in this build. You can still track sessions offline.',
                   ),
                   const SizedBox(height: 36),
 
-                  // Action Buttons
-                  ElevatedButton(
-                    onPressed: _onSignInPressed,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: theme.colorScheme.onPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.login_rounded, size: 20),
-                        SizedBox(width: 10),
-                        Text(
-                          'Sign In / Sync Account',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
+                  // Only offer authentication when this build has a supported,
+                  // fully configured cloud backend. Guest mode is always available.
+                  if (CloudConfig.isEnabled) ...[
+                    ElevatedButton(
+                      onPressed: _onSignInPressed,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: theme.colorScheme.onPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                      ],
+                        elevation: 0,
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.login_rounded, size: 20),
+                          SizedBox(width: 10),
+                          Text(
+                            'Sign In / Sync Account',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
+                    const SizedBox(height: 12),
+                  ] else ...[
+                    Text(
+                      'Cloud sync is not configured in this build. Continue as a guest to keep your sessions on this device.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
 
                   OutlinedButton(
                     onPressed: _navigateToMainShell,
@@ -201,7 +217,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
                   // Offline reassurance notice
                   Text(
-                    'Guest mode is 100% private and stays offline on this device. You can sign in anytime later from Settings.',
+                    CloudConfig.isEnabled
+                        ? 'Guest mode is 100% private and stays offline on this device. You can sign in anytime later from Settings.'
+                        : 'Guest mode is 100% private and stays offline on this device. Cloud sync is not configured in this build.',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.textTheme.bodySmall?.color?.withOpacity(0.6),

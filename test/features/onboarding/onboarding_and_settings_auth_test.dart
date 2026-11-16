@@ -18,7 +18,7 @@ void main() {
       prefs = await SharedPreferences.getInstance();
     });
 
-    testWidgets('OnboardingScreen renders title, features, sign in, and skip buttons', (tester) async {
+    testWidgets('OnboardingScreen keeps guest mode available when cloud auth is disabled', (tester) async {
       await tester.binding.setSurfaceSize(const Size(800, 1000));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -38,7 +38,11 @@ void main() {
 
       expect(find.text('Welcome to PageClock'), findsOneWidget);
       expect(find.text('READ · FOCUS · TRACK'), findsOneWidget);
-      expect(find.text('Sign In / Sync Account'), findsOneWidget);
+      expect(find.text('Sign In / Sync Account'), findsNothing);
+      expect(
+        find.text('Cloud sync is not configured in this build. Continue as a guest to keep your sessions on this device.'),
+        findsOneWidget,
+      );
       expect(find.text('Skip for now (Continue as Guest)'), findsOneWidget);
     });
 
@@ -99,7 +103,11 @@ void main() {
 
       expect(find.text('ACCOUNT & CLOUD SYNC'), findsOneWidget);
       expect(find.text('Guest / Offline Mode'), findsOneWidget);
-      expect(find.text('Sign In / Sync Account'), findsOneWidget);
+      expect(find.text('Sign In / Sync Account'), findsNothing);
+      expect(
+        find.text('Cloud sync is not configured in this build. Your sessions remain stored locally.'),
+        findsOneWidget,
+      );
     });
   });
 }
