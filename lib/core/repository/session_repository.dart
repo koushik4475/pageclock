@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/reading_session.dart';
 import '../settings/app_settings.dart';
+import '../account/account_scope.dart';
 import 'session_repository_platform_stub.dart'
     if (dart.library.io) 'session_repository_platform_native.dart' as platform;
 
@@ -192,5 +193,10 @@ extension StreamConcatExtension<T> on Stream<T> {
 
 final sessionRepositoryProvider = Provider<SessionRepository>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
-  return platform.createSessionRepository(prefs);
+  final scope = ref.watch(accountScopeProvider);
+  return platform.createSessionRepository(
+    prefs,
+    storageKey: scope.storageKey,
+    isUser: scope.isUser,
+  );
 });

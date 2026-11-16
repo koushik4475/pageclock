@@ -153,7 +153,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             ),
             tooltip: 'Settings',
             onPressed: () {
-              ref.read(mainTabNavigationIndexProvider.notifier).state = 3;
+              ref.read(mainTabNavigationIndexProvider.notifier).state = 4;
             },
           ),
         ],
@@ -195,7 +195,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
           Divider(
             height: 1,
-            color: isDark ? const Color(0xFF1E172B) : const Color(0xFFE5E7EB),
+            color: colorScheme.outline.withOpacity(.65),
           ),
 
           // 24-Hour Timeline Grid
@@ -239,8 +239,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                               child: Container(
                                 height: 1,
                                 color: isDark
-                                    ? const Color(0xFF1E172B)
-                                    : const Color(0xFFE5E7EB),
+                                    ? colorScheme.outline.withOpacity(.65)
+                                    : colorScheme.outline.withOpacity(.65),
                               ),
                             ),
                           ],

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/account/account_scope.dart';
+import '../../core/cloud/cloud_config.dart';
 import '../../core/engine/stopwatch_engine.dart';
 import '../../core/navigation/main_tab_navigation.dart';
 import '../../core/models/reading_session.dart';
@@ -15,6 +17,7 @@ import '../../core/settings/app_settings.dart';
 import '../../core/theme/theme_provider.dart';
 import '../app_update/app_update_service.dart';
 import '../app_update/update_dialog.dart';
+import '../auth/presentation/auth_dialogs.dart';
 import '../timer/widgets/clock_face.dart';
 
 /// Full Production Settings Screen matching Toggl Track UI
@@ -39,6 +42,8 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final settings = ref.watch(settingsProvider);
     final settingsNotifier = ref.read(settingsProvider.notifier);
+    final accountScope = ref.watch(accountScopeProvider);
+    final isUserScope = CloudConfig.isEnabled && accountScope.isUser;
 
     final localTzName = DateTime.now().timeZoneName;
     final localTzOffset = DateTime.now().timeZoneOffset;
@@ -50,7 +55,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: isDark ? const Color(0xFF0F0B15) : const Color(0xFFF9FAFB),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
           icon: Icon(
@@ -86,13 +91,17 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
               [
                 _buildTile(
                   title: 'Workspace',
-                  subtitle: 'Personal Workspace',
+                  subtitle: isUserScope ? 'Cloud Workspace' : 'Personal Workspace',
                   isDark: isDark,
                   onTap: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Personal offline workspace is active.'),
-                        duration: Duration(seconds: 2),
+                      SnackBar(
+                        content: Text(
+                          isUserScope
+                              ? 'Cloud-synced workspace is active.'
+                              : 'Personal offline workspace is active.',
+                        ),
+                        duration: const Duration(seconds: 2),
                         behavior: SnackBarBehavior.floating,
                       ),
                     );
@@ -101,13 +110,17 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                 _buildDivider(isDark),
                 _buildTile(
                   title: 'Your Plan',
-                  subtitle: 'Offline First (Local Storage)',
+                  subtitle: isUserScope ? 'Cloud Sync (Free Account)' : 'Offline First (Local Storage)',
                   isDark: isDark,
                   onTap: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Offline First plan active. 100% private with no paid tiers.'),
-                        duration: Duration(seconds: 2),
+                      SnackBar(
+                        content: Text(
+                          isUserScope
+                              ? 'Cloud Sync active. Sessions are backed up and synced to your account.'
+                              : 'Offline First plan active. 100% private with no paid tiers.',
+                        ),
+                        duration: const Duration(seconds: 2),
                         behavior: SnackBarBehavior.floating,
                       ),
                     );
@@ -165,11 +178,37 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                         ),
                       ),
                       const SizedBox(height: 14),
-                      _buildProfileRow('Account Mode', 'Local / Anonymous', isDark),
+                      _buildProfileRow(
+                        'Account Mode',
+                        isUserScope ? 'Synced Account' : 'Local / Anonymous',
+                        isDark,
+                        onTap: CloudConfig.isEnabled
+                            ? () {
+                                if (isUserScope) {
+                                  showAccountMenuDialog(context);
+                                } else {
+                                  showSignInDialog(context);
+                                }
+                              }
+                            : null,
+                      ),
                       const SizedBox(height: 10),
                       _buildProfileRow('Device Timezone', tzFormatted, isDark),
                       const SizedBox(height: 10),
-                      _buildProfileRow('Cloud Sync', 'None (100% Private)', isDark),
+                      _buildProfileRow(
+                        'Cloud Sync',
+                        isUserScope ? 'Synced to your account' : 'None (100% Private)',
+                        isDark,
+                        onTap: CloudConfig.isEnabled
+                            ? () {
+                                if (isUserScope) {
+                                  showAccountMenuDialog(context);
+                                } else {
+                                  showSignInDialog(context);
+                                }
+                              }
+                            : null,
+                      ),
                     ],
                   ),
                 ),
@@ -285,14 +324,16 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                 _buildDivider(isDark),
                 _buildTile(
                   title: 'About PageClock',
-                  subtitle: '1.0.0 (Offline-First Edition)',
+                  subtitle: isUserScope ? '1.0.0 (Cloud Edition)' : '1.0.0 (Offline-First Edition)',
                   isDark: isDark,
                   onTap: () {
                     showAboutDialog(
                       context: context,
                       applicationName: 'PageClock',
                       applicationVersion: '1.0.0',
-                      applicationLegalese: '100% Offline-First Focus & Reading Tracker\nZero analytics • Zero cloud sync • Your data is yours.',
+                      applicationLegalese: isUserScope
+                          ? 'Focus & Reading Tracker\nZero trackers • Synced to your account • Your data is yours.'
+                          : '100% Offline-First Focus & Reading Tracker\nZero analytics • Zero cloud sync • Your data is yours.',
                     );
                   },
                 ),
@@ -432,8 +473,135 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                   isDark: isDark,
                   onTap: () => _showResetAppConfirmation(context),
                 ),
+                if (isUserScope) ...[
+                  _buildDivider(isDark),
+                  _buildDangerTile(
+                    title: 'Delete account',
+                    subtitle: 'Permanently deletes your account and cloud-synced sessions across all devices.',
+                    isDark: isDark,
+                    onTap: () => showAccountMenuDialog(context),
+                  ),
+                ],
               ],
               borderColor: const Color(0xFFEF4444).withOpacity(0.3),
+            ),
+            const SizedBox(height: 32),
+
+            // ACCOUNT & CLOUD SYNC Section
+            _buildSectionHeader('ACCOUNT & CLOUD SYNC', isDark),
+            _buildCard(
+              isDark,
+              [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            isUserScope ? Icons.cloud_done_rounded : Icons.cloud_queue_rounded,
+                            size: 24,
+                            color: isUserScope ? const Color(0xFF10B981) : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isUserScope ? 'Authenticated Account' : 'Guest / Offline Mode',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark ? Colors.white : const Color(0xFF111827),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  isUserScope
+                                      ? 'Cloud sync active. Reading sessions are backed up across your devices.'
+                                      : 'All sessions are stored 100% locally on this device.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      if (isUserScope) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.manage_accounts_outlined, size: 18),
+                                label: const Text('Account Details'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  side: BorderSide(
+                                    color: Theme.of(context).colorScheme.outline,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                onPressed: () => showAccountMenuDialog(context),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                icon: const Icon(Icons.logout_rounded, size: 18),
+                                label: const Text('Sign Out'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFEF4444).withOpacity(0.12),
+                                  foregroundColor: const Color(0xFFEF4444),
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                onPressed: () => showAccountMenuDialog(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else if (CloudConfig.isEnabled) ...[
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.login_rounded, size: 18),
+                            label: const Text('Sign In / Sync Account'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            onPressed: () => showSignInDialog(context),
+                          ),
+                        ),
+                      ] else ...[
+                        Text(
+                          'Cloud sync is not configured in this build. Your sessions remain stored locally.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                height: 1.4,
+                              ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 36),
           ],
@@ -463,10 +631,10 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF15101E) : Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: borderColor ?? (isDark ? const Color(0xFF261D36) : const Color(0xFFE5E7EB)),
+          color: borderColor ?? Theme.of(context).colorScheme.outline,
         ),
       ),
       child: Column(
@@ -479,7 +647,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
   Widget _buildDivider(bool isDark) {
     return Divider(
       height: 1,
-      color: isDark ? const Color(0xFF261D36) : const Color(0xFFF3F4F6),
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
     );
   }
 
@@ -608,8 +776,8 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     );
   }
 
-  Widget _buildProfileRow(String label, String value, bool isDark) {
-    return Row(
+  Widget _buildProfileRow(String label, String value, bool isDark, {VoidCallback? onTap}) {
+    final content = Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
@@ -619,15 +787,37 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
             color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
           ),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: isDark ? Colors.white : const Color(0xFF111827),
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : const Color(0xFF111827),
+              ),
+            ),
+            if (onTap != null) ...[
+              const SizedBox(width: 4),
+              Icon(
+                Icons.chevron_right,
+                size: 16,
+                color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+              ),
+            ],
+          ],
         ),
       ],
+    );
+    if (onTap == null) return content;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: content,
+      ),
     );
   }
 
@@ -1074,7 +1264,8 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
   Future<void> _handlePdfExport(BuildContext context) async {
     try {
       final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
-      await SessionPdfService.printOrSharePdf(sessions);
+      final isCloud = kIsWeb && ref.read(accountScopeProvider).isUser;
+      await SessionPdfService.printOrSharePdf(sessions, isCloudSync: isCloud);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('PDF report generated successfully.')),
@@ -1295,6 +1486,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     final totalMs = sessions.fold<int>(0, (sum, s) => sum + s.durationMs);
     final hours = totalMs ~/ 3600000;
     final mins = (totalMs % 3600000) ~/ 60000;
+    final isUserScope = kIsWeb && ref.read(accountScopeProvider).isUser;
 
     if (!mounted) return;
 
@@ -1312,7 +1504,9 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'This will permanently delete ${sessions.length} sessions ($hours h $mins m). Active timer will be cancelled. App settings will remain intact.',
+                  isUserScope
+                      ? 'This will permanently delete ${sessions.length} sessions ($hours h $mins m) from this browser and your account on all devices. Active timer will be cancelled. App settings will remain intact.'
+                      : 'This will permanently delete ${sessions.length} sessions ($hours h $mins m) from this browser. Active timer will be cancelled. App settings will remain intact.',
                   style: const TextStyle(fontSize: 13, color: Color(0xFFEF4444)),
                 ),
                 const SizedBox(height: 14),
@@ -1374,6 +1568,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
   Future<void> _showResetAppConfirmation(BuildContext context) async {
     if (!mounted) return;
 
+    final isUserScope = kIsWeb && ref.read(accountScopeProvider).isUser;
     final controller = TextEditingController();
     bool canConfirm = false;
 
@@ -1387,9 +1582,11 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'WARNING: This wipes all sessions, custom subjects, and resets all settings (theme, goals, pomodoro) to default factory state.',
-                  style: TextStyle(fontSize: 13, color: Color(0xFFEF4444), fontWeight: FontWeight.bold),
+                Text(
+                  isUserScope
+                      ? 'WARNING: This wipes all sessions from this browser and your account on all devices, custom subjects, and resets all settings (theme, goals, pomodoro) to default factory state.'
+                      : 'WARNING: This wipes all sessions, custom subjects, and resets all settings (theme, goals, pomodoro) to default factory state.',
+                  style: const TextStyle(fontSize: 13, color: Color(0xFFEF4444), fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 14),
                 OutlinedButton.icon(

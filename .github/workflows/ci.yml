@@ -77,7 +77,21 @@ jobs:
           exit 1
 
       - name: Build Web Application
-        run: flutter build web --release --no-web-resources-cdn --no-pub
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "Building Flutter Web with Cloud Auth enabled."
+            flutter build web --release --no-web-resources-cdn --no-pub \
+              --dart-define=PAGECLOCK_CLOUD_AUTH_ENABLED=true \
+              --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+              --dart-define=SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"
+          else
+            echo "Supabase variables not set; using the configured public PageClock client defaults."
+            flutter build web --release --no-web-resources-cdn --no-pub \
+              --dart-define=PAGECLOCK_CLOUD_AUTH_ENABLED=true
+          fi
 
       - name: Upload Web Build Artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
