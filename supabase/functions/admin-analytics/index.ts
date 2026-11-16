@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
       aggregate.offset = offset;
       for (const interval of intervals) {
         addIntervalByLocalDay(aggregate.daily, interval, offset);
-        addIntervalByLocalDay(globalDaily, interval, offset);
+        addIntervalByLocalDay(globalDaily, interval, 0);
       }
       byUser.set(uid, aggregate);
     }
