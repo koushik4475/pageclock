@@ -33,8 +33,11 @@ void main() {
     // periodic ticker otherwise survives a failed assertion and leaks into
     // Flutter's fake-async test invariant checks.
     addTearDown(() async {
-      await container.read(stopwatchEngineProvider.notifier).cancel();
-      container.dispose();
+      try {
+        await container.read(stopwatchEngineProvider.notifier).cancel();
+      } finally {
+        container.dispose();
+      }
     });
 
     await tester.pumpWidget(
@@ -87,5 +90,12 @@ void main() {
         reason: 'Unexpected render exception at viewport $size',
       );
     }
+
+    // Stop the live ticker explicitly so the test itself also verifies the
+    // running-session lifecycle and leaves no periodic work behind.
+    await container.read(stopwatchEngineProvider.notifier).cancel();
+    final stoppedState = container.read(stopwatchEngineProvider);
+    expect(stoppedState.isRunning, isFalse);
+    expect(stoppedState.isPaused, isFalse);
   });
 }
