@@ -43,19 +43,19 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     await container.read(stopwatchEngineProvider.notifier).start(
           subjectId: 'Coding',
           note: 'Build a feature',
         );
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(find.text('Pause'), findsOneWidget);
     expect(find.text('Stop'), findsOneWidget);
 
     tester.view.physicalSize = const Size(900, 400);
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     final pauseRect = tester.getRect(find.text('Pause'));
     final stopRect = tester.getRect(find.text('Stop'));
