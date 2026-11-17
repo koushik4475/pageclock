@@ -498,7 +498,7 @@ class _AdminCountryPanel extends StatelessWidget {
                   style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900))),
                 Expanded(child: Text(row['countryName'] as String? ?? 'Unknown',
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
-                Text('\${row['clients']}',
+                Text('${row['clients']}',
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
                 const SizedBox(width: 10),
                 SizedBox(width: 76, child: LinearProgressIndicator(
@@ -535,7 +535,7 @@ class _AdminActivityPanel extends StatelessWidget {
               leading: const CircleAvatar(child: Icon(Icons.person_add_alt_1_rounded, size: 18)),
               title: Text(client.name, maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
-              subtitle: Text('\${client.email} · \${client.signupCountryName ?? 'Country unknown'}',
+              subtitle: Text('${client.email} · ${client.signupCountryName ?? 'Country unknown'}',
                 maxLines: 2, overflow: TextOverflow.ellipsis),
               trailing: Text(_date(client.createdAt), style: const TextStyle(fontSize: 10)),
             ),
@@ -575,7 +575,8 @@ class _AdminSettingRow extends StatelessWidget {
 class _AdminPanelCard extends StatelessWidget {
   final String title, subtitle;
   final Widget child;
-  const _AdminPanelCard({required this.title, required this.subtitle, required this.child});
+  final Widget? footer;
+  const _AdminPanelCard({required this.title, required this.subtitle, required this.child, this.footer});
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(18),
@@ -588,6 +589,7 @@ class _AdminPanelCard extends StatelessWidget {
       Text(subtitle, style: TextStyle(fontSize: 11,
         color: Theme.of(context).colorScheme.onSurfaceVariant)),
       const SizedBox(height: 14), child,
+      if (footer != null) ...[const SizedBox(height: 10), footer!],
     ]));
 }
 class AdminClientDetailScreen extends StatelessWidget {
