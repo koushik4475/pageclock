@@ -522,60 +522,67 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 500),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Select Project',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: Theme.of(ctx).colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ..._availableProjects.map((p) {
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.circle, color: accent, size: 14),
-                    title: Text(
-                      p,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Select Project',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(ctx).colorScheme.onSurface,
                     ),
-                    trailing: ref.read(focusSelectedProjectProvider) == p
-                        ? Icon(Icons.check_rounded, color: accent)
-                        : null,
-                    onTap: () {
-                      ref.read(focusSelectedProjectProvider.notifier).state = p;
-                      ref.read(settingsProvider.notifier).update(
-                            (settings) =>
-                                settings.copyWith(lastSelectedProject: p),
-                          );
-                      Navigator.pop(ctx);
-                    },
-                  );
-                }),
-              ],
+                  ),
+                  const SizedBox(height: 16),
+                  ..._availableProjects.map((project) {
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.circle, color: accent, size: 14),
+                      title: Text(
+                        project,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      trailing:
+                          ref.read(focusSelectedProjectProvider) == project
+                              ? Icon(Icons.check_rounded, color: accent)
+                              : null,
+                      onTap: () {
+                        ref
+                            .read(focusSelectedProjectProvider.notifier)
+                            .state = project;
+                        ref.read(settingsProvider.notifier).update(
+                              (settings) => settings.copyWith(
+                                lastSelectedProject: project,
+                              ),
+                            );
+                        Navigator.pop(ctx);
+                      },
+                    );
+                  }),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
-
 
   String _formatElapsed(int ms) {
     final d = Duration(milliseconds: ms);
