@@ -164,8 +164,11 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
             top: 16,
             left: 20,
             right: 20,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              runAlignment: WrapAlignment.start,
+              spacing: 12,
+              runSpacing: 8,
               children: [
                 IconButton(
                   icon: Icon(
