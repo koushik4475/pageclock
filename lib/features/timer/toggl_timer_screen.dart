@@ -1689,6 +1689,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
               groupSimilar: groupSimilar,
               isDark: isDark,
               durationFormat: durationFormat,
+              availableProjects: availableProjects,
             ),
           const SizedBox(height: 24),
         ],
@@ -1703,6 +1704,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     required bool groupSimilar,
     required bool isDark,
     required String durationFormat,
+    required List<String> availableProjects,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
     final accent = colorScheme.primary;
