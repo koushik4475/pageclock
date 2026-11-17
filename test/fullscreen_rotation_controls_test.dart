@@ -29,12 +29,12 @@ void main() {
         sessionRepositoryProvider.overrideWithValue(repository),
       ],
     );
-    addTearDown(container.dispose);
     // Always stop the engine before disposing the provider container. The
     // periodic ticker otherwise survives a failed assertion and leaks into
     // Flutter's fake-async test invariant checks.
     addTearDown(() async {
       await container.read(stopwatchEngineProvider.notifier).cancel();
+      container.dispose();
     });
 
     await tester.pumpWidget(
@@ -81,7 +81,11 @@ void main() {
       expect(stopRect.top, greaterThanOrEqualTo(0));
       expect(pauseRect.bottom, lessThanOrEqualTo(size.height));
       expect(stopRect.bottom, lessThanOrEqualTo(size.height));
-      expect(tester.takeException(), isNull);
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'Unexpected render exception at viewport $size',
+      );
     }
   });
 }
