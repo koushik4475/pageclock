@@ -26,7 +26,7 @@ void main() {
         ],
         child: const MaterialApp(
           home: MediaQuery(
-            data: MediaQueryData(size: Size(400, 900)),
+            data: MediaQueryData(size: Size(360, 640)),
             child: TogglTimerScreen(),
           ),
         ),
@@ -39,6 +39,11 @@ void main() {
 
     await tester.tap(find.byTooltip('Choose Project'));
     await tester.pumpAndSettle();
+    // Ensure the picker remains usable in a compact viewport; its content
+    // must scroll instead of overflowing the modal route.
+    await tester.ensureVisible(find.text('Coding'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
     await tester.tap(find.text('Coding'));
     await tester.pumpAndSettle();
 
