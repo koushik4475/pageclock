@@ -10,6 +10,8 @@ class AdminClient {
   final DateTime? createdAt;
   final DateTime? lastSignInAt;
   final DateTime? lastActiveAt;
+  final String? signupCountryCode;
+  final String? signupCountryName;
   final int totalFocusMs;
   final int weekFocusMs;
   final int sessionCount;
@@ -25,6 +27,8 @@ class AdminClient {
     required this.createdAt,
     required this.lastSignInAt,
     required this.lastActiveAt,
+    required this.signupCountryCode,
+    required this.signupCountryName,
     required this.totalFocusMs,
     required this.weekFocusMs,
     required this.sessionCount,
@@ -41,6 +45,8 @@ class AdminClient {
         createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
         lastSignInAt: DateTime.tryParse(json['lastSignInAt'] as String? ?? ''),
         lastActiveAt: DateTime.tryParse(json['lastActiveAt'] as String? ?? ''),
+        signupCountryCode: json['signupCountryCode'] as String?,
+        signupCountryName: json['signupCountryName'] as String?,
         totalFocusMs: (json['totalFocusMs'] as num?)?.toInt() ?? 0,
         weekFocusMs: (json['weekFocusMs'] as num?)?.toInt() ?? 0,
         sessionCount: (json['sessionCount'] as num?)?.toInt() ?? 0,
@@ -64,6 +70,9 @@ class AdminDashboardData {
   final int activeSevenDays;
   final int totalFocusMs;
   final int totalSessions;
+  final int countriesReached;
+  final int countryDetectedClients;
+  final List<Map<String, dynamic>> countryDistribution;
   final List<AdminDailyPoint> dailyFocus;
   final List<AdminClient> clients;
 
@@ -73,6 +82,9 @@ class AdminDashboardData {
     required this.activeSevenDays,
     required this.totalFocusMs,
     required this.totalSessions,
+    required this.countriesReached,
+    required this.countryDetectedClients,
+    required this.countryDistribution,
     required this.dailyFocus,
     required this.clients,
   });
@@ -85,6 +97,10 @@ class AdminDashboardData {
       activeSevenDays: (summary['activeSevenDays'] as num?)?.toInt() ?? 0,
       totalFocusMs: (summary['totalFocusMs'] as num?)?.toInt() ?? 0,
       totalSessions: (summary['totalSessions'] as num?)?.toInt() ?? 0,
+      countriesReached: (summary['countriesReached'] as num?)?.toInt() ?? 0,
+      countryDetectedClients: (summary['countryDetectedClients'] as num?)?.toInt() ?? 0,
+      countryDistribution: (json['countryDistribution'] as List? ?? [])
+          .map((item) => Map<String, dynamic>.from(item as Map)).toList(),
       dailyFocus: (json['dailyFocus'] as List? ?? []).map((item) {
         final point = Map<String, dynamic>.from(item as Map);
         return AdminDailyPoint(
