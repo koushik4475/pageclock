@@ -174,3 +174,14 @@ String formatAdminDuration(int milliseconds) {
   if (remainingMinutes == 0) return '${hours}h';
   return '${hours}h ${remainingMinutes}m';
 }
+
+String formatAdminAuthProvider(String provider) {
+  return switch (provider.toLowerCase()) {
+    'google' => 'Google SSO',
+    'email' => 'Email OTP',
+    'apple' => 'Apple',
+    'github' => 'GitHub',
+    '' => 'Unknown',
+    _ => provider[0].toUpperCase() + provider.substring(1),
+  };
+}
