@@ -50,6 +50,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       if (section == 'Overview' || section == 'Analytics') ...[
                         _AdminMetrics(data: data),
                         const SizedBox(height: 18),
+                        _AdminCountryPanel(data: data),
+                        const SizedBox(height: 18),
                         _AdminChartPanel(points: data.dailyFocus),
                         if (section == 'Overview') ...[
                           const SizedBox(height: 16),
@@ -60,8 +62,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                         const SizedBox(height: 25),
                         _AdminClientDirectory(clients: clients, onSearch: (v) => setState(() => query = v)),
                       ],
-                      if (section == 'Activity' || section == 'Settings')
-                        _AdminPlannedPanel(section: section),
+                      if (section == 'Activity')
+                        _AdminActivityPanel(clients: data.clients),
+                      if (section == 'Settings')
+                        const _AdminSettingsPanel(),
                     ]),
                 );
               },
@@ -153,10 +157,7 @@ class _AdminNavItem extends StatelessWidget {
               Text(label, style: TextStyle(fontSize: 12, fontWeight: selected
                 ? FontWeight.w800 : FontWeight.w600,
                 color: selected ? const Color(0xFF5146E5) : (dark ? Colors.white70 : const Color(0xFF414761)))),
-              if (label == 'Activity' || label == 'Settings') ...[
-                const Spacer(),
-                Text('Soon', style: TextStyle(fontSize: 9, color: muted)),
-              ],
+
             ]),
           ),
         ),
@@ -258,6 +259,9 @@ class _AdminMetrics extends StatelessWidget {
         _AdminMetric(label: 'Total focus time', value: formatAdminDuration(data.totalFocusMs),
           icon: Icons.timer_outlined, tint: const Color(0xFF8755D9),
           foot: data.totalSessions.toString() + ' recorded sessions'),
+        _AdminMetric(label: 'Countries reached', value: data.countriesReached.toString(),
+          icon: Icons.public_rounded, tint: const Color(0xFF0F9D9A),
+          foot: data.countryDetectedClients.toString() + ' clients detected'),
       ],
     );
   }
@@ -439,7 +443,8 @@ class _AdminClientRow extends StatelessWidget {
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(client.name, maxLines: 1, overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
-          Text(client.email, maxLines: 1, overflow: TextOverflow.ellipsis,
+          Text('${client.email} · ${client.signupCountryName ?? 'Country unknown'}',
+            maxLines: 1, overflow: TextOverflow.ellipsis,
             style: TextStyle(fontSize: 10, color: muted)),
         ])),
         if (MediaQuery.sizeOf(context).width > 540) ...[
@@ -473,27 +478,108 @@ class _AdminPrivacy extends StatelessWidget {
   );
 }
 
-class _AdminPlannedPanel extends StatelessWidget {
-  final String section;
-  const _AdminPlannedPanel({required this.section});
+class _AdminCountryPanel extends StatelessWidget {
+  final AdminDashboardData data;
+  const _AdminCountryPanel({required this.data});
   @override
-  Widget build(BuildContext context) => Center(child: Container(
-    constraints: const BoxConstraints(maxWidth: 430),
-    padding: const EdgeInsets.all(27),
+  Widget build(BuildContext context) {
+    final rows = data.countryDistribution.take(8).toList();
+    final total = rows.fold<int>(0, (sum, row) => sum + ((row['clients'] as num?)?.toInt() ?? 0));
+    return _AdminPanelCard(title: 'Onboarding by country',
+      subtitle: 'Country inferred at signup · country-level only',
+      child: rows.isEmpty
+        ? Text('No signup countries detected yet. Configure the Auth Hook and import the local country database.',
+            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant))
+        : Column(children: [
+            for (final row in rows) Padding(padding: const EdgeInsets.symmetric(vertical: 7),
+              child: Row(children: [
+                SizedBox(width: 42, child: Text(row['countryCode'] as String? ?? '—',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900))),
+                Expanded(child: Text(row['countryName'] as String? ?? 'Unknown',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
+                Text('\${row['clients']}',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
+                const SizedBox(width: 10),
+                SizedBox(width: 76, child: LinearProgressIndicator(
+                  value: total == 0 ? 0 : ((row['clients'] as num).toDouble() / total),
+                  minHeight: 6, borderRadius: BorderRadius.circular(8))),
+              ])),
+          ]));
+  }
+}
+
+class _AdminActivityPanel extends StatelessWidget {
+  final List<AdminClient> clients;
+  const _AdminActivityPanel({required this.clients});
+  @override
+  Widget build(BuildContext context) {
+    final recent = clients.where((c) => c.createdAt != null).toList()
+      ..sort((a, b) => b.createdAt!.compareTo(a.createdAt!));
+    return _AdminPanelCard(title: 'Recent onboarding',
+      subtitle: 'Latest registered client accounts · not an admin audit log',
+      child: recent.isEmpty
+        ? const Text('No registered client accounts to display.')
+        : Column(children: [
+            for (final client in recent.take(30)) ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const CircleAvatar(child: Icon(Icons.person_add_alt_1_rounded, size: 18)),
+              title: Text(client.name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+              subtitle: Text('\${client.email} · \${client.signupCountryName ?? 'Country unknown'}',
+                maxLines: 2, overflow: TextOverflow.ellipsis),
+              trailing: Text(_date(client.createdAt), style: const TextStyle(fontSize: 10)),
+            ),
+          ]));
+  }
+}
+
+class _AdminSettingsPanel extends StatelessWidget {
+  const _AdminSettingsPanel();
+  @override
+  Widget build(BuildContext context) => _AdminPanelCard(
+    title: 'Security & data configuration',
+    subtitle: 'Read-only operational checks',
+    child: Column(children: const [
+      _AdminSettingRow(label: 'Admin authorization', value: 'Server-side allowlist'),
+      _AdminSettingRow(label: 'Country precision', value: 'Country only · no raw IP retained'),
+      _AdminSettingRow(label: 'Country source', value: 'Locally imported DB-IP Lite ranges'),
+      _AdminSettingRow(label: 'Reading content', value: 'Private · not exposed in admin'),
+      _AdminSettingRow(label: 'Audit history', value: 'Not implemented in this release'),
+    ]));
+}
+
+class _AdminSettingRow extends StatelessWidget {
+  final String label, value;
+  const _AdminSettingRow({required this.label, required this.value});
+  @override
+  Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(vertical: 9),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Expanded(child: Text(label, style: TextStyle(fontSize: 12,
+        color: Theme.of(context).colorScheme.onSurfaceVariant))),
+      const SizedBox(width: 12),
+      Flexible(child: Text(value, textAlign: TextAlign.end,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800))),
+    ]));
+}
+
+class _AdminPanelCard extends StatelessWidget {
+  final String title, subtitle;
+  final Widget child;
+  const _AdminPanelCard({required this.title, required this.subtitle, required this.child});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(18),
     decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(18),
       border: Border.all(color: Theme.of(context).colorScheme.outlineVariant)),
-    child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const Icon(Icons.construction_rounded, size: 32, color: Color(0xFF5146E5)),
-      const SizedBox(height: 12),
-      Text(section + ' is planned', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-      const SizedBox(height: 7),
-      const Text('This area will be enabled after its backend data, permissions and workflows are implemented and verified.',
-        textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
-    ]),
-  ));
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+      const SizedBox(height: 4),
+      Text(subtitle, style: TextStyle(fontSize: 11,
+        color: Theme.of(context).colorScheme.onSurfaceVariant)),
+      const SizedBox(height: 14), child,
+    ]));
 }
-
 class AdminClientDetailScreen extends StatelessWidget {
   final AdminClient client;
   const AdminClientDetailScreen({super.key, required this.client});
@@ -533,6 +619,8 @@ class AdminClientDetailScreen extends StatelessWidget {
             _Info('Completed sessions', client.sessionCount.toString()),
             _Info('Last active', _dateTime(client.lastActiveAt)),
             _Info('Last sign-in', _dateTime(client.lastSignInAt)),
+            _Info('Signup country', client.signupCountryName ?? 'Unknown / not detected'),
+            _Info('Country code', client.signupCountryCode ?? '—'),
           ])),
       ]));
   }
