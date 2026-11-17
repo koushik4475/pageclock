@@ -21,6 +21,7 @@ import 'core/theme/theme_provider.dart';
 import 'core/widgets/pageclock_brand_mark.dart';
 import 'features/app_update/app_update_service.dart';
 import 'features/auth/application/auth_controller.dart';
+import 'features/auth/presentation/auth_dialogs.dart';
 import 'features/app_update/update_dialog.dart';
 import 'features/calendar/calendar_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
@@ -346,6 +347,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
     final sessions = sessionsAsync.value ?? const <ReadingSession>[];
     final settings = ref.watch(settingsProvider);
     final stopwatchState = ref.watch(stopwatchProvider);
+    final authUser = ref.watch(authControllerProvider.select((state) => state.user));
     final colors = Theme.of(context).colorScheme;
     final width = MediaQuery.sizeOf(context).width;
     final isDesktop = width >= 1120;
@@ -353,6 +355,16 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
 
     void navigate(int index) {
       ref.read(mainTabNavigationIndexProvider.notifier).state = index;
+    }
+
+    void openProfile() {
+      if (!CloudConfig.isEnabled) {
+        navigate(4);
+      } else if (authUser != null) {
+        showAccountMenuDialog(context);
+      } else {
+        showSignInDialog(context);
+      }
     }
 
     void toggleTheme() {
@@ -374,6 +386,8 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
         stopwatchState: stopwatchState,
         onNavigate: navigate,
         onToggleTheme: toggleTheme,
+        currentUser: authUser,
+        onOpenProfile: openProfile,
       ),
       const TogglTimerScreen(),
       CalendarScreen(sessions: sessions),

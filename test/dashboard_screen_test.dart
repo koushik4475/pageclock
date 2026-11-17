@@ -124,6 +124,7 @@ void main() {
 
     testWidgets('quick actions and profile navigate to real PageClock sections', (tester) async {
       var selectedIndex = -1;
+      var profileOpened = false;
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
       await tester.pumpWidget(
@@ -134,7 +135,8 @@ void main() {
             settings: const AppSettings(),
             stopwatchState: const StopwatchState(status: StopwatchStatus.idle),
             onNavigate: (index) => selectedIndex = index,
-          onToggleTheme: () {},
+            onToggleTheme: () {},
+            onOpenProfile: () => profileOpened = true,
           ),
         ),
       );
@@ -155,11 +157,12 @@ void main() {
       await tester.tap(reportsAction);
       expect(selectedIndex, 3);
 
-      final settingsButton = find.byTooltip('Open settings');
+      final settingsButton = find.byTooltip('Open account menu');
       await tester.ensureVisible(settingsButton);
       await tester.pumpAndSettle();
       await tester.tap(settingsButton);
-      expect(selectedIndex, 4);
+      expect(profileOpened, isTrue);
+      expect(selectedIndex, 3, reason: 'Opening the profile must not navigate to Settings');
     });
     testWidgets('theme switch exposes the paired PageClock appearance', (tester) async {
       addTearDown(tester.view.resetPhysicalSize);
