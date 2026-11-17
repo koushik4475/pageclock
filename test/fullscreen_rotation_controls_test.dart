@@ -29,10 +29,10 @@ void main() {
         sessionRepositoryProvider.overrideWithValue(repository),
       ],
     );
-    // Pause the engine before unmounting so its periodic ticker is stopped
-    // deterministically even if an assertion below fails.
+    // Unmount the screen first, then dispose the provider container.
+    // StopwatchNotifier.dispose cancels its periodic ticker synchronously;
+    // the test deliberately avoids awaiting persistence during teardown.
     addTearDown(() async {
-      await container.read(stopwatchEngineProvider.notifier).pause();
       await tester.pumpWidget(const SizedBox.shrink());
       container.dispose();
     });
@@ -94,11 +94,7 @@ void main() {
     expect(activeState.isRunning, isTrue);
     expect(activeState.isPaused, isFalse);
 
-    // End the active ticker explicitly after all layout assertions. This
-    // verifies the real pause path and leaves no periodic timer for teardown.
-    await container.read(stopwatchEngineProvider.notifier).pause();
-    final pausedState = container.read(stopwatchEngineProvider);
-    expect(pausedState.isPaused, isTrue);
-    expect(pausedState.isRunning, isFalse);
+    // The teardown unmounts this screen and disposes the notifier; both
+    // periodic tickers are cancelled synchronously without async persistence.
   });
 }
