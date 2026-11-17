@@ -29,11 +29,10 @@ void main() {
         sessionRepositoryProvider.overrideWithValue(repository),
       ],
     );
-    // Unmount the screen first so its UI ticker is cancelled, then dispose
-    // the provider container so StopwatchNotifier.dispose cancels the engine
-    // ticker. Avoid awaiting persistence cleanup in this layout test: the
-    // in-memory repository is isolated to this test and is discarded.
+    // Pause the engine before unmounting so its periodic ticker is stopped
+    // deterministically even if an assertion below fails.
     addTearDown(() async {
+      await container.read(stopwatchEngineProvider.notifier).pause();
       await tester.pumpWidget(const SizedBox.shrink());
       container.dispose();
     });
@@ -94,5 +93,12 @@ void main() {
     final activeState = container.read(stopwatchEngineProvider);
     expect(activeState.isRunning, isTrue);
     expect(activeState.isPaused, isFalse);
+
+    // End the active ticker explicitly after all layout assertions. This
+    // verifies the real pause path and leaves no periodic timer for teardown.
+    await container.read(stopwatchEngineProvider.notifier).pause();
+    final pausedState = container.read(stopwatchEngineProvider);
+    expect(pausedState.isPaused, isTrue);
+    expect(pausedState.isRunning, isFalse);
   });
 }
