@@ -99,7 +99,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     super.dispose();
   }
 
-  void _showAddEntryModal(BuildContext context, List<String> availableProjects) {
+  void _showAddEntryModal(
+    BuildContext context,
+    List<String> availableProjects,
+  ) {
     final accent = Theme.of(context).colorScheme.primary;
     final descCtrl = TextEditingController();
     final minsCtrl = TextEditingController(text: '30');
@@ -268,7 +271,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     );
   }
 
-  void _showEditEntryModal(BuildContext context, ReadingSession session, List<String> availableProjects) {
+  void _showEditEntryModal(
+    BuildContext context,
+    ReadingSession session,
+    List<String> availableProjects,
+  ) {
     var description = session.note ?? '';
     var durationText =
         (session.durationMs / 60000).round().clamp(1, 525600).toString();
@@ -527,7 +534,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     }
   }
 
-  void _showProjectPicker(BuildContext context, List<String> availableProjects) {
+  void _showProjectPicker(
+    BuildContext context,
+    List<String> availableProjects,
+  ) {
     final accent = Theme.of(context).colorScheme.primary;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
