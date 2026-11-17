@@ -22,9 +22,7 @@ a locally imported DB-IP Lite country range table, and is never persisted by Pag
 
 DB-IP Lite country CSV is licensed under CC BY 4.0. Retain attribution to DB-IP and follow the
 current license terms: https://db-ip.com/db/lite.php. Refresh the local range table monthly (or
-when DB-IP publishes an update) using the latest CSV. The import script truncates and reloads the
-table in batches; schedule it during a low-traffic window and validate before enabling the hook
-against a newly loaded dataset.
+when DB-IP publishes an update) using the latest CSV. The importer replaces the table in one transaction (the previous dataset is retained if the import fails); schedule it during a low-traffic window and validate before enabling the hook against a newly loaded dataset.
 
 No MaxMind account, API key, geolocation API call, Cloudflare proxy, or new Edge Function secret
 is required. The external setup is the Supabase Auth Hook toggle plus a database connection for
@@ -40,4 +38,4 @@ the one-time import and periodic refresh.
 - The hook runs before the Auth user row is created, so it records a user UUID without a foreign
   key. Review and clean up orphaned captures periodically.
 - Existing accounts are not backfilled. Only signups after the hook is enabled are attributed.
-- DB-IP Lite attribution is required. See the license link above.
+- DB-IP Lite attribution is required. The admin country panel displays a clickable “IP Geolocation by DB-IP” link as required for web applications. See the license link above.
