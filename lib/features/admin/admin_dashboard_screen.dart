@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'admin_service.dart';
 
 class AdminDashboardScreen extends ConsumerStatefulWidget {
@@ -504,7 +505,16 @@ class _AdminCountryPanel extends StatelessWidget {
                   value: total == 0 ? 0 : ((row['clients'] as num).toDouble() / total),
                   minHeight: 6, borderRadius: BorderRadius.circular(8))),
               ])),
-          ]));
+          ]),
+      footer: Align(alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: () => launchUrl(Uri.parse('https://db-ip.com'),
+            mode: LaunchMode.externalApplication),
+          icon: const Icon(Icons.open_in_new_rounded, size: 14),
+          label: const Text('IP Geolocation by DB-IP'),
+          style: TextButton.styleFrom(textStyle: const TextStyle(fontSize: 10)),
+        )),
+    );
   }
 }
 
