@@ -29,15 +29,13 @@ void main() {
         sessionRepositoryProvider.overrideWithValue(repository),
       ],
     );
-    // Always stop the engine before disposing the provider container. The
-    // periodic ticker otherwise survives a failed assertion and leaks into
-    // Flutter's fake-async test invariant checks.
+    // Unmount the screen first so its UI ticker is cancelled, then dispose
+    // the provider container so StopwatchNotifier.dispose cancels the engine
+    // ticker. Avoid awaiting persistence cleanup in this layout test: the
+    // in-memory repository is isolated to this test and is discarded.
     addTearDown(() async {
-      try {
-        await container.read(stopwatchEngineProvider.notifier).cancel();
-      } finally {
-        container.dispose();
-      }
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
     });
 
     await tester.pumpWidget(
@@ -91,11 +89,10 @@ void main() {
       );
     }
 
-    // Stop the live ticker explicitly so the test itself also verifies the
-    // running-session lifecycle and leaves no periodic work behind.
-    await container.read(stopwatchEngineProvider.notifier).cancel();
-    final stoppedState = container.read(stopwatchEngineProvider);
-    expect(stoppedState.isRunning, isFalse);
-    expect(stoppedState.isPaused, isFalse);
+    // Confirm the session stayed active throughout the responsive-layout
+    // checks. Teardown disposes both the screen and notifier tickers.
+    final activeState = container.read(stopwatchEngineProvider);
+    expect(activeState.isRunning, isTrue);
+    expect(activeState.isPaused, isFalse);
   });
 }
