@@ -1,4 +1,6 @@
 -- PageClock country-only signup attribution.
+create extension if not exists btree_gist;
+
 -- DB-IP Lite CIDR ranges are imported locally; no raw client IP is persisted.
 create table if not exists public.ip_country_ranges (
   network cidr primary key,
@@ -75,8 +77,9 @@ begin
 
   return '{}'::jsonb;
 exception
-  when invalid_text_representation or invalid_parameter_value then
-    -- Invalid/missing IP or user identifier must never block signup.
+  when others then
+    -- Country attribution is optional: database/data errors must never block signup.
+    raise warning 'PageClock signup country attribution skipped: %', sqlerrm;
     return '{}'::jsonb;
 end;
 $$;
