@@ -167,6 +167,11 @@ Deno.serve(async (req) => {
       if (data.users.length < 1000) break;
     }
 
+    const { data: countryRows, error: countryError } = await admin.from("signup_country_capture").select("user_id, country_code, country_name, detected_at");
+    if (countryError) throw countryError;
+    const signupCountries = new Map<string, Record<string, unknown>>();
+    for (const row of countryRows ?? []) signupCountries.set(String(row.user_id), row);
+
     const sessions: Record<string, any>[] = [];
     for (let from = 0; ; from += 1000) {
       const { data, error } = await admin
@@ -215,8 +220,12 @@ Deno.serve(async (req) => {
       }
       const s = streaks(a.daily, today);
       const metadata = u.user_metadata ?? {};
+      const country = signupCountries.get(u.id);
       return {
         id: u.id,
+        signupCountryCode: country?.country_code ?? null,
+        signupCountryName: country?.country_name ?? null,
+        signupCountryDetectedAt: country?.detected_at ?? null,
         email: u.email ?? "",
         name: metadata.full_name ?? metadata.name ?? metadata.display_name ?? (u.email ?? "PageClock client").split("@")[0],
         avatarUrl: metadata.avatar_url ?? metadata.picture ?? null,
@@ -243,6 +252,14 @@ Deno.serve(async (req) => {
     }
     const activeToday = clients.filter((c) => c.isActiveToday).length;
     const activeSevenDays = clients.filter((c) => c.lastActiveAt && Date.parse(c.lastActiveAt) >= now - 7 * 86_400_000).length;
+    const countryDistribution: Record<string, { countryCode: string; countryName: string; clients: number }> = {};
+    for (const client of clients) {
+      if (!client.signupCountryCode || !client.signupCountryName) continue;
+      const code = String(client.signupCountryCode);
+      const entry = countryDistribution[code] ?? { countryCode: code, countryName: String(client.signupCountryName), clients: 0 };
+      entry.clients++;
+      countryDistribution[code] = entry;
+    }
     return json({
       isAdmin: true,
       generatedAt: new Date(now).toISOString(),
@@ -252,7 +269,10 @@ Deno.serve(async (req) => {
         activeSevenDays,
         totalFocusMs: clients.reduce((sum, c) => sum + c.totalFocusMs, 0),
         totalSessions: clients.reduce((sum, c) => sum + c.sessionCount, 0),
+        countriesReached: Object.keys(countryDistribution).length,
+        countryDetectedClients: clients.filter((c) => c.signupCountryCode != null).length,
       },
+      countryDistribution: Object.values(countryDistribution).sort((a, b) => b.clients - a.clients),
       dailyFocus: chart,
       clients,
     }, 200, headers);
