@@ -30,6 +30,12 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
+    // Always stop the engine before disposing the provider container. The
+    // periodic ticker otherwise survives a failed assertion and leaks into
+    // Flutter's fake-async test invariant checks.
+    addTearDown(() async {
+      await container.read(stopwatchEngineProvider.notifier).cancel();
+    });
 
     await tester.pumpWidget(
       UncontrolledProviderScope(
@@ -54,15 +60,28 @@ void main() {
     expect(find.text('Pause'), findsOneWidget);
     expect(find.text('Stop'), findsOneWidget);
 
-    tester.view.physicalSize = const Size(900, 400);
-    await tester.pump();
+    // Exercise wide, compact-landscape and narrow-portrait constraints
+    // while the stopwatch is actively ticking.
+    const viewportSizes = [
+      Size(900, 400),
+      Size(640, 360),
+      Size(400, 900),
+      Size(320, 568),
+    ];
+    for (final size in viewportSizes) {
+      tester.view.physicalSize = size;
+      await tester.pump();
 
-    final pauseRect = tester.getRect(find.text('Pause'));
-    final stopRect = tester.getRect(find.text('Stop'));
-    expect(pauseRect.overlaps(stopRect), isFalse);
-    expect(pauseRect.left, greaterThanOrEqualTo(0));
-    expect(stopRect.right, lessThanOrEqualTo(900));
-    expect(pauseRect.bottom, lessThanOrEqualTo(400));
-    expect(stopRect.bottom, lessThanOrEqualTo(400));
+      final pauseRect = tester.getRect(find.text('Pause'));
+      final stopRect = tester.getRect(find.text('Stop'));
+      expect(pauseRect.overlaps(stopRect), isFalse);
+      expect(pauseRect.left, greaterThanOrEqualTo(0));
+      expect(stopRect.right, lessThanOrEqualTo(size.width));
+      expect(pauseRect.top, greaterThanOrEqualTo(0));
+      expect(stopRect.top, greaterThanOrEqualTo(0));
+      expect(pauseRect.bottom, lessThanOrEqualTo(size.height));
+      expect(stopRect.bottom, lessThanOrEqualTo(size.height));
+      expect(tester.takeException(), isNull);
+    }
   });
 }
