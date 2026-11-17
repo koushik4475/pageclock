@@ -1132,6 +1132,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         settings.pomodoroFocusMinutes,
                         colorScheme,
                         accent,
+                        selectedProject,
                       )
                     : _buildListView(
                         context,
@@ -1168,6 +1169,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     int focusMinutes,
     ColorScheme colorScheme,
     Color accent,
+    String selectedProject,
   ) {
     final targetMs = focusMinutes * 60 * 1000;
     final isFocusOvertime = !_isPomodoroBreak &&
@@ -1229,7 +1231,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                       fontWeight: FontWeight.w600,
                     ),
                     decoration: InputDecoration(
-                      hintText: "I'm focusing on...",
+                      hintText: selectedProject == 'General Focus'
+                          ? "I'm focusing on..."
+                          : "I'm focusing on $selectedProject...",
                       hintStyle: TextStyle(
                         color: isSpecial1
                             ? Special1Palette.secondaryText
@@ -1241,6 +1245,32 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     ),
                   ),
                 ),
+                if (selectedProject != 'General Focus')
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8, right: 2),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: accent.withOpacity(isDark ? 0.18 : 0.10),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 5,
+                        ),
+                        child: Text(
+                          selectedProject,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: accent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 IconButton(
                   icon: Icon(
                     Icons.local_offer_outlined,
