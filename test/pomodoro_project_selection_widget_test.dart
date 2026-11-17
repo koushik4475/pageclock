@@ -47,9 +47,7 @@ void main() {
     expect(focusField.decoration?.hintText, "I'm focusing on Coding...");
 
     // Selecting a project must not overwrite the independently editable task.
-    await tester.enterText(focusField.controller == null
-        ? find.byType(TextField).first
-        : find.byType(TextField).first, 'Build a feature');
+    await tester.enterText(find.byType(TextField).first, 'Build a feature');
     await tester.pump();
     expect(find.text('Build a feature'), findsOneWidget);
     expect(find.text('Coding'), findsOneWidget);
