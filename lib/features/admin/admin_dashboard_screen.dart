@@ -533,7 +533,7 @@ class _AdminClientRow extends StatelessWidget {
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(client.name, maxLines: 1, overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
-          Text('${client.email} · ${client.signupCountryName ?? 'Country unknown'}',
+          Text('${client.email} · ${formatAdminAuthProvider(client.authProvider)} · ${client.signupCountryName ?? 'Country unknown'}',
             maxLines: 1, overflow: TextOverflow.ellipsis,
             style: TextStyle(fontSize: 10, color: muted)),
         ])),
@@ -720,6 +720,7 @@ class AdminClientDetailScreen extends StatelessWidget {
             _Info('Completed sessions', client.sessionCount.toString()),
             _Info('Last active', _dateTime(client.lastActiveAt)),
             _Info('Last sign-in', _dateTime(client.lastSignInAt)),
+            _Info('Sign-in method', formatAdminAuthProvider(client.authProvider)),
             _Info('Signup country', client.signupCountryName ?? 'Unknown / not detected'),
             _Info('Country code', client.signupCountryCode ?? '—'),
           ])),
