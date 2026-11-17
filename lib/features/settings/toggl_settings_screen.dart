@@ -17,9 +17,12 @@ import '../../core/settings/app_settings.dart';
 import '../../core/theme/theme_provider.dart';
 import '../app_update/app_update_service.dart';
 import '../app_update/update_dialog.dart';
+import '../admin/admin_service.dart';
+import '../admin/admin_dashboard_screen.dart';
+import '../auth/application/auth_controller.dart';
 import '../auth/presentation/auth_dialogs.dart';
-import '../timer/widgets/clock_face.dart';
 import '../subjects/subject_management_screen.dart';
+import '../timer/widgets/clock_face.dart';
 
 /// Full Production Settings Screen matching Toggl Track UI
 /// References:
@@ -37,6 +40,55 @@ class TogglSettingsScreen extends ConsumerStatefulWidget {
 class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
   bool _checkingForUpdates = false;
   String? _updateStatus;
+
+  Future<void> _handleSignOut() async {
+    final auth = ref.read(authControllerProvider.notifier);
+    if (auth.isTimerActive()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(AuthController.timerBlockedMessage),
+          backgroundColor: Colors.amber,
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sign out of PageClock?'),
+        content: const Text(
+          'Cloud sync will stop on this device. Your cloud sessions remain in your account, and you can sign in again anytime.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    final success = await auth.signOut();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Signed out. PageClock is now in local guest mode.'
+              : ref.read(authControllerProvider).errorMessage ??
+                  'Could not sign out. Please try again.',
+        ),
+        backgroundColor: success ? null : Colors.red,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -45,6 +97,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     final settingsNotifier = ref.read(settingsProvider.notifier);
     final accountScope = ref.watch(accountScopeProvider);
     final isUserScope = CloudConfig.isEnabled && accountScope.isUser;
+    final adminAccess = ref.watch(adminAccessProvider);
 
     final localTzName = DateTime.now().timeZoneName;
     final localTzOffset = DateTime.now().timeZoneOffset;
@@ -499,6 +552,26 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
             ),
             const SizedBox(height: 32),
 
+            if (adminAccess.valueOrNull == true) ...[
+              const SizedBox(height: 32),
+              _buildSectionHeader('ADMINISTRATION', isDark),
+              _buildCard(
+                isDark,
+                [
+                  _buildTile(
+                    title: 'Open Admin Panel',
+                    subtitle: 'Client directory, engagement and reading analytics',
+                    isDark: isDark,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AdminDashboardScreen(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
             // ACCOUNT & CLOUD SYNC Section
             _buildSectionHeader('ACCOUNT & CLOUD SYNC', isDark),
             _buildCard(
@@ -578,7 +651,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
-                                onPressed: () => showAccountMenuDialog(context),
+                                onPressed: _handleSignOut,
                               ),
                             ),
                           ],

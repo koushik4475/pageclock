@@ -10,6 +10,7 @@ import '../../core/models/reading_session.dart';
 import '../../core/settings/app_settings.dart';
 import 'reading_desk_artwork.dart';
 import '../../stats/stats_engine.dart';
+import '../auth/domain/auth_models.dart';
 
 /// Responsive home dashboard using only data already tracked by PageClock.
 ///
@@ -21,6 +22,8 @@ class DashboardScreen extends StatelessWidget {
   final StopwatchState stopwatchState;
   final ValueChanged<int> onNavigate;
   final VoidCallback onToggleTheme;
+  final AuthUser? currentUser;
+  final VoidCallback? onOpenProfile;
 
   const DashboardScreen({
     super.key,
@@ -29,6 +32,8 @@ class DashboardScreen extends StatelessWidget {
     required this.stopwatchState,
     required this.onNavigate,
     required this.onToggleTheme,
+    this.currentUser,
+    this.onOpenProfile,
   });
 
   @override
@@ -103,10 +108,13 @@ class DashboardScreen extends StatelessWidget {
                       _DashboardHeader(
                         greeting: greetingLine,
                         date: now,
-                        profileName: profile,
+                        profileName: currentUser?.displayName?.trim().isNotEmpty == true
+                            ? currentUser!.displayName!.trim()
+                            : profile,
+                        avatarUrl: currentUser?.avatarUrl,
                         isDark: isDark,
                         onToggleTheme: onToggleTheme,
-                        onOpenSettings: () => onNavigate(4),
+                        onOpenProfile: onOpenProfile ?? () => onNavigate(4),
                       ),
                       const SizedBox(height: 24),
                       if (isDesktop)
@@ -242,17 +250,19 @@ class _DashboardHeader extends StatelessWidget {
   final String greeting;
   final DateTime date;
   final String profileName;
+  final String? avatarUrl;
   final bool isDark;
   final VoidCallback onToggleTheme;
-  final VoidCallback onOpenSettings;
+  final VoidCallback onOpenProfile;
 
   const _DashboardHeader({
     required this.greeting,
     required this.date,
     required this.profileName,
+    this.avatarUrl,
     required this.isDark,
     required this.onToggleTheme,
-    required this.onOpenSettings,
+    required this.onOpenProfile,
   });
 
   @override
@@ -300,11 +310,11 @@ class _DashboardHeader extends StatelessWidget {
         ),
         const SizedBox(width: 4),
         Tooltip(
-          message: 'Open settings',
+          message: 'Open account menu',
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: onOpenSettings,
+              onTap: onOpenProfile,
               borderRadius: BorderRadius.circular(24),
               child: Container(
                 width: 44,
@@ -315,15 +325,18 @@ class _DashboardHeader extends StatelessWidget {
                   border: Border.all(color: colors.outline),
                 ),
                 alignment: Alignment.center,
-                child: Text(
-                  _profileInitials(profileName),
-                  style: TextStyle(
-                    color: colors.primary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: .4,
-                  ),
-                ),
+                child: avatarUrl != null && avatarUrl!.trim().isNotEmpty
+                    ? ClipOval(
+                        child: Image.network(
+                          avatarUrl!,
+                          width: 44,
+                          height: 44,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              _ProfileFallback(name: profileName, color: colors.primary),
+                        ),
+                      )
+                    : _ProfileFallback(name: profileName, color: colors.primary),
               ),
             ),
           ),
@@ -331,6 +344,24 @@ class _DashboardHeader extends StatelessWidget {
       ],
     );
   }
+}
+
+class _ProfileFallback extends StatelessWidget {
+  final String name;
+  final Color color;
+
+  const _ProfileFallback({required this.name, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Text(
+        _profileInitials(name),
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+          letterSpacing: .4,
+        ),
+      );
 }
 
 String _profileInitials(String name) {

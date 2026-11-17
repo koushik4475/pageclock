@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../account/account_scope.dart';
+import '../models/subject.dart';
 import '../settings/app_settings.dart';
 import 'subject_repository_contract.dart';
 import 'subject_repository_platform_stub.dart'
@@ -20,4 +21,10 @@ final subjectRepositoryProvider = Provider<SubjectRepository>((ref) {
   );
   ref.onDispose(() => unawaited(repository.dispose()));
   return repository;
+});
+
+/// All persisted subjects, including archived ones, for timer reconciliation.
+final allSubjectsProvider = StreamProvider<List<Subject>>((ref) {
+  final repository = ref.watch(subjectRepositoryProvider);
+  return repository.watchSubjects(includeArchived: true);
 });

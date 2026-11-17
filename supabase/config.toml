@@ -19,3 +19,6 @@ enabled = true
 
 [functions.delete-account]
 verify_jwt = true
+
+[functions.admin-analytics]
+verify_jwt = true
