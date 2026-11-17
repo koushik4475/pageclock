@@ -179,8 +179,11 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                   tooltip: 'Exit fullscreen',
                   onPressed: () => Navigator.pop(context),
                 ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 4,
+                  runSpacing: 4,
                   children: [
                     // Screen awake toggle
                     IconButton(
@@ -194,7 +197,6 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                       tooltip: _wakelockActive ? 'Screen keep-alive ON' : 'Screen keep-alive OFF',
                       onPressed: _toggleWakelock,
                     ),
-                    const SizedBox(width: 4),
 
                     // Backdrop theme switcher if in special1
                     if (widget.isSpecial1)
@@ -207,14 +209,13 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                         tooltip: _usePastelBackdrop ? 'Switch to OLED Black' : 'Switch to Pastel',
                         onPressed: () => setState(() => _usePastelBackdrop = !_usePastelBackdrop),
                       ),
-                    const SizedBox(width: 8),
 
                     // Mode Switcher: Focus Countdown ⇄ Mac Wall Clock
                     InkWell(
                       onTap: () => setState(() => _showWallClock = !_showWallClock),
                       borderRadius: BorderRadius.circular(20),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                         decoration: BoxDecoration(
                           color: surfaceColor,
                           borderRadius: BorderRadius.circular(20),
