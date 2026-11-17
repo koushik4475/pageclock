@@ -299,13 +299,24 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
 
           // Bottom Calm Controls: Pause / Resume and Stop
           Positioned(
-            bottom: 40,
             left: 0,
             right: 0,
-            child: Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+            bottom: 0,
+            child: SafeArea(
+              top: false,
+              minimum: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+              child: LayoutBuilder(
+                builder: (context, constraints) => Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: constraints.maxWidth,
+                    ),
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
                   // Play / Pause Button
                   InkWell(
                     onTap: () {
@@ -365,7 +376,6 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                   ),
 
                   if (isRunning || isPaused) ...[
-                    const SizedBox(width: 12),
                     // Stop Button
                     InkWell(
                       onTap: () async {
@@ -452,7 +462,10 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                       ),
                     ),
                   ],
-                ],
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
