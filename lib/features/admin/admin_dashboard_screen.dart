@@ -13,6 +13,8 @@ class AdminDashboardScreen extends ConsumerStatefulWidget {
 class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   String query = '';
   String section = 'Overview';
+  String countryFilter = 'All countries';
+  String sortOrder = 'Most focus';
 
   @override
   Widget build(BuildContext context) {
@@ -40,8 +42,28 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ])),
               data: (data) {
                 final q = query.trim().toLowerCase();
-                final clients = data.clients.where((c) =>
-                  c.name.toLowerCase().contains(q) || c.email.toLowerCase().contains(q)).toList();
+                final clients = data.clients.where((c) {
+                  final matchesQuery = q.isEmpty ||
+                    c.name.toLowerCase().contains(q) ||
+                    c.email.toLowerCase().contains(q) ||
+                    (c.signupCountryName ?? '').toLowerCase().contains(q) ||
+                    (c.signupCountryCode ?? '').toLowerCase().contains(q);
+                  final matchesCountry = countryFilter == 'All countries' ||
+                    c.signupCountryName == countryFilter;
+                  return matchesQuery && matchesCountry;
+                }).toList()
+                  ..sort((a, b) {
+                    switch (sortOrder) {
+                      case 'Recently joined':
+                        return (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0));
+                      case 'Recently active':
+                        return (b.lastActiveAt ?? DateTime(0)).compareTo(a.lastActiveAt ?? DateTime(0));
+                      case 'Name A–Z':
+                        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+                      default:
+                        return b.totalFocusMs.compareTo(a.totalFocusMs);
+                    }
+                  });
                 return RefreshIndicator(
                   onRefresh: () => ref.refresh(adminDashboardProvider.future).then((_) {}),
                   child: ListView(padding: EdgeInsets.fromLTRB(wide ? 30 : 18, 25, wide ? 30 : 18, 36),
@@ -61,7 +83,21 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       ],
                       if (section == 'Overview' || section == 'Clients') ...[
                         const SizedBox(height: 25),
-                        _AdminClientDirectory(clients: clients, onSearch: (v) => setState(() => query = v)),
+                        _AdminClientDirectory(
+                          clients: clients,
+                          countryOptions: [
+                            'All countries',
+                            ...data.countryDistribution
+                              .map((row) => row['countryName'] as String? ?? '')
+                              .where((name) => name.isNotEmpty)
+                              .toSet().toList()..sort(),
+                          ],
+                          selectedCountry: countryFilter,
+                          onCountryChanged: (value) => setState(() => countryFilter = value),
+                          sortOrder: sortOrder,
+                          onSortChanged: (value) => setState(() => sortOrder = value),
+                          onSearch: (value) => setState(() => query = value),
+                        ),
                       ],
                       if (section == 'Activity')
                         _AdminActivityPanel(clients: data.clients),
@@ -245,11 +281,13 @@ class _AdminMetrics extends StatelessWidget {
   const _AdminMetrics({required this.data});
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.sizeOf(context).width;
-    final columns = w >= 1250 ? 4 : 2;
-    return GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+    return LayoutBuilder(builder: (context, constraints) {
+      final columns = constraints.maxWidth >= 1100 ? 5
+        : constraints.maxWidth >= 720 ? 3
+        : constraints.maxWidth >= 430 ? 2 : 1;
+      return GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: columns, crossAxisSpacing: 12, mainAxisSpacing: 12,
-      childAspectRatio: w >= 1250 ? 2.15 : (w >= 700 ? 2.2 : 1.65),
+      childAspectRatio: columns == 5 ? 1.55 : columns == 3 ? 1.75 : columns == 2 ? 1.85 : 3.2,
       children: [
         _AdminMetric(label: 'Total clients', value: data.totalClients.toString(),
           icon: Icons.people_alt_outlined, tint: const Color(0xFF5146E5), foot: 'Registered accounts'),
@@ -265,6 +303,7 @@ class _AdminMetrics extends StatelessWidget {
           foot: data.countryDetectedClients.toString() + ' clients detected'),
       ],
     );
+    });
   }
 }
 
@@ -378,8 +417,21 @@ class _AdminFocusChart extends StatelessWidget {
 
 class _AdminClientDirectory extends StatelessWidget {
   final List<AdminClient> clients;
+  final List<String> countryOptions;
+  final String selectedCountry;
+  final ValueChanged<String> onCountryChanged;
+  final String sortOrder;
+  final ValueChanged<String> onSortChanged;
   final ValueChanged<String> onSearch;
-  const _AdminClientDirectory({required this.clients, required this.onSearch});
+  const _AdminClientDirectory({
+    required this.clients,
+    required this.countryOptions,
+    required this.selectedCountry,
+    required this.onCountryChanged,
+    required this.sortOrder,
+    required this.onSortChanged,
+    required this.onSearch,
+  });
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
@@ -407,6 +459,43 @@ class _AdminClientDirectory extends StatelessWidget {
           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(11),
             borderSide: BorderSide(color: dark ? Colors.white12 : const Color(0xFFE8EAF2))),
         )),
+        const SizedBox(height: 10),
+        LayoutBuilder(builder: (context, constraints) {
+          final compact = constraints.maxWidth < 560;
+          final country = DropdownButtonFormField<String>(
+            value: selectedCountry,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: 'Country',
+              isDense: true,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+            items: countryOptions.map((value) => DropdownMenuItem(
+              value: value, child: Text(value, overflow: TextOverflow.ellipsis),
+            )).toList(),
+            onChanged: (value) { if (value != null) onCountryChanged(value); },
+          );
+          final sort = DropdownButtonFormField<String>(
+            value: sortOrder,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: 'Sort by',
+              isDense: true,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+            items: const ['Most focus', 'Recently active', 'Recently joined', 'Name A–Z']
+              .map((value) => DropdownMenuItem(value: value, child: Text(value))).toList(),
+            onChanged: (value) { if (value != null) onSortChanged(value); },
+          );
+          if (compact) return Column(children: [
+            country, const SizedBox(height: 9), sort,
+          ]);
+          return Row(children: [
+            Expanded(child: country), const SizedBox(width: 10), Expanded(child: sort),
+          ]);
+        }),
         const SizedBox(height: 10),
         if (clients.isEmpty) Padding(padding: const EdgeInsets.all(24),
           child: Center(child: Text('No clients match your search.', style: TextStyle(color: muted))))
@@ -525,8 +614,8 @@ class _AdminActivityPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final recent = clients.where((c) => c.createdAt != null).toList()
       ..sort((a, b) => b.createdAt!.compareTo(a.createdAt!));
-    return _AdminPanelCard(title: 'Recent onboarding',
-      subtitle: 'Latest registered client accounts · not an admin audit log',
+    return _AdminPanelCard(title: 'Onboarding activity',
+      subtitle: 'Newest client registrations · this is not an administrative audit log',
       child: recent.isEmpty
         ? const Text('No registered client accounts to display.')
         : Column(children: [
