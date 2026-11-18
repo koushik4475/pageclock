@@ -89,12 +89,20 @@ void main() {
     }
 
     // Confirm the session stayed active throughout the responsive-layout
-    // checks. Teardown disposes both the screen and notifier tickers.
+    // checks, then stop it through the real engine path. Stopping in the test
+    // body (rather than async teardown) deterministically cancels the periodic
+    // ticker before Flutter verifies fake-async invariants.
+    final notifier = container.read(stopwatchEngineProvider.notifier);
     final activeState = container.read(stopwatchEngineProvider);
     expect(activeState.isRunning, isTrue);
     expect(activeState.isPaused, isFalse);
 
-    // The teardown unmounts this screen and disposes the notifier; both
-    // periodic tickers are cancelled synchronously without async persistence.
+    await notifier.stop(minSessionDurationMs: 0);
+    expect(notifier.state.status, StopwatchStatus.idle);
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+
+    // The teardown now only unmounts the screen and disposes its provider
+    // container; no stopwatch ticker or persistence operation remains active.
   });
 }
