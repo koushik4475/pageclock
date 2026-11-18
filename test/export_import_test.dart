@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pageclock/core/models/reading_session.dart';
+import 'package:pageclock/core/models/subject.dart';
 import 'package:pageclock/core/services/export_service.dart';
 
 void main() {
@@ -154,5 +155,43 @@ void main() {
       expect(imported.single.pauseIntervals, isEmpty);
       expect(imported.single.activeDurationMs(), 45 * 60000);
     });
+    test('JSON v2 backup rejects malformed subject records before import', () {
+      const malformed = '{"schema":2,"sessions":[],"subjects":[{"id":"","name":"Reading","color":"#F97316"}]}';
+
+      final parsed = SessionExportService.parseBackup(malformed);
+
+      expect(parsed.isValid, isFalse);
+      expect(parsed.errorMessage, contains('Backup subjects'));
+      expect(parsed.sessions, isEmpty);
+    });
+
+    test('JSON v2 backup roundtrip preserves active and archived subjects', () {
+      final subjects = [
+        const Subject(id: 'subject-reading', name: 'Reading', color: '#F97316'),
+        const Subject(
+          id: 'subject-archived',
+          name: 'Old Research',
+          color: '#6366F1',
+          archived: true,
+        ),
+      ];
+
+      final backup = SessionExportService.exportJsonBackupV2(
+        sessions: sampleSessions,
+        settings: const {'themeId': 'pageclock_classic'},
+        subjects: subjects.map((subject) => subject.toMap()).toList(),
+      );
+      final parsed = SessionExportService.parseBackup(backup);
+
+      expect(parsed.isValid, isTrue);
+      expect(parsed.schema, 2);
+      expect(parsed.sessions, hasLength(2));
+      expect(parsed.subjects, hasLength(2));
+      expect(parsed.subjects.map(Subject.fromMap).map((s) => s.id),
+          ['subject-reading', 'subject-archived']);
+      expect(parsed.subjects.map(Subject.fromMap).last.archived, isTrue);
+      expect(parsed.settings?['themeId'], 'pageclock_classic');
+    });
+
   });
 }

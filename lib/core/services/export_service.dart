@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:csv/csv.dart';
 import '../models/reading_session.dart';
+import '../models/subject.dart';
 
 class SessionExportService {
   static String exportToCsv(List<ReadingSession> sessions) {
@@ -142,7 +143,20 @@ class SessionExportService {
             .toList();
         final settings = decoded['settings'] as Map<String, dynamic>?;
         final rawSubjects = (decoded['subjects'] as List<dynamic>?) ?? [];
-        final subjects = rawSubjects.cast<Map<String, dynamic>>();
+        final subjects = rawSubjects.map((item) {
+          if (item is! Map) {
+            throw const FormatException('Backup subject entries must be objects.');
+          }
+          final subject = Subject.fromMap(Map<String, dynamic>.from(item));
+          if (subject.id.trim().isEmpty ||
+              subject.name.trim().isEmpty ||
+              subject.color.trim().isEmpty) {
+            throw const FormatException(
+              'Backup subjects must include non-empty IDs, names and colours.',
+            );
+          }
+          return subject.toMap();
+        }).toList(growable: false);
 
         return BackupParseResult(
           schema: schema,
