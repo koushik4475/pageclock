@@ -522,60 +522,67 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 500),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Select Project',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: Theme.of(ctx).colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ..._availableProjects.map((p) {
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.circle, color: accent, size: 14),
-                    title: Text(
-                      p,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Select Project',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(ctx).colorScheme.onSurface,
                     ),
-                    trailing: ref.read(focusSelectedProjectProvider) == p
-                        ? Icon(Icons.check_rounded, color: accent)
-                        : null,
-                    onTap: () {
-                      ref.read(focusSelectedProjectProvider.notifier).state = p;
-                      ref.read(settingsProvider.notifier).update(
-                            (settings) =>
-                                settings.copyWith(lastSelectedProject: p),
-                          );
-                      Navigator.pop(ctx);
-                    },
-                  );
-                }),
-              ],
+                  ),
+                  const SizedBox(height: 16),
+                  ..._availableProjects.map((project) {
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.circle, color: accent, size: 14),
+                      title: Text(
+                        project,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      trailing:
+                          ref.read(focusSelectedProjectProvider) == project
+                              ? Icon(Icons.check_rounded, color: accent)
+                              : null,
+                      onTap: () {
+                        ref
+                            .read(focusSelectedProjectProvider.notifier)
+                            .state = project;
+                        ref.read(settingsProvider.notifier).update(
+                              (settings) => settings.copyWith(
+                                lastSelectedProject: project,
+                              ),
+                            );
+                        Navigator.pop(ctx);
+                      },
+                    );
+                  }),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
-
 
   String _formatElapsed(int ms) {
     final d = Duration(milliseconds: ms);
@@ -1132,6 +1139,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         settings.pomodoroFocusMinutes,
                         colorScheme,
                         accent,
+                        selectedProject,
                       )
                     : _buildListView(
                         context,
@@ -1168,6 +1176,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     int focusMinutes,
     ColorScheme colorScheme,
     Color accent,
+    String selectedProject,
   ) {
     final targetMs = focusMinutes * 60 * 1000;
     final isFocusOvertime = !_isPomodoroBreak &&
@@ -1229,7 +1238,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                       fontWeight: FontWeight.w600,
                     ),
                     decoration: InputDecoration(
-                      hintText: "I'm focusing on...",
+                      hintText: selectedProject == 'General Focus'
+                          ? "I'm focusing on..."
+                          : "I'm focusing on $selectedProject...",
                       hintStyle: TextStyle(
                         color: isSpecial1
                             ? Special1Palette.secondaryText
@@ -1241,6 +1252,32 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     ),
                   ),
                 ),
+                if (selectedProject != 'General Focus')
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8, right: 2),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: accent.withOpacity(isDark ? 0.18 : 0.10),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 5,
+                        ),
+                        child: Text(
+                          selectedProject,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: accent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 IconButton(
                   icon: Icon(
                     Icons.local_offer_outlined,
