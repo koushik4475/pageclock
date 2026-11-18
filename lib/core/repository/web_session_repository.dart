@@ -126,17 +126,16 @@ class WebSessionRepository implements SessionRepository, CloudSyncSessionReposit
           PauseInterval(startedAtUtc: pausedAt!, endedAtUtc: now),
       ];
 
-      // Close the session and its final pause before calculating the net
-      // duration. This preserves exact pause positions for future reports.
-      final closed = orphaned.copyWith(
+      // Calculate from the still-open record so a stale denormalized
+      // durationMs cannot override the current elapsed/pause state.
+      final focusedDurationMs = orphaned.activeDurationMs(nowUtcMs: now);
+      final updated = orphaned.copyWith(
         endedAtUtc: now,
         clearPausedAtUtc: true,
         pausedTotalMs: orphaned.pausedTotalMs + finalPauseMs,
         pauseIntervals: completedPauses,
+        durationMs: focusedDurationMs,
         updatedAt: now,
-      );
-      final updated = closed.copyWith(
-        durationMs: closed.activeDurationMs(nowUtcMs: now),
       );
 
       previous[orphaned.id] = orphaned;

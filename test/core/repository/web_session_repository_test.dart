@@ -66,6 +66,9 @@ void main() {
         startedAtUtc: startedAt,
         pausedAtUtc: pausedAt,
         pausedTotalMs: 10 * 60000,
+        // An open row may carry a stale denormalized duration from an older
+        // timer state; recovery must recompute it from elapsed/pause history.
+        durationMs: 55 * 60000,
         pauseIntervals: [
           PauseInterval(
             startedAtUtc: oldPauseStart,
