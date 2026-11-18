@@ -3,9 +3,8 @@ name: PageClock CI / CD & Automated Release
 on:
   push:
     branches: [ main, master, 'release/*' ]
-    tags: [ 'v*' ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, master, 'release/*' ]
   workflow_dispatch:
 
 concurrency:
@@ -13,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify-and-web:
@@ -25,6 +24,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
+      - name: Assert legacy release workflow is validation-only
+        run: bash scripts/test_legacy_release_workflow_policy.sh
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -44,7 +46,6 @@ jobs:
         run: flutter analyze --no-pub --no-fatal-infos
 
       - name: Run Flutter tests (retry transient dependency/network failures only)
-        if: github.head_ref != 'feat/premium-theme-gallery-and-faster-ci' && !startsWith(github.ref, 'refs/tags/v') && !startsWith(github.ref, 'refs/heads/release/v')
         shell: bash
         run: |
           set -u
@@ -79,159 +80,3 @@ jobs:
           if-no-files-found: error
           compression-level: 1
 
-  android-apk:
-    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
-    name: Build Android release APK
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Set up Java 17 (with Gradle dependency cache)
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-          cache: gradle
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: '3.47.9'
-          cache: true
-          pub-cache: true
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Run code generation (Drift / build_runner)
-        run: dart run build_runner build
-
-      - name: Setup Android Keystore (if secrets provided)
-        id: setup_keystore
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          if [ -n "${ANDROID_KEYSTORE_BASE64:-}" ]; then
-            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
-            chmod 600 android/app/release.keystore
-          elif [[ "$GITHUB_REF" == refs/tags/v* || "$GITHUB_REF" == refs/heads/release/v* ]]; then
-            echo "::error::Version-tag releases require ANDROID_KEYSTORE_BASE64."
-            exit 1
-          else
-            echo "No release keystore configured; non-release builds use Gradle debug signing."
-          fi
-
-      - name: Build Android Release APK (retry transient dependency/network failures only)
-        env:
-          ANDROID_KEYSTORE_PATH: release.keystore
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        shell: bash
-        run: |
-          set -u
-          log_file="$RUNNER_TEMP/android-build.log"
-          BUILD_NUMBER="${GITHUB_RUN_NUMBER}"
-          if [[ "$GITHUB_REF_NAME" == *+* ]]; then
-            BUILD_NUMBER="${GITHUB_REF_NAME##*+}"
-          fi
-          echo "Building APK with Android versionCode $BUILD_NUMBER"
-          for attempt in 1 2 3 4; do
-            echo "Android APK build attempt $attempt/4"
-            if flutter build apk --release --target-platform=android-arm64 --build-number="$BUILD_NUMBER" --android-skip-build-dependency-validation --no-pub >"$log_file" 2>&1; then
-              cat "$log_file"
-              exit 0
-            else
-              status=$?
-              cat "$log_file"
-            fi
-            if grep -Eiq 'Received status code 5[0-9]{2}|HTTP/[0-9.]+ 5[0-9]{2}|HTTP response code: 5[0-9]{2}|Gateway Time[- ]out|Connection reset|Temporary failure|timed out|Building native assets failed|Building assets for package:sqlite3 failed|sqlite3.*(download|failed)' "$log_file"; then
-              echo "Transient dependency/network failure detected; backing off before retry."
-            else
-              echo "Android build failed for a non-transient reason; not retrying."
-              exit "$status"
-            fi
-            if [ "$attempt" -lt 4 ]; then sleep $((attempt * 15)); fi
-          done
-          exit 1
-
-      - name: Secure Keystore Cleanup
-        if: always()
-        run: |
-          rm -f android/app/release.keystore
-          rm -f android/key.properties
-
-      - name: Package Release Assets & Compute Checksum
-        run: |
-          APK_DIR="build/app/outputs/flutter-apk"
-          VERSION_TAG="v1.0.0+${{ github.run_number }}"
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then VERSION_TAG="${{ github.ref_name }}"; fi
-          if [[ "${{ github.ref }}" == refs/heads/release/* ]]; then VERSION_TAG="${GITHUB_REF_NAME#release/}"; fi
-          ASSET_NAME="PageClock-${VERSION_TAG}.apk"
-          SHA_NAME="PageClock-${VERSION_TAG}.apk.sha256"
-          cp "$APK_DIR/app-release.apk" "$APK_DIR/$ASSET_NAME"
-          cd "$APK_DIR"
-          sha256sum "$ASSET_NAME" > "$SHA_NAME"
-          echo "SHA256 Checksum:"
-          cat "$SHA_NAME"
-
-      - name: Upload APK and checksum
-        uses: actions/upload-artifact@v4
-        with:
-          name: pageclock-apk-build
-          path: build/app/outputs/flutter-apk/PageClock-*.apk*
-          if-no-files-found: error
-          compression-level: 0
-
-  publish-release:
-    name: Publish GitHub Release
-    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
-    needs: [ verify-and-web, android-apk ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download APK and checksum
-        uses: actions/download-artifact@v4
-        with:
-          name: pageclock-apk-build
-          path: artifacts/apk
-
-      - name: Resolve release tag
-        id: release_tag
-        shell: bash
-        run: |
-          if [[ "$GITHUB_REF" == refs/heads/release/* ]]; then
-            RELEASE_TAG="${GITHUB_REF_NAME#release/}"
-          else
-            RELEASE_TAG="$GITHUB_REF_NAME"
-          fi
-          echo "tag_name=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
-
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.release_tag.outputs.tag_name }}
-          name: "PageClock Release ${{ steps.release_tag.outputs.tag_name }}"
-          body: |
-            ### PageClock Automated Release (${{ steps.release_tag.outputs.tag_name }})
-            
-            **What's Changed:**
-            - Automated Android in-app updates with GitHub Releases.
-            - SHA-256 integrity verification.
-            - Drift SQLite offline-first persistence.
-            - Mobile fullscreen clock and Pomodoro usability fixes.
-            - Eleven curated themes with coordinated light/dark palettes and instant previews.
-            
-            **Verification:**
-            Download the matching `.sha256` file to verify the APK.
-          draft: false
-          prerelease: false
-          files: |
-            artifacts/apk/*.apk
-            artifacts/apk/*.sha256
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
