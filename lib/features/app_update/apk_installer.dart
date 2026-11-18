@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:cross_file/cross_file.dart';
 import 'package:flutter/foundation.dart';
-import 'package:open_filex/open_filex.dart';
+import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -11,8 +11,56 @@ class ApkInstallResult {
   const ApkInstallResult({required this.success, required this.message});
 }
 
+/// Thin, testable bridge to the native Android Package Installer handler.
+class AndroidApkInstallerChannel {
+  static const String channelName = 'com.example.pageclock/apk_installer';
+
+  final MethodChannel _channel;
+
+  const AndroidApkInstallerChannel({MethodChannel? channel})
+      : _channel = channel ?? const MethodChannel(channelName);
+
+  Future<ApkInstallResult> install(File apkFile) async {
+    if (!await apkFile.exists()) {
+      return const ApkInstallResult(
+        success: false,
+        message: 'The verified APK is no longer available. Please download it again.',
+      );
+    }
+
+    try {
+      final launched = await _channel.invokeMethod<bool>(
+        'installApk',
+        <String, Object>{'path': apkFile.absolute.path},
+      );
+      if (launched != true) {
+        return const ApkInstallResult(
+          success: false,
+          message: 'Android Package Installer did not confirm that it opened. Please try again or use Share APK.',
+        );
+      }
+      return const ApkInstallResult(
+        success: true,
+        message: 'Android Package Installer opened. Confirm Install in the system prompt to complete the update.',
+      );
+    } on PlatformException catch (error) {
+      return ApkInstallResult(
+        success: false,
+        message: error.message ?? 'Could not open Android Package Installer.',
+      );
+    } catch (error) {
+      return ApkInstallResult(
+        success: false,
+        message: 'Failed to launch installer: $error',
+      );
+    }
+  }
+}
+
 class ApkInstaller {
-  /// Prompts the Android system Package Installer to directly install [apkFile].
+
+  /// Launches Android's Package Installer directly using a FileProvider URI.
+  /// Sharing remains a separate, explicitly selected user action.
   static Future<ApkInstallResult> installApk(File apkFile) async {
     if (kIsWeb || !Platform.isAndroid) {
       return const ApkInstallResult(
@@ -28,7 +76,6 @@ class ApkInstaller {
     }
 
     try {
-      // On Android 8.0+ (API 26+), verify install unknown apps permission
       final status = await Permission.requestInstallPackages.status;
       if (!status.isGranted) {
         final requestStatus = await Permission.requestInstallPackages.request();
@@ -40,34 +87,21 @@ class ApkInstaller {
         }
       }
 
-      // Launch standard Android Package Installer via FileProvider
-      final result = await OpenFilex.open(
-        apkFile.path,
-        type: 'application/vnd.android.package-archive',
-      );
-
-      if (result.type == ResultType.done) {
-        return const ApkInstallResult(
-          success: true,
-          message: 'Android installer opened. Confirm Install in the system prompt to complete the update.',
-        );
-      }
-
+      return await AndroidApkInstallerChannel().install(apkFile);
+    } on PlatformException catch (error) {
       return ApkInstallResult(
         success: false,
-        message: result.message.isNotEmpty
-            ? result.message
-            : 'Could not open Android Package Installer. Check Install unknown apps permission and try again.',
+        message: error.message ?? 'Could not open Android Package Installer.',
       );
-    } catch (e) {
+    } catch (error) {
       return ApkInstallResult(
         success: false,
-        message: 'Failed to launch installer: $e',
+        message: 'Failed to launch installer: $error',
       );
     }
   }
 
-  /// Fallback option: Shares the verified APK if the user prefers to save or share it.
+  /// Fallback option only when the user explicitly taps Share APK.
   static Future<ApkInstallResult> shareVerifiedApk(File apkFile) async {
     if (kIsWeb || !Platform.isAndroid) {
       return const ApkInstallResult(success: false, message: 'APK updates can only be shared from Android.');
@@ -81,12 +115,9 @@ class ApkInstaller {
         subject: 'PageClock Android update',
         text: 'This APK passed PageClock SHA-256 verification. Save it to Downloads or share it.',
       );
-      return const ApkInstallResult(
-        success: true,
-        message: 'Android share sheet opened.',
-      );
-    } catch (e) {
-      return ApkInstallResult(success: false, message: 'Could not share the verified APK: $e');
+      return const ApkInstallResult(success: true, message: 'Android share sheet opened.');
+    } catch (error) {
+      return ApkInstallResult(success: false, message: 'Could not share the verified APK: $error');
     }
   }
 }
