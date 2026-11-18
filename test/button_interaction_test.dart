@@ -193,8 +193,8 @@ void main() {
       await tester.tap(themeTile);
       await tester.pumpAndSettle();
 
-      // Verify the Clock Studio gallery shows the user-facing theme name.
-      expect(find.text('Clock Studio'), findsOneWidget);
+      // Verify the Make PageClock yours gallery shows the user-facing theme name.
+      expect(find.text('Make PageClock yours'), findsOneWidget);
       expect(find.text('Pastel Waves'), findsOneWidget);
 
       // Select Pastel Waves (stored as the stable `special1` theme ID).
@@ -202,7 +202,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify the gallery closed and the stable theme ID was persisted.
-      expect(find.text('Clock Studio'), findsNothing);
+      expect(find.text('Make PageClock yours'), findsNothing);
       final savedSettings = jsonDecode(
         prefs.getString('pageclock_app_settings_v1')!,
       ) as Map<String, dynamic>;
