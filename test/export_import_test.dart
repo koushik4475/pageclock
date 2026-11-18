@@ -155,6 +155,16 @@ void main() {
       expect(imported.single.pauseIntervals, isEmpty);
       expect(imported.single.activeDurationMs(), 45 * 60000);
     });
+    test('JSON v2 backup rejects malformed subject records before import', () {
+      const malformed = '{"schema":2,"sessions":[],"subjects":[{"id":"","name":"Reading","color":"#F97316"}]}';
+
+      final parsed = SessionExportService.parseBackup(malformed);
+
+      expect(parsed.isValid, isFalse);
+      expect(parsed.errorMessage, contains('Backup subjects'));
+      expect(parsed.sessions, isEmpty);
+    });
+
     test('JSON v2 backup roundtrip preserves active and archived subjects', () {
       final subjects = [
         const Subject(id: 'subject-reading', name: 'Reading', color: '#F97316'),

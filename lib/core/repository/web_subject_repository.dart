@@ -198,9 +198,10 @@ class WebSubjectRepository implements SubjectRepository {
     var added = 0;
     var duplicateIds = 0;
     var nameConflicts = 0;
+    final seenIds = latest.keys.toSet();
 
     for (final subject in normalized) {
-      if (latest.containsKey(subject.id)) {
+      if (!seenIds.add(subject.id)) {
         duplicateIds++;
         continue;
       }
@@ -222,12 +223,12 @@ class WebSubjectRepository implements SubjectRepository {
       if (!saved) {
         throw StateError('Browser storage rejected the subject import.');
       }
-      _subjects
-        ..clear()
-        ..addAll(latest);
-      _storageIssue = null;
-      _changes.add(null);
     }
+    _subjects
+      ..clear()
+      ..addAll(latest);
+    _storageIssue = null;
+    if (added > 0) _changes.add(null);
 
     return SubjectImportResult(
       added: added,

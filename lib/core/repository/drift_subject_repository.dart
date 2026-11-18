@@ -117,7 +117,6 @@ class DriftSubjectRepository implements SubjectRepository {
         try {
           ensureUniqueActiveSubjectName(subject, existing);
         } on SubjectNameConflictException {
-          existingIds.remove(subject.id);
           nameConflicts++;
           continue;
         }

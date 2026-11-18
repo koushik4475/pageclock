@@ -166,8 +166,9 @@ class InMemorySubjectRepository implements SubjectRepository {
     var added = 0;
     var duplicateIds = 0;
     var nameConflicts = 0;
+    final seenIds = _subjects.keys.toSet();
     for (final subject in normalized) {
-      if (_subjects.containsKey(subject.id)) {
+      if (!seenIds.add(subject.id)) {
         duplicateIds++;
         continue;
       }
