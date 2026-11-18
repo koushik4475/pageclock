@@ -174,7 +174,7 @@ void main() {
 
       final mockClient = MockClient((request) async {
         final url = request.url.toString();
-        if (url == 'https://github.com/releases/download/v1.0.0+119/app.apk') {
+        if (url == 'https://github.com/koushik4475/pageclock/releases/download/v1.0.0+119/app.apk') {
           return http.Response(
             '',
             302,
@@ -197,7 +197,7 @@ void main() {
 
       // 1. Success case: bit-for-bit verified
       final verifiedFile = await downloader.downloadAndVerifyApk(
-        url: 'https://github.com/releases/download/v1.0.0+119/app.apk',
+        url: 'https://github.com/koushik4475/pageclock/releases/download/v1.0.0+119/app.apk',
         expectedSha256: validChecksum,
       );
 
@@ -209,7 +209,7 @@ void main() {
       final tamperedChecksum = '0' * 64;
       expect(
         () async => await downloader.downloadAndVerifyApk(
-          url: 'https://github.com/releases/download/v1.0.0+119/app.apk',
+          url: 'https://github.com/koushik4475/pageclock/releases/download/v1.0.0+119/app.apk',
           expectedSha256: tamperedChecksum,
         ),
         throwsA(isA<ChecksumMismatchException>()),
@@ -235,7 +235,7 @@ void main() {
 
       expect(
         () async => await downloader.downloadAndVerifyApk(
-          url: 'https://github.com/releases/download/app.apk',
+          url: 'https://github.com/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
           expectedSha256: validChecksum,
           cancelToken: cancelToken,
         ),

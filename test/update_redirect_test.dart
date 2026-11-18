@@ -32,35 +32,48 @@ class _OversizedContentLengthClient extends http.BaseClient {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('trusted download origins require exact HTTPS hosts, default port and no user-info', () {
-    final accepted = [
+  test('initial APK URLs must be this repository release assets; only GitHub CDNs are redirect hosts', () {
+    final acceptedInitial = [
       'https://github.com/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
       'https://github.com:443/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
-      'https://objects.githubusercontent.com/release/app.apk',
-      'https://release-assets.githubusercontent.com/release/app.apk',
     ];
-    for (final value in accepted) {
+    for (final value in acceptedInitial) {
       expect(
         ApkDownloader.isTrustedDownloadUri(Uri.parse(value)),
         isTrue,
-        reason: 'Expected trusted GitHub release origin: $value',
+        reason: 'Expected trusted repository release asset: $value',
+      );
+    }
+
+    final acceptedRedirects = [
+      ...acceptedInitial,
+      'https://objects.githubusercontent.com/release/app.apk',
+      'https://release-assets.githubusercontent.com/release/app.apk',
+    ];
+    for (final value in acceptedRedirects) {
+      expect(
+        ApkDownloader.isTrustedRedirectUri(Uri.parse(value)),
+        isTrue,
+        reason: 'Expected trusted redirect destination: $value',
       );
     }
 
     final rejected = [
-      'http://github.com/koushik4475/pageclock/app.apk',
-      'https://github.com:444/koushik4475/pageclock/app.apk',
-      'https://user@github.com/koushik4475/pageclock/app.apk',
-      'https://github.com.attacker.example/app.apk',
-      'https://attacker.github.com/app.apk',
+      'http://github.com/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
+      'https://github.com:444/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
+      'https://user@github.com/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
+      'https://github.com.attacker.example/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
+      'https://attacker.github.com/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
       'https://attacker.example/app.apk',
+      'https://github.com/attacker/pageclock/releases/download/v1.0.0/app.apk',
+      'https://github.com/koushik4475/other/releases/download/v1.0.0/app.apk',
+      'https://github.com/koushik4475/pageclock/blob/main/app.apk',
+      'https://github.com/koushik4475/pageclock/releases/download/v1.0.0',
     ];
     for (final value in rejected) {
-      expect(
-        ApkDownloader.isTrustedDownloadUri(Uri.parse(value)),
-        isFalse,
-        reason: 'Expected untrusted download origin to be rejected: $value',
-      );
+      final uri = Uri.parse(value);
+      expect(ApkDownloader.isTrustedDownloadUri(uri), isFalse, reason: value);
+      expect(ApkDownloader.isTrustedRedirectUri(uri), isFalse, reason: value);
     }
   });
 
@@ -96,6 +109,27 @@ void main() {
   });
 
   group('Update Download & Integrity Pressure Tests', () {
+    test('rejects a redirect to another GitHub repository even though github.com is an allowed host', () async {
+      final client = MockClient((request) async {
+        return http.Response(
+          '',
+          302,
+          headers: {
+            'location': 'https://github.com/attacker/repo/releases/download/v1.0.0/app.apk',
+          },
+        );
+      });
+      final downloader = ApkDownloader(client: client);
+
+      await expectLater(
+        downloader.downloadAndVerifyApk(
+          url: 'https://github.com/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
+          expectedSha256: '0' * 64,
+        ),
+        throwsA(isA<HttpException>()),
+      );
+    });
+
     test('ApkDownloader follows multi-hop HTTP 302/301 redirects and computes bit-for-bit SHA-256', () async {
       final dummyApkBytes = <int>[
         0x50, 0x4B, 0x03, 0x04,
@@ -104,7 +138,7 @@ void main() {
       final expectedSha = sha256.convert(dummyApkBytes).toString();
 
       final mockClient = MockClient((request) async {
-        if (request.url.toString() == 'https://github.com/releases/download/v1.0.0/app.apk') {
+        if (request.url.toString() == 'https://github.com/koushik4475/pageclock/releases/download/v1.0.0/app.apk') {
           return http.Response(
             '',
             302,
@@ -125,7 +159,7 @@ void main() {
 
       final downloader = ApkDownloader(client: mockClient);
       final downloadedFile = await downloader.downloadAndVerifyApk(
-        url: 'https://github.com/releases/download/v1.0.0/app.apk',
+        url: 'https://github.com/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
         expectedSha256: expectedSha,
       );
 

@@ -36,8 +36,7 @@ class ChecksumMismatchException implements Exception {
 
 class ApkDownloader {
   static const int maxApkBytes = 200 * 1024 * 1024;
-  static const Set<String> _trustedHosts = {
-    'github.com',
+  static const Set<String> _trustedRedirectHosts = {
     'objects.githubusercontent.com',
     'release-assets.githubusercontent.com',
   };
@@ -56,11 +55,31 @@ class ApkDownloader {
   })  : _client = client ?? http.Client(),
         _maxApkBytes = maxApkBytes;
 
+  static bool _hasSafeHttpsOrigin(Uri uri) =>
+      uri.scheme == 'https' && uri.userInfo.isEmpty && uri.port == 443;
+
+  /// Only accept the repository's own GitHub release-asset route as an
+  /// initial URL. A generic github.com URL is not a trusted release asset.
   static bool isTrustedDownloadUri(Uri uri) {
-    return uri.scheme == 'https' &&
-        uri.userInfo.isEmpty &&
-        uri.port == 443 &&
-        _trustedHosts.contains(uri.host.toLowerCase());
+    if (!_hasSafeHttpsOrigin(uri) || uri.host.toLowerCase() != 'github.com') {
+      return false;
+    }
+    final segments = uri.pathSegments;
+    return segments.length == 6 &&
+        segments[0] == 'koushik4475' &&
+        segments[1] == 'pageclock' &&
+        segments[2] == 'releases' &&
+        segments[3] == 'download' &&
+        segments[4].startsWith('v') &&
+        segments[5].isNotEmpty;
+  }
+
+  /// Redirects may move to GitHub's signed asset CDN hosts, but a redirect
+  /// back to github.com must still use this repository's release route.
+  static bool isTrustedRedirectUri(Uri uri) {
+    if (!_hasSafeHttpsOrigin(uri)) return false;
+    final host = uri.host.toLowerCase();
+    return isTrustedDownloadUri(uri) || _trustedRedirectHosts.contains(host);
   }
 
   /// Downloads an APK from [url] and requires [expectedSha256] to verify it.
@@ -92,7 +111,7 @@ class ApkDownloader {
         final location = response.headers['location']!;
         await response.stream.drain<void>();
         final redirectedUri = currentUri.resolve(location);
-        if (!isTrustedDownloadUri(redirectedUri)) {
+        if (!isTrustedRedirectUri(redirectedUri)) {
           throw HttpException('APK download redirect points to an untrusted host or scheme.');
         }
         currentUri = redirectedUri;
