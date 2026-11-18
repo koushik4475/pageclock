@@ -24,13 +24,19 @@ class WebSessionRepository implements SessionRepository, CloudSyncSessionReposit
   final Map<String, ReadingSession> _cache = {};
   final _allController = StreamController<List<ReadingSession>>.broadcast();
   final _activeController = StreamController<ReadingSession?>.broadcast();
+  final int Function() _nowUtcMs;
+
+  static int _systemUtcNowMs() =>
+      DateTime.now().toUtc().millisecondsSinceEpoch;
 
   WebSessionRepository(
     this._prefs, {
     String storageKey = defaultStorageKey,
     bool? isUser,
+    int Function()? nowUtcMs,
   })  : _storageKey = storageKey,
-        isUserScope = isUser ?? storageKey.contains('_user_') {
+        isUserScope = isUser ?? storageKey.contains('_user_'),
+        _nowUtcMs = nowUtcMs ?? _systemUtcNowMs {
     _loadFromStorage();
   }
 
@@ -92,31 +98,74 @@ class WebSessionRepository implements SessionRepository, CloudSyncSessionReposit
     _allController.add(all);
   }
 
-  ReadingSession? _getActiveInternal() {
+  /// Closes every older open session before exposing the active one.
+  ///
+  /// The native Drift repository performs the same recovery in its database.
+  /// Persisting this repair on web is essential: an in-memory-only repair would
+  /// be lost on reload, and a paused orphan would incorrectly count its final
+  /// pause as focused time on the next launch.
+  Future<void> _reconcileOrphanedSessions() async {
     final openRows = _cache.values
-        .where((s) => s.endedAtUtc == null && s.deletedAt == null)
+        .where((session) => session.endedAtUtc == null && session.deletedAt == null)
         .toList()
       ..sort((a, b) => b.startedAtUtc.compareTo(a.startedAtUtc));
 
-    if (openRows.isEmpty) return null;
+    if (openRows.length <= 1) return;
 
-    if (openRows.length > 1) {
-      final now = DateTime.now().toUtc().millisecondsSinceEpoch;
-      for (int i = 1; i < openRows.length; i++) {
-        final orphaned = openRows[i];
-        final dur = orphaned.durationMs > 0
-            ? orphaned.durationMs
-            : (now - orphaned.startedAtUtc - orphaned.pausedTotalMs)
-                .clamp(0, 86400000);
-        _cache[orphaned.id] = orphaned.copyWith(
-          endedAtUtc: now,
-          durationMs: dur,
-          updatedAt: now,
-        );
-      }
+    final now = _nowUtcMs();
+    final previous = <String, ReadingSession>{};
+    final repaired = <String, ReadingSession>{};
+
+    for (final orphaned in openRows.skip(1)) {
+      final pausedAt = orphaned.pausedAtUtc;
+      final finalPauseMs =
+          pausedAt != null && now > pausedAt ? now - pausedAt : 0;
+      final completedPauses = <PauseInterval>[
+        ...orphaned.pauseIntervals,
+        if (finalPauseMs > 0)
+          PauseInterval(startedAtUtc: pausedAt!, endedAtUtc: now),
+      ];
+
+      // Close the session and its final pause before calculating the net
+      // duration. This preserves exact pause positions for future reports.
+      final closed = orphaned.copyWith(
+        endedAtUtc: now,
+        clearPausedAtUtc: true,
+        pausedTotalMs: orphaned.pausedTotalMs + finalPauseMs,
+        pauseIntervals: completedPauses,
+        updatedAt: now,
+      );
+      final updated = closed.copyWith(
+        durationMs: closed.activeDurationMs(nowUtcMs: now),
+      );
+
+      previous[orphaned.id] = orphaned;
+      repaired[orphaned.id] = updated;
+      _cache[orphaned.id] = updated;
     }
 
-    return openRows.first;
+    try {
+      await _commit();
+    } catch (_) {
+      // Roll back only rows that still contain our repair, so a concurrent
+      // edit to a different row is not discarded if storage rejects the write.
+      for (final entry in repaired.entries) {
+        if (identical(_cache[entry.key], entry.value)) {
+          _cache[entry.key] = previous[entry.key]!;
+        }
+      }
+      _broadcast();
+      rethrow;
+    }
+  }
+
+  ReadingSession? _getActiveInternal() {
+    final openRows = _cache.values
+        .where((session) => session.endedAtUtc == null && session.deletedAt == null)
+        .toList()
+      ..sort((a, b) => b.startedAtUtc.compareTo(a.startedAtUtc));
+
+    return openRows.isEmpty ? null : openRows.first;
   }
 
   @override
@@ -190,6 +239,7 @@ class WebSessionRepository implements SessionRepository, CloudSyncSessionReposit
 
   @override
   Future<ReadingSession?> getActiveSession() async {
+    await _reconcileOrphanedSessions();
     return _getActiveInternal();
   }
 
@@ -219,9 +269,10 @@ class WebSessionRepository implements SessionRepository, CloudSyncSessionReposit
   }
 
   @override
-  Stream<ReadingSession?> watchActiveSession() {
-    final initial = _getActiveInternal();
-    return Stream.value(initial).concatWith([_activeController.stream]);
+  Stream<ReadingSession?> watchActiveSession() async* {
+    await _reconcileOrphanedSessions();
+    yield _getActiveInternal();
+    yield* _activeController.stream;
   }
 
   @override

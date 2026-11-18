@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pageclock/core/models/reading_session.dart';
@@ -26,9 +28,130 @@ void main() {
     );
   }
 
+  ReadingSession makeOpenSession({
+    required String id,
+    required int startedAtUtc,
+    int? pausedAtUtc,
+    int pausedTotalMs = 0,
+    int durationMs = 0,
+    List<PauseInterval> pauseIntervals = const [],
+  }) {
+    return ReadingSession(
+      id: id,
+      startedAtUtc: startedAtUtc,
+      pausedAtUtc: pausedAtUtc,
+      pausedTotalMs: pausedTotalMs,
+      durationMs: durationMs,
+      pauseIntervals: pauseIntervals,
+      tzOffsetMin: 0,
+      createdAt: startedAtUtc,
+      updatedAt: startedAtUtc,
+    );
+  }
+
   group('WebSessionRepository Isolation & Partitioning (M3)', () {
     setUp(() {
       SharedPreferences.setMockInitialValues({});
+    });
+
+    test('getActiveSession persists recovery of an orphaned paused session', () async {
+      const key = 'pageclock_web_sessions_v2_guest';
+      const now = 1795000000000;
+      final startedAt = now - 60 * 60000;
+      final pausedAt = now - 20 * 60000;
+      final oldPauseStart = startedAt + 10 * 60000;
+      final oldPauseEnd = startedAt + 15 * 60000;
+      final orphaned = makeOpenSession(
+        id: 'orphaned-paused',
+        startedAtUtc: startedAt,
+        pausedAtUtc: pausedAt,
+        pausedTotalMs: 10 * 60000,
+        pauseIntervals: [
+          PauseInterval(
+            startedAtUtc: oldPauseStart,
+            endedAtUtc: oldPauseEnd,
+          ),
+        ],
+      );
+      final newest = makeOpenSession(
+        id: 'newest-active',
+        startedAtUtc: now - 5 * 60000,
+      );
+      SharedPreferences.setMockInitialValues({
+        key: jsonEncode([orphaned.toMap(), newest.toMap()]),
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final repo = WebSessionRepository(
+        prefs,
+        storageKey: key,
+        nowUtcMs: () => now,
+      );
+
+      final active = await repo.getActiveSession();
+      expect(active?.id, 'newest-active');
+
+      final persisted = (jsonDecode(prefs.getString(key)!) as List)
+          .map((row) => ReadingSession.fromMap(
+                Map<String, dynamic>.from(row as Map),
+              ))
+          .toList();
+      final repaired = persisted.singleWhere((session) => session.id == orphaned.id);
+      expect(repaired.endedAtUtc, now);
+      expect(repaired.pausedAtUtc, isNull);
+      expect(repaired.pausedTotalMs, 30 * 60000);
+      expect(repaired.durationMs, 30 * 60000);
+      expect(repaired.pauseIntervals, hasLength(2));
+      expect(repaired.pauseIntervals.last.startedAtUtc, pausedAt);
+      expect(repaired.pauseIntervals.last.endedAtUtc, now);
+
+      // A new repository instance must observe the persisted repair, and a
+      // second recovery pass must not move the original end timestamp.
+      final reopened = WebSessionRepository(
+        prefs,
+        storageKey: key,
+        nowUtcMs: () => now + 60 * 60000,
+      );
+      final reopenedActive = await reopened.getActiveSession();
+      expect(reopenedActive?.id, 'newest-active');
+      final reopenedOrphan = (await reopened.getAllSessions())
+          .singleWhere((session) => session.id == orphaned.id);
+      expect(reopenedOrphan.endedAtUtc, now);
+      expect(reopenedOrphan.durationMs, 30 * 60000);
+    });
+
+    test('watchActiveSession persists recovery of an orphaned running session', () async {
+      const key = 'pageclock_web_sessions_v2_guest';
+      const now = 1795000000000;
+      final older = makeOpenSession(
+        id: 'older-running',
+        startedAtUtc: now - 25 * 60000,
+      );
+      final newest = makeOpenSession(
+        id: 'newest-running',
+        startedAtUtc: now - 5 * 60000,
+      );
+      SharedPreferences.setMockInitialValues({
+        key: jsonEncode([older.toMap(), newest.toMap()]),
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final repo = WebSessionRepository(
+        prefs,
+        storageKey: key,
+        nowUtcMs: () => now,
+      );
+
+      final active = await repo.watchActiveSession().first;
+      expect(active?.id, 'newest-running');
+
+      final persisted = (jsonDecode(prefs.getString(key)!) as List)
+          .map((row) => ReadingSession.fromMap(
+                Map<String, dynamic>.from(row as Map),
+              ))
+          .toList();
+      final repaired = persisted.singleWhere((session) => session.id == older.id);
+      expect(repaired.endedAtUtc, now);
+      expect(repaired.durationMs, 25 * 60000);
+      expect(repaired.pausedAtUtc, isNull);
     });
 
     test('separate partitions remain completely isolated', () async {
