@@ -93,5 +93,53 @@ class DriftSubjectRepository implements SubjectRepository {
   }
 
   @override
+  Future<SubjectImportResult> importSubjects(
+    Iterable<Subject> subjects,
+  ) async {
+    final normalized = subjects
+        .map((subject) => subject.copyWith(
+              name: normalizeSubjectName(subject.name),
+            ))
+        .toList(growable: false);
+    return db.transaction(() async {
+      final rows = await db.select(db.subjects).get();
+      final existing = rows.map(_mapRow).toList();
+      final existingIds = existing.map((subject) => subject.id).toSet();
+      var added = 0;
+      var duplicateIds = 0;
+      var nameConflicts = 0;
+
+      for (final subject in normalized) {
+        if (!existingIds.add(subject.id)) {
+          duplicateIds++;
+          continue;
+        }
+        try {
+          ensureUniqueActiveSubjectName(subject, existing);
+        } on SubjectNameConflictException {
+          existingIds.remove(subject.id);
+          nameConflicts++;
+          continue;
+        }
+        await db.into(db.subjects).insert(
+              SubjectsCompanion.insert(
+                id: subject.id,
+                name: subject.name,
+                color: subject.color,
+                archived: Value(subject.archived),
+              ),
+            );
+        existing.add(subject);
+        added++;
+      }
+      return SubjectImportResult(
+        added: added,
+        duplicateIds: duplicateIds,
+        nameConflicts: nameConflicts,
+      );
+    });
+  }
+
+  @override
   Future<void> dispose() => db.close();
 }

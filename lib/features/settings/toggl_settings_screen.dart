@@ -11,6 +11,8 @@ import '../../core/navigation/main_tab_navigation.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/repository/session_repository.dart';
+import '../../core/repository/subject_repository.dart';
+import '../../core/models/subject.dart';
 import '../../core/services/export_service.dart';
 import '../../core/services/pdf_service.dart';
 import '../../core/settings/app_settings.dart';
@@ -1369,9 +1371,11 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     try {
       final sessions = await ref.read(sessionRepositoryProvider).getAllSessions();
       final settingsJson = ref.read(settingsProvider).toJson();
+      final subjects = await ref.read(subjectRepositoryProvider).getAllSubjects();
       final jsonStr = SessionExportService.exportJsonBackupV2(
         sessions: sessions,
         settings: settingsJson,
+        subjects: subjects.map((subject) => subject.toMap()).toList(),
       );
 
       await Clipboard.setData(ClipboardData(text: jsonStr));
@@ -1494,6 +1498,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     final existingIds = existingSessions.map((s) => s.id).toSet();
 
     List<ReadingSession> importedSessions = [];
+    List<Subject> importedSubjects = [];
     Map<String, dynamic>? importedSettings;
 
     if (rawData.trim().startsWith('{') || rawData.trim().startsWith('[')) {
@@ -1507,18 +1512,38 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
         return;
       }
       importedSessions = parsed.sessions;
+      importedSubjects = parsed.subjects.map(Subject.fromMap).toList();
       importedSettings = parsed.settings;
     } else {
       importedSessions = SessionExportService.importFromCsv(rawData);
     }
 
-    if (importedSessions.isEmpty && importedSettings == null) {
+    if (importedSessions.isEmpty && importedSettings == null && importedSubjects.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No valid records found in import.')),
         );
       }
       return;
+    }
+
+    SubjectImportResult? subjectImportResult;
+    if (importedSubjects.isNotEmpty) {
+      try {
+        subjectImportResult = await ref
+            .read(subjectRepositoryProvider)
+            .importSubjects(importedSubjects);
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Subject import failed; no sessions were imported: $error'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
     }
 
     int newCount = 0;
@@ -1557,7 +1582,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Import complete: $newCount added, $dupCount duplicates skipped.'),
+          content: Text('Import complete: $newCount sessions added, $dupCount session duplicates skipped, ${subjectImportResult?.added ?? 0} subjects added, ${subjectImportResult?.skipped ?? 0} subjects skipped.'),
           behavior: SnackBarBehavior.floating,
         ),
       );

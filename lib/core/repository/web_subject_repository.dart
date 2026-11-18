@@ -185,6 +185,58 @@ class WebSubjectRepository implements SubjectRepository {
   }
 
   @override
+  Future<SubjectImportResult> importSubjects(
+    Iterable<Subject> subjects,
+  ) async {
+    _ensureWritable();
+    final normalized = subjects
+        .map((subject) => subject.copyWith(
+              name: normalizeSubjectName(subject.name),
+            ))
+        .toList(growable: false);
+    final latest = await _readLatest();
+    var added = 0;
+    var duplicateIds = 0;
+    var nameConflicts = 0;
+
+    for (final subject in normalized) {
+      if (latest.containsKey(subject.id)) {
+        duplicateIds++;
+        continue;
+      }
+      try {
+        ensureUniqueActiveSubjectName(subject, latest.values);
+      } on SubjectNameConflictException {
+        nameConflicts++;
+        continue;
+      }
+      latest[subject.id] = subject;
+      added++;
+    }
+
+    if (added > 0) {
+      final payload = jsonEncode(
+        latest.values.map((subject) => subject.toMap()).toList(),
+      );
+      final saved = await _prefs.setString(storageKey, payload);
+      if (!saved) {
+        throw StateError('Browser storage rejected the subject import.');
+      }
+      _subjects
+        ..clear()
+        ..addAll(latest);
+      _storageIssue = null;
+      _changes.add(null);
+    }
+
+    return SubjectImportResult(
+      added: added,
+      duplicateIds: duplicateIds,
+      nameConflicts: nameConflicts,
+    );
+  }
+
+  @override
   Future<void> dispose() async {
     await _changes.close();
   }

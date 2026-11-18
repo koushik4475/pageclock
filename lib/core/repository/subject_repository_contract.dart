@@ -2,6 +2,21 @@ import 'dart:async';
 
 import '../models/subject.dart';
 
+/// Result of a non-destructive subject backup import.
+class SubjectImportResult {
+  final int added;
+  final int duplicateIds;
+  final int nameConflicts;
+
+  const SubjectImportResult({
+    required this.added,
+    required this.duplicateIds,
+    required this.nameConflicts,
+  });
+
+  int get skipped => duplicateIds + nameConflicts;
+}
+
 /// Offline persistence contract for user-managed reading subjects.
 abstract class SubjectRepository {
   /// Non-null when persisted web subject data could not be decoded safely.
@@ -15,6 +30,10 @@ abstract class SubjectRepository {
   Future<void> saveSubject(Subject subject);
 
   Future<void> setArchived(String id, bool archived);
+
+  /// Adds missing backup subjects without overwriting local records.
+  /// Existing IDs and conflicting active names are reported as skipped.
+  Future<SubjectImportResult> importSubjects(Iterable<Subject> subjects);
 
   Future<void> dispose();
 }
@@ -133,6 +152,40 @@ class InMemorySubjectRepository implements SubjectRepository {
     ensureUniqueActiveSubjectName(updated, _subjects.values);
     _subjects[id] = updated;
     _changes.add(null);
+  }
+
+  @override
+  Future<SubjectImportResult> importSubjects(
+    Iterable<Subject> subjects,
+  ) async {
+    final normalized = subjects
+        .map((subject) => subject.copyWith(
+              name: normalizeSubjectName(subject.name),
+            ))
+        .toList(growable: false);
+    var added = 0;
+    var duplicateIds = 0;
+    var nameConflicts = 0;
+    for (final subject in normalized) {
+      if (_subjects.containsKey(subject.id)) {
+        duplicateIds++;
+        continue;
+      }
+      try {
+        ensureUniqueActiveSubjectName(subject, _subjects.values);
+      } on SubjectNameConflictException {
+        nameConflicts++;
+        continue;
+      }
+      _subjects[subject.id] = subject;
+      added++;
+    }
+    if (added > 0) _changes.add(null);
+    return SubjectImportResult(
+      added: added,
+      duplicateIds: duplicateIds,
+      nameConflicts: nameConflicts,
+    );
   }
 
   @override

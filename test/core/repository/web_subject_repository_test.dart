@@ -22,6 +22,38 @@ void main() {
       );
 
   group('WebSubjectRepository', () {
+    test('backup import merges once, skips duplicates and preserves conflicts', () async {
+      final prefs = await SharedPreferences.getInstance();
+      final repository = WebSubjectRepository(
+        prefs,
+        storageKey: 'subjects_guest',
+      );
+      await repository.saveSubject(subject('local', 'Reading'));
+
+      final result = await repository.importSubjects([
+        subject('local', 'Changed by backup'),
+        subject('imported', 'Coding'),
+        subject('conflict', ' reading '),
+        subject('archived', 'Old Reading', archived: true),
+      ]);
+
+      expect(result.added, 2);
+      expect(result.duplicateIds, 1);
+      expect(result.nameConflicts, 1);
+      final all = await repository.getAllSubjects();
+      expect(all, hasLength(3));
+      expect(all.singleWhere((item) => item.id == 'local').name, 'Reading');
+      expect(all.singleWhere((item) => item.id == 'archived').archived, isTrue);
+
+      final repeated = await repository.importSubjects([
+        subject('imported', 'Coding'),
+        subject('archived', 'Old Reading', archived: true),
+      ]);
+      expect(repeated.added, 0);
+      expect(repeated.duplicateIds, 2);
+      await repository.dispose();
+    });
+
     test(
       'persists active and archived subjects across repository instances',
       () async {
