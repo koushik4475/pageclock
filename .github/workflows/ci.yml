@@ -25,6 +25,22 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Assert production release waits for WebKit PWA smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          for job in android-apk publish-release; do
+            if ! awk -v job="$job" '
+              $0 == "  " job ":" { in_job=1; next }
+              /^  [A-Za-z0-9_-]+:/ && in_job { exit }
+              in_job && /^    needs:/ && /ios-webkit-smoke/ { found=1 }
+              END { exit(found ? 0 : 1) }
+            ' .github/workflows/ci.yml; then
+              echo "::error::$job must depend on ios-webkit-smoke."
+              exit 1
+            fi
+          done
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -234,7 +250,7 @@ jobs:
 
   android-apk:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [ verify-and-web ]
+    needs: [ verify-and-web, ios-webkit-smoke ]
     name: Build production Android APK (required signing)
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -448,7 +464,7 @@ jobs:
     permissions:
       contents: write
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [ verify-and-web, android-apk ]
+    needs: [ verify-and-web, android-apk, ios-webkit-smoke ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout exact main commit
