@@ -164,8 +164,11 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
             top: 16,
             left: 20,
             right: 20,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              runAlignment: WrapAlignment.start,
+              spacing: 12,
+              runSpacing: 8,
               children: [
                 IconButton(
                   icon: Icon(
@@ -176,8 +179,11 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                   tooltip: 'Exit fullscreen',
                   onPressed: () => Navigator.pop(context),
                 ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 4,
+                  runSpacing: 4,
                   children: [
                     // Screen awake toggle
                     IconButton(
@@ -191,7 +197,6 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                       tooltip: _wakelockActive ? 'Screen keep-alive ON' : 'Screen keep-alive OFF',
                       onPressed: _toggleWakelock,
                     ),
-                    const SizedBox(width: 4),
 
                     // Backdrop theme switcher if in special1
                     if (widget.isSpecial1)
@@ -204,14 +209,13 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                         tooltip: _usePastelBackdrop ? 'Switch to OLED Black' : 'Switch to Pastel',
                         onPressed: () => setState(() => _usePastelBackdrop = !_usePastelBackdrop),
                       ),
-                    const SizedBox(width: 8),
 
                     // Mode Switcher: Focus Countdown ⇄ Mac Wall Clock
                     InkWell(
                       onTap: () => setState(() => _showWallClock = !_showWallClock),
                       borderRadius: BorderRadius.circular(20),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                         decoration: BoxDecoration(
                           color: surfaceColor,
                           borderRadius: BorderRadius.circular(20),
@@ -299,13 +303,24 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
 
           // Bottom Calm Controls: Pause / Resume and Stop
           Positioned(
-            bottom: 40,
             left: 0,
             right: 0,
-            child: Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+            bottom: 0,
+            child: SafeArea(
+              top: false,
+              minimum: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+              child: LayoutBuilder(
+                builder: (context, constraints) => Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: constraints.maxWidth,
+                    ),
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
                   // Play / Pause Button
                   InkWell(
                     onTap: () {
@@ -365,7 +380,6 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                   ),
 
                   if (isRunning || isPaused) ...[
-                    const SizedBox(width: 12),
                     // Stop Button
                     InkWell(
                       onTap: () async {
@@ -452,7 +466,10 @@ class _AppleMacFlipClockScreenState extends ConsumerState<AppleMacFlipClockScree
                       ),
                     ),
                   ],
-                ],
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
