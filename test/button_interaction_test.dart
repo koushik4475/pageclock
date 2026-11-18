@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -192,16 +193,20 @@ void main() {
       await tester.tap(themeTile);
       await tester.pumpAndSettle();
 
-      // Verify bottom sheet has special1
-      expect(find.text('Choose Theme'), findsOneWidget);
-      expect(find.text('special1'), findsOneWidget);
+      // Verify the Clock Studio gallery shows the user-facing theme name.
+      expect(find.text('Clock Studio'), findsOneWidget);
+      expect(find.text('Pastel Waves'), findsOneWidget);
 
-      // Tap on special1
-      await tester.tap(find.text('special1'));
+      // Select Pastel Waves (stored as the stable `special1` theme ID).
+      await tester.tap(find.text('Pastel Waves'));
       await tester.pumpAndSettle();
 
-      // Verify bottom sheet dismissed
-      expect(find.text('Choose Theme'), findsNothing);
+      // Verify the gallery closed and the stable theme ID was persisted.
+      expect(find.text('Clock Studio'), findsNothing);
+      final savedSettings = jsonDecode(
+        prefs.getString('pageclock_app_settings_v1')!,
+      ) as Map<String, dynamic>;
+      expect(savedSettings['themeId'], 'special1');
     });
   });
 }
