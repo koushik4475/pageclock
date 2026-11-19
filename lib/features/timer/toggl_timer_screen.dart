@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/account/account_scope.dart';
 import '../../core/engine/stopwatch_engine.dart';
 import '../../core/engine/pomodoro_clock.dart';
 import '../../core/engine/pomodoro_break_snapshot.dart';
@@ -19,6 +20,8 @@ import 'widgets/fullscreen_ambient_focus_screen.dart';
 
 final focusTaskDescriptionProvider = StateProvider<String>((ref) => '');
 final focusSelectedProjectProvider = StateProvider<String>((ref) => 'General Focus');
+final focusCustomProjectTagsProvider =
+    StateProvider<List<String>>((ref) => const <String>[]);
 
 /// Dual-Mode Timer Screen matching Toggl Track UI
 /// Features:
@@ -58,8 +61,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
 
   static const _pomodoroBreakStateKey = 'pageclock_pomodoro_break_state_v1';
   static const _pomodoroCompletedSessionsKey = 'pageclock_pomodoro_completed_focus_sessions_v1';
+  static const _customProjectTagsGuestKey = 'pageclock_custom_project_tags_v1_guest';
 
-  final List<String> _availableProjects = const [
+  static const List<String> _defaultProjects = [
     'General Focus',
     'Coding',
     'Reading',
@@ -67,12 +71,41 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     'Study',
   ];
 
+  String get _customProjectTagsStorageKey {
+    final scope = ref.read(accountScopeProvider);
+    return scope.isUser
+        ? 'pageclock_custom_project_tags_v1_user_${scope.userId}'
+        : _customProjectTagsGuestKey;
+  }
+
+  List<String> get _availableProjects => [
+        ..._defaultProjects,
+        ...ref.read(focusCustomProjectTagsProvider),
+      ];
+
+  List<String> _loadCustomProjectTags() {
+    final stored = ref
+            .read(sharedPreferencesProvider)
+            .getStringList(_customProjectTagsStorageKey) ??
+        const <String>[];
+    final seen = _defaultProjects.map((project) => project.toLowerCase()).toSet();
+    return stored
+        .map((tag) => tag.trim())
+        .where((tag) =>
+            tag.isNotEmpty &&
+            tag.length <= 32 &&
+            seen.add(tag.toLowerCase()))
+        .toList(growable: false);
+  }
+
   @override
   void initState() {
     super.initState();
     final settings = ref.read(settingsProvider);
     _selectedMode = settings.selectedTimerMode;
     _soundEnabled = settings.pomodoroSoundEnabled;
+    ref.read(focusCustomProjectTagsProvider.notifier).state =
+        _loadCustomProjectTags();
     ref.read(focusSelectedProjectProvider.notifier).state =
         settings.lastSelectedProject;
     _taskController = TextEditingController(
@@ -517,6 +550,101 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     }
   }
 
+  Future<String?> _createCustomProjectTag(BuildContext context) async {
+    final controller = TextEditingController();
+    try {
+      final tag = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) {
+          String? validationError;
+          return StatefulBuilder(
+            builder: (dialogContext, setDialogState) => AlertDialog(
+              title: const Text('Create custom tag'),
+              content: TextField(
+                key: const ValueKey('custom-project-tag-field'),
+                controller: controller,
+                autofocus: true,
+                maxLength: 32,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  labelText: 'Tag name',
+                  hintText: 'e.g. Product design',
+                  errorText: validationError,
+                ),
+                onChanged: (_) {
+                  if (validationError != null) {
+                    setDialogState(() => validationError = null);
+                  }
+                },
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final name = controller.text.trim();
+                    if (name.isEmpty) {
+                      setDialogState(
+                        () => validationError = 'Enter a tag name.',
+                      );
+                      return;
+                    }
+                    if (_availableProjects.any(
+                      (project) =>
+                          project.toLowerCase() == name.toLowerCase(),
+                    )) {
+                      setDialogState(
+                        () => validationError =
+                            'A project or tag with this name already exists.',
+                      );
+                      return;
+                    }
+                    Navigator.pop(dialogContext, name);
+                  },
+                  child: const Text('Create tag'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      if (tag == null) return null;
+
+      final updatedTags = [
+        ...ref.read(focusCustomProjectTagsProvider),
+        tag,
+      ];
+      final saved = await ref
+          .read(sharedPreferencesProvider)
+          .setStringList(_customProjectTagsStorageKey, updatedTags);
+      if (!saved) {
+        throw StateError('SharedPreferences rejected the custom tag.');
+      }
+
+      ref.read(focusCustomProjectTagsProvider.notifier).state = updatedTags;
+      ref.read(focusSelectedProjectProvider.notifier).state = tag;
+      await ref.read(settingsProvider.notifier).update(
+            (settings) => settings.copyWith(lastSelectedProject: tag),
+          );
+      return tag;
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not save the custom tag. Please try again.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return null;
+    } finally {
+      controller.dispose();
+    }
+  }
+
   void _showProjectPicker(BuildContext context) {
     final accent = Theme.of(context).colorScheme.primary;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -575,6 +703,27 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                       },
                     );
                   }),
+                  const Divider(height: 12),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.add_circle_outline_rounded,
+                      color: accent,
+                    ),
+                    title: const Text(
+                      'Create custom tag',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: const Text(
+                      'Add your own label for focus sessions',
+                    ),
+                    onTap: () async {
+                      final created = await _createCustomProjectTag(ctx);
+                      if (created != null && ctx.mounted) {
+                        Navigator.pop(ctx);
+                      }
+                    },
+                  ),
                 ],
               ),
             ),
@@ -921,6 +1070,18 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     final todayTotalMs = todayFocusSummary.totalMilliseconds;
     final taskDescription = ref.watch(focusTaskDescriptionProvider);
     final selectedProject = ref.watch(focusSelectedProjectProvider);
+    ref.listen<AccountScope>(accountScopeProvider, (previous, next) {
+      ref.read(focusCustomProjectTagsProvider.notifier).state =
+          _loadCustomProjectTags();
+      final selected = ref.read(focusSelectedProjectProvider);
+      if (!_availableProjects.contains(selected)) {
+        ref.read(focusSelectedProjectProvider.notifier).state = 'General Focus';
+        unawaited(ref.read(settingsProvider.notifier).update(
+              (settings) =>
+                  settings.copyWith(lastSelectedProject: 'General Focus'),
+            ));
+      }
+    });
     ref.listen<StopwatchState>(stopwatchProvider, (previous, next) {
       unawaited(
         NotificationService.syncTimer(next, ref.read(settingsProvider)),
@@ -1227,6 +1388,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
               children: [
                 Expanded(
                   child: TextField(
+                    key: const ValueKey('pomodoro-task-description'),
                     controller: _taskController,
                     onChanged: (val) =>
                         ref.read(focusTaskDescriptionProvider.notifier).state = val,
@@ -1256,6 +1418,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   Padding(
                     padding: const EdgeInsets.only(left: 8, right: 2),
                     child: DecoratedBox(
+                      key: const ValueKey('pomodoro-selected-project-tag'),
                       decoration: BoxDecoration(
                         color: accent.withOpacity(isDark ? 0.18 : 0.10),
                         borderRadius: BorderRadius.circular(8),
