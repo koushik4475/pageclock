@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/account/account_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -128,5 +129,54 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('custom Pomodoro tags stay isolated when account scope changes',
+      (tester) async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setStringList(
+      'pageclock_custom_project_tags_v1_guest',
+      ['Guest tag'],
+    );
+    await preferences.setStringList(
+      'pageclock_custom_project_tags_v1_user_user-1',
+      ['User tag'],
+    );
+    final container = ProviderContainer(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(preferences),
+        sessionRepositoryProvider.overrideWithValue(InMemorySessionRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(size: Size(360, 640)),
+            child: TogglTimerScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pomodoro'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Choose Project'));
+    await tester.pumpAndSettle();
+    expect(find.text('Guest tag'), findsOneWidget);
+    expect(find.text('User tag'), findsNothing);
+    await tester.tap(find.text('Guest tag'));
+    await tester.pumpAndSettle();
+
+    await container.read(accountScopeProvider.notifier).setUser('user-1');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Choose Project'));
+    await tester.pumpAndSettle();
+    expect(find.text('User tag'), findsOneWidget);
+    expect(find.text('Guest tag'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 
 }
