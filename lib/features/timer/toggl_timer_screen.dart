@@ -517,9 +517,71 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     }
   }
 
+  Future<void> _createCustomPomodoroProject(BuildContext context) async {
+    final controller = TextEditingController();
+    final project = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Create custom tag'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 32,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            labelText: 'Tag name',
+            hintText: 'e.g. Design, Writing, Work',
+          ),
+          onSubmitted: (value) =>
+              Navigator.pop(dialogContext, value.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, controller.text.trim()),
+            child: const Text('Create tag'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (!mounted || project == null || project.trim().isEmpty) return;
+
+    final name = project.trim();
+    final allProjects = <String>{
+      ..._availableProjects,
+      ...ref.read(settingsProvider).customPomodoroProjects,
+    };
+    final existing = allProjects.firstWhere(
+      (item) => item.toLowerCase() == name.toLowerCase(),
+      orElse: () => '',
+    );
+    final selected = existing.isEmpty ? name : existing;
+    if (existing.isEmpty) {
+      await ref.read(settingsProvider.notifier).update(
+        (current) => current.copyWith(
+          customPomodoroProjects: [...current.customPomodoroProjects, name],
+        ),
+      );
+    }
+    ref.read(focusSelectedProjectProvider.notifier).state = selected;
+    await ref.read(settingsProvider.notifier).update(
+      (current) => current.copyWith(lastSelectedProject: selected),
+    );
+    if (mounted && context.mounted) Navigator.of(context).pop();
+  }
+
   void _showProjectPicker(BuildContext context) {
     final accent = Theme.of(context).colorScheme.primary;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final projects = <String>{
+      ..._availableProjects,
+      ...ref.read(settingsProvider).customPomodoroProjects,
+    }.toList();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -547,7 +609,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  ..._availableProjects.map((project) {
+                  ...projects.map((project) {
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: Icon(Icons.circle, color: accent, size: 14),
@@ -562,19 +624,26 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                           ref.read(focusSelectedProjectProvider) == project
                               ? Icon(Icons.check_rounded, color: accent)
                               : null,
-                      onTap: () {
-                        ref
-                            .read(focusSelectedProjectProvider.notifier)
-                            .state = project;
-                        ref.read(settingsProvider.notifier).update(
-                              (settings) => settings.copyWith(
-                                lastSelectedProject: project,
-                              ),
-                            );
-                        Navigator.pop(ctx);
+                      onTap: () async {
+                        ref.read(focusSelectedProjectProvider.notifier).state =
+                            project;
+                        await ref.read(settingsProvider.notifier).update(
+                          (settings) => settings.copyWith(
+                            lastSelectedProject: project,
+                          ),
+                        );
+                        if (ctx.mounted) Navigator.pop(ctx);
                       },
                     );
                   }),
+                  const Divider(height: 24),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.add_circle_outline, color: accent),
+                    title: const Text('Create custom tag'),
+                    subtitle: const Text('Add your own project or focus area'),
+                    onTap: () => _createCustomPomodoroProject(ctx),
+                  ),
                 ],
               ),
             ),
