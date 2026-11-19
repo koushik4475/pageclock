@@ -57,4 +57,76 @@ void main() {
     expect(find.text('Build a feature'), findsOneWidget);
     expect(find.text('Coding'), findsOneWidget);
   });
+
+  testWidgets(
+    'creates a custom tag, selects it, and restores it after reopening the timer',
+    (tester) async {
+      final preferences = await SharedPreferences.getInstance();
+
+      Future<void> pumpTimer() async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              sharedPreferencesProvider.overrideWithValue(preferences),
+              sessionRepositoryProvider.overrideWithValue(
+                InMemorySessionRepository(),
+              ),
+            ],
+            child: const MaterialApp(
+              home: MediaQuery(
+                data: MediaQueryData(size: Size(360, 640)),
+                child: TogglTimerScreen(),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await pumpTimer();
+      await tester.tap(find.text('Pomodoro'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Choose Project'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Create custom tag'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('custom-project-tag-field')),
+        'Research',
+      );
+      await tester.tap(find.text('Create tag'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('pomodoro-selected-project-tag')),
+          findsOneWidget);
+      expect(find.text('Research'), findsOneWidget);
+      final focusField = tester.widget<TextField>(
+        find.byKey(const ValueKey('pomodoro-task-description')),
+      );
+      expect(focusField.decoration?.hintText, "I'm focusing on Research...");
+      expect(
+        preferences.getStringList('pageclock_custom_project_tags_v1_guest'),
+        ['Research'],
+      );
+
+      // Recreate the screen with the same device store to simulate an app
+      // restart; the custom tag and last selected project must survive.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await pumpTimer();
+
+      final restoredField = tester.widget<TextField>(
+        find.byKey(const ValueKey('pomodoro-task-description')),
+      );
+      expect(
+        restoredField.decoration?.hintText,
+        "I'm focusing on Research...",
+      );
+      await tester.tap(find.byTooltip('Choose Project'));
+      await tester.pumpAndSettle();
+      expect(find.text('Research'), findsWidgets);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
 }
