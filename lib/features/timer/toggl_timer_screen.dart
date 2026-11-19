@@ -1071,6 +1071,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     final taskDescription = ref.watch(focusTaskDescriptionProvider);
     final selectedProject = ref.watch(focusSelectedProjectProvider);
     ref.listen<AccountScope>(accountScopeProvider, (previous, next) {
+      if (previous == next) return;
       ref.read(focusCustomProjectTagsProvider.notifier).state =
           _loadCustomProjectTags();
       final selected = ref.read(focusSelectedProjectProvider);
