@@ -59,13 +59,14 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   static const _pomodoroBreakStateKey = 'pageclock_pomodoro_break_state_v1';
   static const _pomodoroCompletedSessionsKey = 'pageclock_pomodoro_completed_focus_sessions_v1';
 
-  final List<String> _availableProjects = const [
-    'General Focus',
-    'Coding',
-    'Reading',
-    'Deep Work',
-    'Study',
-  ];
+  List<String> get _availableProjects => [
+        'General Focus',
+        'Coding',
+        'Reading',
+        'Deep Work',
+        'Study',
+        ...ref.read(settingsProvider).customPomodoroProjects,
+      ];
 
   @override
   void initState() {
@@ -578,10 +579,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   void _showProjectPicker(BuildContext context) {
     final accent = Theme.of(context).colorScheme.primary;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final projects = <String>{
-      ..._availableProjects,
-      ...ref.read(settingsProvider).customPomodoroProjects,
-    }.toList();
+    final projects = _availableProjects;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
