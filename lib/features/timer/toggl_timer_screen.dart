@@ -575,11 +575,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     );
   }
 
-  void _showProjectPicker(BuildContext context) {
+  Future<void> _showProjectPicker(BuildContext context) async {
     final accent = Theme.of(context).colorScheme.primary;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final projects = _availableProjects;
-    showModalBottomSheet(
+    final selection = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
@@ -621,16 +621,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                           ref.read(focusSelectedProjectProvider) == project
                               ? Icon(Icons.check_rounded, color: accent)
                               : null,
-                      onTap: () async {
-                        ref.read(focusSelectedProjectProvider.notifier).state =
-                            project;
-                        await ref.read(settingsProvider.notifier).update(
-                          (settings) => settings.copyWith(
-                            lastSelectedProject: project,
-                          ),
-                        );
-                        if (ctx.mounted) Navigator.pop(ctx);
-                      },
+                      onTap: () => Navigator.pop(ctx, project),
                     );
                   }),
                   const Divider(height: 24),
@@ -639,10 +630,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     leading: Icon(Icons.add_circle_outline, color: accent),
                     title: const Text('Create custom tag'),
                     subtitle: const Text('Add your own project or focus area'),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      _createCustomPomodoroProject(context);
-                    },
+                    onTap: () => Navigator.pop(ctx, '__create_custom_tag__'),
                   ),
                 ],
               ),
@@ -650,6 +638,15 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           ),
         ),
       ),
+    );
+    if (!context.mounted || selection == null) return;
+    if (selection == '__create_custom_tag__') {
+      await _createCustomPomodoroProject(context);
+      return;
+    }
+    ref.read(focusSelectedProjectProvider.notifier).state = selection;
+    await ref.read(settingsProvider.notifier).update(
+      (settings) => settings.copyWith(lastSelectedProject: selection),
     );
   }
 
