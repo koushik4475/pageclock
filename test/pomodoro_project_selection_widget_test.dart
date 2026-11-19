@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,7 +15,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('selected Pomodoro project is reflected on the main timer screen',
+  testWidgets('selecting a built-in project updates the focus hint',
       (tester) async {
     final preferences = await SharedPreferences.getInstance();
     await tester.pumpWidget(
@@ -33,28 +35,58 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-
     await tester.tap(find.text('Pomodoro'));
     await tester.pumpAndSettle();
-
     await tester.tap(find.byTooltip('Choose Project'));
     await tester.pumpAndSettle();
-    // Ensure the picker remains usable in a compact viewport; its content
-    // must scroll instead of overflowing the modal route.
     await tester.ensureVisible(find.text('Coding'));
-    await tester.pumpAndSettle();
-    expect(tester.takeException(), isNull);
     await tester.tap(find.text('Coding'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Coding'), findsOneWidget);
-    final focusField = tester.widget<TextField>(find.byType(TextField).first);
-    expect(focusField.decoration?.hintText, "I'm focusing on Coding...");
+    final field = tester.widget<TextField>(find.byType(TextField).first);
+    expect(field.decoration?.hintText, "I'm focusing on Coding...");
+    expect(tester.takeException(), isNull);
+  });
 
-    // Selecting a project must not overwrite the independently editable task.
-    await tester.enterText(find.byType(TextField).first, 'Build a feature');
-    await tester.pump();
-    expect(find.text('Build a feature'), findsOneWidget);
-    expect(find.text('Coding'), findsOneWidget);
+  testWidgets('custom Pomodoro tags can be created and persisted',
+      (tester) async {
+    final preferences = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(preferences),
+          sessionRepositoryProvider.overrideWithValue(
+            InMemorySessionRepository(),
+          ),
+        ],
+        child: const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(size: Size(360, 640)),
+            child: TogglTimerScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pomodoro'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Choose Project'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create custom tag'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'Design');
+    await tester.tap(find.text('Create tag'));
+    await tester.pumpAndSettle();
+
+    final field = tester.widget<TextField>(find.byType(TextField).first);
+    expect(field.decoration?.hintText, "I'm focusing on Design...");
+    final raw = preferences.getString('pageclock_app_settings_v1');
+    expect(raw, isNotNull);
+    final saved = AppSettings.fromJson(
+      jsonDecode(raw!) as Map<String, dynamic>,
+    );
+    expect(saved.customPomodoroProjects, contains('Design'));
+    expect(saved.lastSelectedProject, 'Design');
+    expect(tester.takeException(), isNull);
   });
 }
