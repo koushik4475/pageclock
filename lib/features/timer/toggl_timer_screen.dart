@@ -519,13 +519,12 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   }
 
   Future<void> _createCustomPomodoroProject(BuildContext context) async {
-    final controller = TextEditingController();
+    var projectDraft = '';
     final project = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Create custom tag'),
         content: TextField(
-          controller: controller,
           autofocus: true,
           maxLength: 32,
           textCapitalization: TextCapitalization.words,
@@ -533,6 +532,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
             labelText: 'Tag name',
             hintText: 'e.g. Design, Writing, Work',
           ),
+          onChanged: (value) => projectDraft = value,
           onSubmitted: (value) =>
               Navigator.pop(dialogContext, value.trim()),
         ),
@@ -543,13 +543,12 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           ),
           FilledButton(
             onPressed: () =>
-                Navigator.pop(dialogContext, controller.text.trim()),
+                Navigator.pop(dialogContext, projectDraft.trim()),
             child: const Text('Create tag'),
           ),
         ],
       ),
     );
-    controller.dispose();
     if (!mounted || project == null || project.trim().isEmpty) return;
 
     final name = project.trim();
