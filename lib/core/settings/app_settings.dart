@@ -33,6 +33,7 @@ class AppSettings {
   final bool pomodoroAutoStart;
   final int selectedTimerMode; // 0: List view, 1: Pomodoro
   final String lastSelectedProject;
+  final List<String> customPomodoroProjects;
   final int minSessionSeconds; // default 10 seconds
   final bool promptRunningEntryOverride;
   final String profileName;
@@ -67,6 +68,7 @@ class AppSettings {
     this.pomodoroAutoStart = false,
     this.selectedTimerMode = 0,
     this.lastSelectedProject = 'General Focus',
+    this.customPomodoroProjects = const <String>[],
     this.minSessionSeconds = 10,
     this.promptRunningEntryOverride = true,
     this.profileName = '',
@@ -102,6 +104,7 @@ class AppSettings {
     bool? pomodoroAutoStart,
     int? selectedTimerMode,
     String? lastSelectedProject,
+    List<String>? customPomodoroProjects,
     int? minSessionSeconds,
     bool? promptRunningEntryOverride,
     String? profileName,
@@ -136,6 +139,7 @@ class AppSettings {
       pomodoroAutoStart: pomodoroAutoStart ?? this.pomodoroAutoStart,
       selectedTimerMode: selectedTimerMode ?? this.selectedTimerMode,
       lastSelectedProject: lastSelectedProject ?? this.lastSelectedProject,
+      customPomodoroProjects: customPomodoroProjects ?? this.customPomodoroProjects,
       minSessionSeconds: minSessionSeconds ?? this.minSessionSeconds,
       promptRunningEntryOverride: promptRunningEntryOverride ?? this.promptRunningEntryOverride,
       profileName: profileName ?? this.profileName,
@@ -173,6 +177,7 @@ class AppSettings {
       'pomodoroAutoStart': pomodoroAutoStart,
       'selectedTimerMode': selectedTimerMode,
       'lastSelectedProject': lastSelectedProject,
+      'customPomodoroProjects': customPomodoroProjects,
       'minSessionSeconds': minSessionSeconds,
       'promptRunningEntryOverride': promptRunningEntryOverride,
       'profileName': profileName,
@@ -210,6 +215,12 @@ class AppSettings {
       pomodoroAutoStart: json['pomodoroAutoStart'] as bool? ?? false,
       selectedTimerMode: (json['selectedTimerMode'] as num?)?.toInt() ?? 0,
       lastSelectedProject: json['lastSelectedProject'] as String? ?? 'General Focus',
+      customPomodoroProjects: (json['customPomodoroProjects'] as List<dynamic>? ?? const <dynamic>[])
+          .whereType<String>()
+          .map((project) => project.trim())
+          .where((project) => project.isNotEmpty)
+          .toSet()
+          .toList(),
       minSessionSeconds: (json['minSessionSeconds'] as num?)?.toInt() ?? 10,
       promptRunningEntryOverride: json['promptRunningEntryOverride'] as bool? ?? true,
       profileName: json['profileName'] as String? ?? '',
