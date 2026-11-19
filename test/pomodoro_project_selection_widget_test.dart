@@ -45,6 +45,10 @@ void main() {
 
     final field = tester.widget<TextField>(find.byType(TextField).first);
     expect(field.decoration?.hintText, "I'm focusing on Coding...");
+    // The project tag is independent from the user's editable task description.
+    await tester.enterText(find.byType(TextField).first, 'Build a feature');
+    await tester.pump();
+    expect(find.text('Build a feature'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
