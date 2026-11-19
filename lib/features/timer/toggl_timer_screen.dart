@@ -104,15 +104,18 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     final settings = ref.read(settingsProvider);
     _selectedMode = settings.selectedTimerMode;
     _soundEnabled = settings.pomodoroSoundEnabled;
-    ref.read(focusCustomProjectTagsProvider.notifier).state =
-        _loadCustomProjectTags();
-    ref.read(focusSelectedProjectProvider.notifier).state =
-        settings.lastSelectedProject;
     _taskController = TextEditingController(
       text: ref.read(focusTaskDescriptionProvider),
     );
+    // Provider state is restored after the first frame to avoid modifying
+    // Riverpod state from a widget lifecycle callback.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(_restorePomodoroState());
+      if (!mounted) return;
+      ref.read(focusCustomProjectTagsProvider.notifier).state =
+          _loadCustomProjectTags();
+      ref.read(focusSelectedProjectProvider.notifier).state =
+          settings.lastSelectedProject;
+      unawaited(_restorePomodoroState());
     });
   }
 
