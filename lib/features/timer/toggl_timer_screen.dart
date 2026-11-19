@@ -573,7 +573,6 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     await ref.read(settingsProvider.notifier).update(
       (current) => current.copyWith(lastSelectedProject: selected),
     );
-    if (mounted && context.mounted) Navigator.of(context).pop();
   }
 
   void _showProjectPicker(BuildContext context) {
@@ -640,7 +639,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     leading: Icon(Icons.add_circle_outline, color: accent),
                     title: const Text('Create custom tag'),
                     subtitle: const Text('Add your own project or focus area'),
-                    onTap: () => _createCustomPomodoroProject(ctx),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _createCustomPomodoroProject(context);
+                    },
                   ),
                 ],
               ),
