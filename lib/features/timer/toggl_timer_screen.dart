@@ -551,7 +551,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   }
 
   Future<String?> _createCustomProjectTag(BuildContext context) async {
-    final controller = TextEditingController();
+    var tagDraft = '';
     try {
       final tag = await showDialog<String>(
         context: context,
@@ -562,7 +562,6 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
               title: const Text('Create custom tag'),
               content: TextField(
                 key: const ValueKey('custom-project-tag-field'),
-                controller: controller,
                 autofocus: true,
                 maxLength: 32,
                 textCapitalization: TextCapitalization.sentences,
@@ -571,7 +570,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   hintText: 'e.g. Product design',
                   errorText: validationError,
                 ),
-                onChanged: (_) {
+                onChanged: (value) {
+                  tagDraft = value;
                   if (validationError != null) {
                     setDialogState(() => validationError = null);
                   }
@@ -584,7 +584,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 ),
                 FilledButton(
                   onPressed: () {
-                    final name = controller.text.trim();
+                    final name = tagDraft.trim();
                     if (name.isEmpty) {
                       setDialogState(
                         () => validationError = 'Enter a tag name.',
@@ -640,8 +640,6 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
         );
       }
       return null;
-    } finally {
-      controller.dispose();
     }
   }
 
