@@ -29,6 +29,25 @@ void main() {
       expect(splits[day2], equals(30));
     });
 
+    test('Daily totals round once after aggregating short sessions', () {
+      final start = DateTime.utc(2026, 11, 20, 9).millisecondsSinceEpoch;
+      final sessions = List.generate(2, (index) {
+        final sessionStart = start + index * 60000;
+        return ReadingSession(
+          id: 'short-$index',
+          startedAtUtc: sessionStart,
+          endedAtUtc: sessionStart + 30 * 1000,
+          durationMs: 30 * 1000,
+          tzOffsetMin: 0,
+          createdAt: sessionStart,
+          updatedAt: sessionStart + 30 * 1000,
+        );
+      });
+
+      final totals = StatsEngine.calculateDailyTotals(sessions);
+      expect(totals[DateTime(2026, 11, 20)], equals(1));
+    });
+
     test('Consistency calculation & streaks', () {
       final today = DateTime(2026, 11, 10);
       final dailyTotals = {
