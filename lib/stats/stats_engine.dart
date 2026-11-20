@@ -84,6 +84,23 @@ class StatsEngine {
     ReadingSession session, {
     int? nowUtcMs,
   }) {
+    final millisecondsByDay = _splitSessionByLocalDayMilliseconds(
+      session,
+      nowUtcMs: nowUtcMs,
+    );
+    return {
+      for (final entry in millisecondsByDay.entries)
+        if (entry.value > 0) entry.key: (entry.value / 60000).round(),
+    };
+  }
+
+  /// Returns unrounded focused milliseconds for each stored-offset local day.
+  /// Keeping the millisecond totals intact until all sessions are aggregated
+  /// prevents short entries from being rounded independently and overcounted.
+  static Map<DateTime, int> _splitSessionByLocalDayMilliseconds(
+    ReadingSession session, {
+    int? nowUtcMs,
+  }) {
     if (session.deletedAt != null) return {};
 
     final offsetMs = session.tzOffsetMin * 60000;
@@ -109,11 +126,7 @@ class StatsEngine {
         current = windowEnd;
       }
     }
-
-    return {
-      for (final entry in millisecondsByDay.entries)
-        if (entry.value > 0) entry.key: (entry.value / 60000).round(),
-    };
+    return millisecondsByDay;
   }
 
   /// Returns focused milliseconds whose stored-offset local timestamps overlap
@@ -219,18 +232,23 @@ class StatsEngine {
   }
 
   /// Calculates daily totals for a range of sessions
+  /// Aggregates exact milliseconds across sessions, then rounds once per day.
   static Map<DateTime, int> calculateDailyTotals(List<ReadingSession> sessions) {
-    final dailyTotals = <DateTime, int>{};
+    final millisecondsByDay = <DateTime, int>{};
 
     for (final session in sessions) {
       if (session.deletedAt != null) continue;
-      final splits = splitSessionByLocalDay(session);
-      splits.forEach((date, minutes) {
-        dailyTotals[date] = (dailyTotals[date] ?? 0) + minutes;
+      final splits = _splitSessionByLocalDayMilliseconds(session);
+      splits.forEach((date, milliseconds) {
+        millisecondsByDay[date] =
+            (millisecondsByDay[date] ?? 0) + milliseconds;
       });
     }
 
-    return dailyTotals;
+    return {
+      for (final entry in millisecondsByDay.entries)
+        if (entry.value > 0) entry.key: (entry.value / 60000).round(),
+    };
   }
 
   /// Calculates consistency percentage for a given window (e.g. 7, 30, 90 days)
