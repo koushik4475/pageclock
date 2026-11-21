@@ -79,6 +79,23 @@ void main() {
       expect(streaks.currentStreak, equals(3));
     });
 
+    test('Best streaks use calendar adjacency across 23-hour and 25-hour gaps', () {
+      final adjacentDatePairs = <List<DateTime>>[
+        [DateTime.utc(2026, 3, 8, 1), DateTime.utc(2026, 3, 9)],
+        [DateTime.utc(2026, 11, 1), DateTime.utc(2026, 11, 2, 1)],
+      ];
+
+      for (final pair in adjacentDatePairs) {
+        final dailyTotals = {pair[0]: 10, pair[1]: 10};
+        final streaks = StatsEngine.calculateStreaks(
+          dailyTotals: dailyTotals,
+          today: pair[1],
+          thresholdMinutes: 10,
+        );
+        expect(streaks.bestStreak, 2);
+      }
+    });
+
     test('4-Week Linear Regression Trend Detection', () {
       final today = DateTime(2026, 11, 23); // Monday
       // Construct increasing reading totals over 4 weeks
