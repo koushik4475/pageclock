@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -39,6 +40,7 @@ class TogglSettingsScreen extends ConsumerStatefulWidget {
 class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
   bool _checkingForUpdates = false;
   String? _updateStatus;
+  final AudioPlayer _soundPreviewPlayer = AudioPlayer();
 
   String _completionSoundLabel(String id) {
     const labels = {
@@ -49,6 +51,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
       'bell': 'Bell • Gentle chime (planned)',
       'classic': 'Classic • Clock alert (planned)',
       'silent': 'Silent • No sound',
+      'custom': 'Custom • Selected audio file',
     };
     return labels[id] ?? labels['calm']!;
   }
@@ -62,6 +65,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
       ('bell', 'Bell', 'Bell chime — audio pack not yet included'),
       ('classic', 'Classic', 'Classic alert — audio pack not yet included'),
       ('silent', 'Silent', 'No sound'),
+      ('custom', 'Custom sound', 'Choose an audio file to use as your preview'),
     ];
     final selected = await showDialog<String>(
       context: context,
@@ -104,7 +108,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     }
   }
 
-  Future<void> _handleSignOut() async {
+  @override\n  void dispose() {\n    _soundPreviewPlayer.dispose();\n    super.dispose();\n  }\n\n  Future<void> _handleSignOut() async {
     final auth = ref.read(authControllerProvider.notifier);
     if (auth.isTimerActive()) {
       ScaffoldMessenger.of(context).showSnackBar(
