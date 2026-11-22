@@ -790,11 +790,44 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       body: 'Time for a ${longBreakDue ? 'long' : 'short'} break.',
     ));
     if (settings.pomodoroSoundEnabled) {
-      SystemSound.play(SystemSoundType.alert);
+      HapticFeedback.mediumImpact();
     }
     if (settings.pomodoroAutoStart) {
       _startPomodoroBreak(context);
+    } else {
+      unawaited(_showFocusCompleteDialog(context, longBreakDue));
     }
+  }
+
+  Future<void> _showFocusCompleteDialog(
+    BuildContext context,
+    bool isLongBreak,
+  ) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Nicely done!'),
+        content: Text(
+          'Your focus session is complete. Take a moment to relax. '
+          'Your ${isLongBreak ? 'long' : 'short'} break is ready.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Finish for now'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              if (mounted) _startPomodoroBreak(context);
+            },
+            child: const Text('Start my break'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _startPomodoroBreak(BuildContext context) {
@@ -861,7 +894,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       body: 'Ready for another focus session?',
     ));
     if (settings.pomodoroSoundEnabled) {
-      SystemSound.play(SystemSoundType.alert);
+      HapticFeedback.mediumImpact();
+    }
+    if (!settings.pomodoroAutoStart) {
+      unawaited(_showBreakCompleteDialog(context));
     }
     setState(() {
       _isPomodoroBreak = false;
@@ -884,6 +920,37 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     }
   }
 
+  Future<void> _showBreakCompleteDialog(BuildContext context) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Break complete'),
+        content: const Text('Ready to focus again?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Finish for now'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              if (mounted) {
+                _startNewSession(
+                  context,
+                  project: ref.read(focusSelectedProjectProvider),
+                  description: _taskController.text,
+                );
+              }
+            },
+            child: const Text('Start focusing again'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _triggerHaptic() {
     if (ref.read(settingsProvider).enableHaptics) {
       HapticFeedback.selectionClick();
@@ -896,7 +963,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           (settings) => settings.copyWith(pomodoroSoundEnabled: enabled),
         );
     setState(() => _soundEnabled = enabled);
-    if (enabled) SystemSound.play(SystemSoundType.alert);
+    if (enabled) HapticFeedback.selectionClick();
   }
 
   @override
