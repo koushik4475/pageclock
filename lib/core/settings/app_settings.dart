@@ -30,7 +30,8 @@ class AppSettings {
   final int pomodoroLongBreakMinutes;
   final int pomodoroLongBreakInterval;
   final bool pomodoroSoundEnabled;
-  final String completionSoundTheme; // calm, rain, forest, ocean, bell, classic, silent
+  final String completionSoundTheme; // calm, rain, forest, ocean, bell, classic, silent, custom
+  final String completionSoundCustomPath;
   final bool pomodoroAutoStart;
   final int selectedTimerMode; // 0: List view, 1: Pomodoro
   final String lastSelectedProject;
@@ -66,6 +67,7 @@ class AppSettings {
     this.pomodoroLongBreakInterval = 4,
     this.pomodoroSoundEnabled = true,
     this.completionSoundTheme = 'calm',
+    this.completionSoundCustomPath = '',
     this.pomodoroAutoStart = false,
     this.selectedTimerMode = 0,
     this.lastSelectedProject = 'General Focus',
@@ -102,6 +104,7 @@ class AppSettings {
     int? pomodoroLongBreakInterval,
     bool? pomodoroSoundEnabled,
     String? completionSoundTheme,
+    String? completionSoundCustomPath,
     bool? pomodoroAutoStart,
     int? selectedTimerMode,
     String? lastSelectedProject,
@@ -137,6 +140,7 @@ class AppSettings {
       pomodoroLongBreakInterval: pomodoroLongBreakInterval ?? this.pomodoroLongBreakInterval,
       pomodoroSoundEnabled: pomodoroSoundEnabled ?? this.pomodoroSoundEnabled,
       completionSoundTheme: completionSoundTheme ?? this.completionSoundTheme,
+      completionSoundCustomPath: completionSoundCustomPath ?? this.completionSoundCustomPath,
       pomodoroAutoStart: pomodoroAutoStart ?? this.pomodoroAutoStart,
       selectedTimerMode: selectedTimerMode ?? this.selectedTimerMode,
       lastSelectedProject: lastSelectedProject ?? this.lastSelectedProject,
@@ -175,6 +179,7 @@ class AppSettings {
       'pomodoroLongBreakInterval': pomodoroLongBreakInterval,
       'pomodoroSoundEnabled': pomodoroSoundEnabled,
       'completionSoundTheme': completionSoundTheme,
+      'completionSoundCustomPath': completionSoundCustomPath,
       'pomodoroAutoStart': pomodoroAutoStart,
       'selectedTimerMode': selectedTimerMode,
       'lastSelectedProject': lastSelectedProject,
@@ -213,6 +218,7 @@ class AppSettings {
       pomodoroLongBreakInterval: (json['pomodoroLongBreakInterval'] as num?)?.toInt() ?? 4,
       pomodoroSoundEnabled: json['pomodoroSoundEnabled'] as bool? ?? true,
       completionSoundTheme: json['completionSoundTheme'] as String? ?? 'calm',
+      completionSoundCustomPath: json['completionSoundCustomPath'] as String? ?? '',
       pomodoroAutoStart: json['pomodoroAutoStart'] as bool? ?? false,
       selectedTimerMode: (json['selectedTimerMode'] as num?)?.toInt() ?? 0,
       lastSelectedProject: json['lastSelectedProject'] as String? ?? 'General Focus',
