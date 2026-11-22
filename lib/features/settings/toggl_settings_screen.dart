@@ -58,53 +58,83 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
 
   Future<void> _showCompletionSoundPicker(BuildContext context, AppSettings settings) async {
     const themes = [
-      ('calm', 'Calm', 'A gentle system alert preview'),
-      ('rain', 'Rain', 'Rain ambience — audio pack not yet included'),
-      ('forest', 'Forest', 'Nature ambience — audio pack not yet included'),
-      ('ocean', 'Ocean', 'Wave ambience — audio pack not yet included'),
-      ('bell', 'Bell', 'Bell chime — audio pack not yet included'),
-      ('classic', 'Classic', 'Classic alert — audio pack not yet included'),
+      ('calm', 'Calm', 'Gentle system alert'),
+      ('rain', 'Rain', 'Rain ambience (pack not bundled yet)'),
+      ('forest', 'Forest', 'Nature ambience (pack not bundled yet)'),
+      ('ocean', 'Ocean', 'Wave ambience (pack not bundled yet)'),
+      ('bell', 'Bell', 'Gentle chime (pack not bundled yet)'),
+      ('classic', 'Classic', 'Classic alert (pack not bundled yet)'),
       ('silent', 'Silent', 'No sound'),
-      ('custom', 'Custom sound', 'Choose an audio file to use as your preview'),
     ];
     final selected = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          title: const Text('Completion sound'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: themes.map((theme) => RadioListTile<String>(
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Completion sound'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ...themes.map((theme) => RadioListTile<String>(
               value: theme.$1,
               groupValue: settings.completionSoundTheme,
               title: Text(theme.$2),
               subtitle: Text(theme.$3),
               onChanged: (value) async {
                 if (value == null) return;
-                setDialogState(() {});
-                if (value == 'calm') {
-                  await SystemSound.play(SystemSoundType.alert);
-                  if (dialogContext.mounted) Navigator.pop(dialogContext, value);
-                } else if (value == 'silent') {
+                if (value == 'calm') await SystemSound.play(SystemSoundType.alert);
+                if (value == 'silent') {
+                  Navigator.pop(dialogContext, value);
+                } else if (value == 'calm') {
                   Navigator.pop(dialogContext, value);
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('This sound pack is not included yet.')),
+                    const SnackBar(content: Text('This sound pack is not bundled yet.')),
                   );
                 }
               },
-            )).toList(),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            )),
+            ListTile(
+              leading: const Icon(Icons.audio_file),
+              title: const Text('Choose custom audio'),
+              subtitle: Text(settings.completionSoundCustomPath.isEmpty
+                  ? 'Select an audio file from your device'
+                  : settings.completionSoundCustomPath.split('/').last),
+              onTap: () async {
+                final result = await FilePicker.platform.pickFiles(type: FileType.audio);
+                final path = result?.files.single.path;
+                if (path == null || !dialogContext.mounted) return;
+                await ref.read(settingsProvider.notifier).update((s) =>
+                  s.copyWith(completionSoundTheme: 'custom', completionSoundCustomPath: path));
+                try {
+                  await _soundPreviewPlayer.stop();
+                  await _soundPreviewPlayer.play(DeviceFileSource(path));
+                } catch (_) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Could not preview this audio file.')),
+                    );
+                  }
+                }
+                if (dialogContext.mounted) Navigator.pop(dialogContext, 'custom');
+              },
+            ),
+            if (settings.completionSoundTheme == 'custom' &&
+                settings.completionSoundCustomPath.isNotEmpty)
+              TextButton.icon(
+                icon: const Icon(Icons.play_arrow),
+                label: const Text('Preview selected custom sound'),
+                onPressed: () async {
+                  await _soundPreviewPlayer.stop();
+                  await _soundPreviewPlayer.play(DeviceFileSource(settings.completionSoundCustomPath));
+                },
+              ),
           ],
         ),
+        actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Close'))],
       ),
     );
-    if (selected != null) {
-      await ref.read(settingsProvider.notifier).update(
-        (current) => current.copyWith(completionSoundTheme: selected),
-      );
+    if (selected != null && selected != 'custom') {
+      await ref.read(settingsProvider.notifier).update((current) =>
+        current.copyWith(completionSoundTheme: selected));
     }
   }
 
