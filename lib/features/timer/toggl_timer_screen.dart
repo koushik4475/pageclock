@@ -11,6 +11,7 @@ import '../../core/models/reading_session.dart';
 import '../../core/repository/session_repository.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/services/notification_service.dart';
+import '../../core/services/completion_sound_service.dart';
 import '../../core/theme/theme_provider.dart';
 import '../../main.dart';
 import '../../stats/stats_engine.dart';
@@ -791,6 +792,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     ));
     if (settings.pomodoroSoundEnabled) {
       HapticFeedback.mediumImpact();
+      unawaited(CompletionSoundService.play(settings));
     }
     if (settings.pomodoroAutoStart) {
       _startPomodoroBreak(context);
@@ -895,6 +897,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     ));
     if (settings.pomodoroSoundEnabled) {
       HapticFeedback.mediumImpact();
+      unawaited(CompletionSoundService.play(settings));
     }
     if (!settings.pomodoroAutoStart) {
       unawaited(_showBreakCompleteDialog(context));
