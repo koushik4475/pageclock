@@ -40,6 +40,70 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
   bool _checkingForUpdates = false;
   String? _updateStatus;
 
+  String _completionSoundLabel(String id) {
+    const labels = {
+      'calm': 'Calm • Gentle alert',
+      'rain': 'Rain • Soft ambience (planned)',
+      'forest': 'Forest • Nature ambience (planned)',
+      'ocean': 'Ocean • Waves (planned)',
+      'bell': 'Bell • Gentle chime (planned)',
+      'classic': 'Classic • Clock alert (planned)',
+      'silent': 'Silent • No sound',
+    };
+    return labels[id] ?? labels['calm']!;
+  }
+
+  Future<void> _showCompletionSoundPicker(BuildContext context, AppSettings settings) async {
+    const themes = [
+      ('calm', 'Calm', 'A gentle system alert preview'),
+      ('rain', 'Rain', 'Rain ambience — audio pack not yet included'),
+      ('forest', 'Forest', 'Nature ambience — audio pack not yet included'),
+      ('ocean', 'Ocean', 'Wave ambience — audio pack not yet included'),
+      ('bell', 'Bell', 'Bell chime — audio pack not yet included'),
+      ('classic', 'Classic', 'Classic alert — audio pack not yet included'),
+      ('silent', 'Silent', 'No sound'),
+    ];
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Completion sound'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: themes.map((theme) => RadioListTile<String>(
+              value: theme.$1,
+              groupValue: settings.completionSoundTheme,
+              title: Text(theme.$2),
+              subtitle: Text(theme.$3),
+              onChanged: (value) async {
+                if (value == null) return;
+                setDialogState(() {});
+                if (value == 'calm') {
+                  await SystemSound.play(SystemSoundType.alert);
+                  if (dialogContext.mounted) Navigator.pop(dialogContext, value);
+                } else if (value == 'silent') {
+                  Navigator.pop(dialogContext, value);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('This sound pack is not included yet.')),
+                  );
+                }
+              },
+            )).toList(),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+          ],
+        ),
+      ),
+    );
+    if (selected != null) {
+      await ref.read(settingsProvider.notifier).update(
+        (current) => current.copyWith(completionSoundTheme: selected),
+      );
+    }
+  }
+
   Future<void> _handleSignOut() async {
     final auth = ref.read(authControllerProvider.notifier);
     if (auth.isTimerActive()) {
@@ -314,6 +378,21 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                   value: settings.groupSimilar,
                   onChanged: (v) => settingsNotifier.update((s) => s.copyWith(groupSimilar: v)),
                   isDark: isDark,
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // COMPLETION SOUND THEMES
+            _buildSectionHeader('COMPLETION SOUNDS', isDark),
+            _buildCard(
+              isDark,
+              [
+                _buildTile(
+                  title: 'Completion sound theme',
+                  subtitle: _completionSoundLabel(settings.completionSoundTheme),
+                  isDark: isDark,
+                  onTap: () => _showCompletionSoundPicker(context, settings),
                 ),
               ],
             ),
