@@ -897,6 +897,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     ));
     if (settings.pomodoroSoundEnabled) {
       HapticFeedback.mediumImpact();
+      unawaited(CompletionSoundService.play(settings));
     }
     if (!settings.pomodoroAutoStart) {
       unawaited(_showBreakCompleteDialog(context));
