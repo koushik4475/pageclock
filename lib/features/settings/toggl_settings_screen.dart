@@ -138,7 +138,13 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     }
   }
 
-  @override\n  void dispose() {\n    _soundPreviewPlayer.dispose();\n    super.dispose();\n  }\n\n  Future<void> _handleSignOut() async {
+  @override
+  void dispose() {
+    _soundPreviewPlayer.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleSignOut() async {
     final auth = ref.read(authControllerProvider.notifier);
     if (auth.isTimerActive()) {
       ScaffoldMessenger.of(context).showSnackBar(
