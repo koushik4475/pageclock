@@ -789,6 +789,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       title: 'Focus session complete',
       body: 'Time for a ${longBreakDue ? 'long' : 'short'} break.',
     ));
+    if (settings.pomodoroSoundEnabled) {
+      HapticFeedback.mediumImpact();
+    }
     if (settings.pomodoroAutoStart) {
       _startPomodoroBreak(context);
     } else {
@@ -890,6 +893,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       title: 'Break complete',
       body: 'Ready for another focus session?',
     ));
+    if (settings.pomodoroSoundEnabled) {
+      HapticFeedback.mediumImpact();
+    }
     if (!settings.pomodoroAutoStart) {
       unawaited(_showBreakCompleteDialog(context));
     }
