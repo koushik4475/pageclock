@@ -113,34 +113,28 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                   leading: const Icon(Icons.audio_file),
                   title: const Text('Choose custom audio'),
                   subtitle: Text(
-                    current.completionSoundCustomPath.isEmpty
+                    current.completionSoundCustomData.isEmpty && current.completionSoundCustomPath.isEmpty
                         ? 'Choose a file to preview and use on completion'
-                        : current.completionSoundCustomPath.split('/').last,
+                        : 'Selected audio · tap to replace',
                   ),
                   onTap: () async {
                     final result = await FilePicker.platform.pickFiles(
                       type: FileType.audio,
+                      withData: true,
                     );
                     if (result == null || result.files.isEmpty) return;
-                    final path = result.files.single.path;
-                    if (path == null) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Local custom audio preview is not supported on web.',
-                            ),
-                          ),
-                        );
-                      }
+                    final picked = result.files.single;
+                    final bytes = picked.bytes;
+                    if (bytes == null || bytes.isEmpty) {
+                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not read the selected audio file. Try another file.')));
                       return;
                     }
-                    await ref.read(settingsProvider.notifier).update(
-                          (s) => s.copyWith(
-                            completionSoundTheme: 'custom',
-                            completionSoundCustomPath: path,
-                          ),
-                        );
+                    if (bytes.length > 5 * 1024 * 1024) {
+                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Audio files must be 5 MB or smaller.')));
+                      return;
+                    }
+                    await CompletionSoundService.stopPreview();
+                    await ref.read(settingsProvider.notifier).update((s) => s.copyWith(completionSoundTheme: 'custom', completionSoundCustomPath: '', completionSoundCustomData: base64Encode(bytes)));
                     if (!dialogContext.mounted) return;
                     current = ref.read(settingsProvider);
                     setDialogState(() {});
@@ -157,7 +151,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                     }
                   },
                 ),
-                if (current.completionSoundCustomPath.isNotEmpty)
+                if (current.completionSoundCustomData.isNotEmpty || current.completionSoundCustomPath.isNotEmpty)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

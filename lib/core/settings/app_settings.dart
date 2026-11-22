@@ -32,6 +32,7 @@ class AppSettings {
   final bool pomodoroSoundEnabled;
   final String completionSoundTheme; // calm, rain, forest, ocean, bell, classic, silent, custom
   final String completionSoundCustomPath;
+  final String completionSoundCustomData;
   final bool pomodoroAutoStart;
   final int selectedTimerMode; // 0: List view, 1: Pomodoro
   final String lastSelectedProject;
@@ -68,6 +69,7 @@ class AppSettings {
     this.pomodoroSoundEnabled = true,
     this.completionSoundTheme = 'calm',
     this.completionSoundCustomPath = '',
+    this.completionSoundCustomData = '',
     this.pomodoroAutoStart = false,
     this.selectedTimerMode = 0,
     this.lastSelectedProject = 'General Focus',
@@ -105,6 +107,7 @@ class AppSettings {
     bool? pomodoroSoundEnabled,
     String? completionSoundTheme,
     String? completionSoundCustomPath,
+    String? completionSoundCustomData,
     bool? pomodoroAutoStart,
     int? selectedTimerMode,
     String? lastSelectedProject,
@@ -141,6 +144,7 @@ class AppSettings {
       pomodoroSoundEnabled: pomodoroSoundEnabled ?? this.pomodoroSoundEnabled,
       completionSoundTheme: completionSoundTheme ?? this.completionSoundTheme,
       completionSoundCustomPath: completionSoundCustomPath ?? this.completionSoundCustomPath,
+      completionSoundCustomData: completionSoundCustomData ?? this.completionSoundCustomData,
       pomodoroAutoStart: pomodoroAutoStart ?? this.pomodoroAutoStart,
       selectedTimerMode: selectedTimerMode ?? this.selectedTimerMode,
       lastSelectedProject: lastSelectedProject ?? this.lastSelectedProject,
@@ -180,6 +184,7 @@ class AppSettings {
       'pomodoroSoundEnabled': pomodoroSoundEnabled,
       'completionSoundTheme': completionSoundTheme,
       'completionSoundCustomPath': completionSoundCustomPath,
+      'completionSoundCustomData': completionSoundCustomData,
       'pomodoroAutoStart': pomodoroAutoStart,
       'selectedTimerMode': selectedTimerMode,
       'lastSelectedProject': lastSelectedProject,
@@ -219,6 +224,7 @@ class AppSettings {
       pomodoroSoundEnabled: json['pomodoroSoundEnabled'] as bool? ?? true,
       completionSoundTheme: json['completionSoundTheme'] as String? ?? 'calm',
       completionSoundCustomPath: json['completionSoundCustomPath'] as String? ?? '',
+      completionSoundCustomData: json['completionSoundCustomData'] as String? ?? '',
       pomodoroAutoStart: json['pomodoroAutoStart'] as bool? ?? false,
       selectedTimerMode: (json['selectedTimerMode'] as num?)?.toInt() ?? 0,
       lastSelectedProject: json['lastSelectedProject'] as String? ?? 'General Focus',
