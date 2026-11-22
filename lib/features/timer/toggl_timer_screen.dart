@@ -887,6 +887,29 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     unawaited(_persistPomodoroBreakState());
   }
 
+  Future<void> _skipPomodoroShortBreak(BuildContext context) async {
+    if (!_isPomodoroBreak || _isLongBreak) return;
+    _pomodoroBreakTicker?.cancel();
+    setState(() {
+      _isPomodoroBreak = false;
+      _isLongBreak = false;
+      _pomodoroBreakRunning = false;
+      _pomodoroBreakDurationMs = 0;
+      _pomodoroBreakRemainingMs = 0;
+      _pomodoroBreakEndsAtUtcMs = null;
+    });
+    await _persistPomodoroBreakState();
+    if (!mounted) return;
+    final state = ref.read(stopwatchProvider);
+    if (state.status == StopwatchStatus.idle && state.currentSession == null) {
+      await _startNewSession(
+        context,
+        project: ref.read(focusSelectedProjectProvider),
+        description: _taskController.text,
+      );
+    }
+  }
+
   void _completePomodoroBreak(BuildContext context) {
     final settings = ref.read(settingsProvider);
     final autoStart = settings.pomodoroAutoStart;
@@ -1544,6 +1567,17 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
               ),
             ),
           ),
+          if (_isPomodoroBreak && !_isLongBreak) ...[
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.skip_next_rounded),
+                label: const Text('Skip short break'),
+                onPressed: () => _skipPomodoroShortBreak(context),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           const SizedBox(height: 16),
 
           // "Pomodoro settings ▶" Link
