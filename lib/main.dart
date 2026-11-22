@@ -17,6 +17,7 @@ import 'core/engine/stopwatch_engine.dart';
 import 'core/services/notification_service.dart';
 import 'core/repository/session_repository.dart';
 import 'core/settings/app_settings.dart';
+import 'core/sync/sync_coordinator.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/widgets/pageclock_brand_mark.dart';
 import 'features/app_update/app_update_service.dart';
@@ -344,6 +345,14 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
 
   @override
   Widget build(BuildContext context) {
+    // Keep the authenticated sync coordinator alive in the application shell.
+    // It otherwise remains lazy and can never push sessions if no screen reads it.
+    ref.watch(syncCoordinatorProvider);
+    ref.listen(sessionsStreamProvider, (previous, next) {
+      if (next.hasValue) {
+        ref.read(syncCoordinatorProvider.notifier).sync();
+      }
+    });
     final currentIndex = ref.watch(mainTabNavigationIndexProvider);
     final sessionsAsync = ref.watch(sessionsStreamProvider);
     final sessions = sessionsAsync.value ?? const <ReadingSession>[];
