@@ -34,7 +34,9 @@ if ! adb shell pidof com.example.pageclock; then
   exit 1
 fi
 
-adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity' | grep -F 'com.example.pageclock'
+ACTIVITY_DUMP=$(adb shell dumpsys activity activities)
+echo "$ACTIVITY_DUMP" | grep -F 'com.example.pageclock' >/dev/null || { echo '::error::PageClock is not present in Android activity stack.'; exit 1; }
+echo 'PageClock is present in activity stack.'
 adb logcat -d -v brief > "$LOG"
 if grep -A 12 -F "FATAL EXCEPTION" "$LOG" | grep -qF "com.example.pageclock"; then
   echo "::error::PageClock crashed during Android emulator launch."
