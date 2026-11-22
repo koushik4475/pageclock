@@ -172,17 +172,25 @@ Deno.serve(async (req) => {
     const signupCountries = new Map<string, Record<string, unknown>>();
     for (const row of countryRows ?? []) signupCountries.set(String(row.user_id), row);
 
+    // Keyset pagination on the unique monotonic server_seq avoids unstable
+    // offset pages when the table grows or PostgREST's row ordering changes.
     const sessions: Record<string, any>[] = [];
-    for (let from = 0; ; from += 1000) {
+    let cursor = 0;
+    const pageSize = 1000;
+    for (;;) {
       const { data, error } = await admin
         .from("reading_sessions")
-        .select("user_id, started_at_utc, ended_at_utc, duration_ms, paused_total_ms, pause_intervals, tz_offset_min, deleted_at_ms")
+        .select("user_id, server_seq, started_at_utc, ended_at_utc, duration_ms, paused_total_ms, pause_intervals, tz_offset_min, deleted_at_ms")
         .is("deleted_at_ms", null)
         .not("ended_at_utc", "is", null)
-        .range(from, from + 999);
+        .gt("server_seq", cursor)
+        .order("server_seq", { ascending: true })
+        .limit(pageSize);
       if (error) throw error;
-      sessions.push(...(data ?? []));
-      if (!data || data.length < 1000) break;
+      if (!data || data.length === 0) break;
+      sessions.push(...data);
+      cursor = Number(data[data.length - 1].server_seq);
+      if (data.length < pageSize) break;
     }
 
     const byUser = new Map<string, { total: number; count: number; last: number; offset: number; daily: Map<string, number> }>();
