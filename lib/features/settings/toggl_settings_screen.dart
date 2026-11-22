@@ -44,11 +44,11 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
   String _completionSoundLabel(String id) {
     const labels = {
       'calm': 'Calm • Gentle alert',
-      'rain': 'Rain • Soft ambience (planned)',
-      'forest': 'Forest • Nature ambience (planned)',
-      'ocean': 'Ocean • Waves (planned)',
-      'bell': 'Bell • Gentle chime (planned)',
-      'classic': 'Classic • Clock alert (planned)',
+      'rain': 'Rain • Soft ambience',
+      'forest': 'Forest • Nature ambience',
+      'ocean': 'Ocean • Waves',
+      'bell': 'Bell • Gentle chime',
+      'classic': 'Classic • Clock alert',
       'silent': 'Silent • No sound',
       'custom': 'Custom • Selected audio file',
     };
@@ -60,12 +60,12 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     AppSettings settings,
   ) async {
     const themes = [
-      ('calm', 'Calm', 'Device alert tone'),
-      ('rain', 'Rain', 'Not available yet'),
-      ('forest', 'Forest', 'Not available yet'),
-      ('ocean', 'Ocean', 'Not available yet'),
-      ('bell', 'Bell', 'Not available yet'),
-      ('classic', 'Classic', 'Not available yet'),
+      ('calm', 'Calm', 'Gentle alert'),
+      ('rain', 'Rain', 'Soft rain ambience'),
+      ('forest', 'Forest', 'Birdsong and forest ambience'),
+      ('ocean', 'Ocean', 'Soft ocean waves'),
+      ('bell', 'Bell', 'Gentle bell chime'),
+      ('classic', 'Classic', 'Classic clock chime'),
       ('silent', 'Silent', 'No sound'),
     ];
     var current = settings;
@@ -87,23 +87,13 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                     subtitle: Text(theme.$3),
                     onChanged: (value) async {
                       if (value == null) return;
-                      if (!['calm', 'silent'].contains(value)) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'This sound is not included yet. Choose Calm or custom audio.',
-                            ),
-                          ),
-                        );
-                        return;
-                      }
                       await ref.read(settingsProvider.notifier).update(
                             (s) => s.copyWith(completionSoundTheme: value),
                           );
                       if (!dialogContext.mounted) return;
                       current = ref.read(settingsProvider);
                       setDialogState(() {});
-                      if (value == 'calm') {
+                      if (value != 'silent') {
                         await CompletionSoundService.preview(current);
                       }
                     },
