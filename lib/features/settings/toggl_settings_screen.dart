@@ -206,6 +206,55 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     );
   }
 
+  Future<void> _handleSignOut() async {
+    final auth = ref.read(authControllerProvider.notifier);
+    if (auth.isTimerActive()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(AuthController.timerBlockedMessage),
+          backgroundColor: Colors.amber,
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sign out of PageClock?'),
+        content: const Text(
+          'Cloud sync will stop on this device. Your cloud sessions remain in your account, and you can sign in again anytime.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    final success = await auth.signOut();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Signed out. PageClock is now in local guest mode.'
+              : ref.read(authControllerProvider).errorMessage ??
+                  'Could not sign out. Please try again.',
+        ),
+        backgroundColor: success ? null : Colors.red,
+      ),
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
