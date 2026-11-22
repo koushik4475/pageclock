@@ -11,6 +11,7 @@ import '../../core/engine/stopwatch_engine.dart';
 import '../../core/navigation/main_tab_navigation.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/services/notification_service.dart';
+import '../../core/services/completion_sound_service.dart';
 import '../../core/repository/session_repository.dart';
 import '../../core/services/export_service.dart';
 import '../../core/services/pdf_service.dart';
@@ -57,85 +58,14 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
   }
 
   Future<void> _showCompletionSoundPicker(BuildContext context, AppSettings settings) async {
-    const themes = [
-      ('calm', 'Calm', 'Gentle system alert'),
-      ('rain', 'Rain', 'Rain ambience (pack not bundled yet)'),
-      ('forest', 'Forest', 'Nature ambience (pack not bundled yet)'),
-      ('ocean', 'Ocean', 'Wave ambience (pack not bundled yet)'),
-      ('bell', 'Bell', 'Gentle chime (pack not bundled yet)'),
-      ('classic', 'Classic', 'Classic alert (pack not bundled yet)'),
-      ('silent', 'Silent', 'No sound'),
-    ];
-    final selected = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Completion sound'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ...themes.map((theme) => RadioListTile<String>(
-              value: theme.$1,
-              groupValue: settings.completionSoundTheme,
-              title: Text(theme.$2),
-              subtitle: Text(theme.$3),
-              onChanged: (value) async {
-                if (value == null) return;
-                if (value == 'calm') await SystemSound.play(SystemSoundType.alert);
-                if (value == 'silent') {
-                  Navigator.pop(dialogContext, value);
-                } else if (value == 'calm') {
-                  Navigator.pop(dialogContext, value);
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('This sound pack is not bundled yet.')),
-                  );
-                }
-              },
-            )),
-            ListTile(
-              leading: const Icon(Icons.audio_file),
-              title: const Text('Choose custom audio'),
-              subtitle: Text(settings.completionSoundCustomPath.isEmpty
-                  ? 'Select an audio file from your device'
-                  : settings.completionSoundCustomPath.split('/').last),
-              onTap: () async {
-                final result = await FilePicker.platform.pickFiles(type: FileType.audio);
-                final path = result?.files.single.path;
-                if (path == null || !dialogContext.mounted) return;
-                await ref.read(settingsProvider.notifier).update((s) =>
-                  s.copyWith(completionSoundTheme: 'custom', completionSoundCustomPath: path));
-                try {
-                  await _soundPreviewPlayer.stop();
-                  await _soundPreviewPlayer.play(DeviceFileSource(path));
-                } catch (_) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Could not preview this audio file.')),
-                    );
-                  }
-                }
-                if (dialogContext.mounted) Navigator.pop(dialogContext, 'custom');
-              },
-            ),
-            if (settings.completionSoundTheme == 'custom' &&
-                settings.completionSoundCustomPath.isNotEmpty)
-              TextButton.icon(
-                icon: const Icon(Icons.play_arrow),
-                label: const Text('Preview selected custom sound'),
-                onPressed: () async {
-                  await _soundPreviewPlayer.stop();
-                  await _soundPreviewPlayer.play(DeviceFileSource(settings.completionSoundCustomPath));
-                },
-              ),
-          ],
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Close'))],
-      ),
-    );
-    if (selected != null && selected != 'custom') {
-      await ref.read(settingsProvider.notifier).update((current) =>
-        current.copyWith(completionSoundTheme: selected));
-    }
+    const themes=[('calm','Calm','Device alert tone'),('rain','Rain','Not available yet'),('forest','Forest','Not available yet'),('ocean','Ocean','Not available yet'),('bell','Bell','Not available yet'),('classic','Classic','Not available yet'),('silent','Silent','No sound')];
+    var current=settings;
+    await showDialog<void>(context:context,builder:(dialogContext)=>StatefulBuilder(builder:(dialogContext,setDialogState)=>AlertDialog(title:const Text('Completion sound'),content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+      ...themes.map((theme)=>RadioListTile<String>(value:theme.$1,groupValue:current.completionSoundTheme,title:Text(theme.$2),subtitle:Text(theme.$3),onChanged:(value)async{if(value==null)return;if(!['calm','silent'].contains(value)){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('This sound is not included yet. Choose Calm or custom audio.')));return;}await ref.read(settingsProvider.notifier).update((s)=>s.copyWith(completionSoundTheme:value));current=ref.read(settingsProvider);setDialogState((){});if(value=='calm')await CompletionSoundService.preview(current);})),
+      ListTile(leading:const Icon(Icons.audio_file),title:const Text('Choose custom audio'),subtitle:Text(current.completionSoundCustomPath.isEmpty?'Choose a file to preview and use on completion':current.completionSoundCustomPath.split('/').last),onTap:()async{final result=await FilePicker.platform.pickFiles(type:FileType.audio);final path=result?.files.single.path;if(path==null||!dialogContext.mounted){if(kIsWeb&&context.mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Local custom audio preview is not supported for this picker on web.')));return;}await ref.read(settingsProvider.notifier).update((s)=>s.copyWith(completionSoundTheme:'custom',completionSoundCustomPath:path));current=ref.read(settingsProvider);setDialogState((){});try{await CompletionSoundService.preview(current);}catch(_){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Could not preview this audio file.')));}}),
+      if(current.completionSoundCustomPath.isNotEmpty)Row(mainAxisAlignment:MainAxisAlignment.center,children:[TextButton.icon(icon:const Icon(Icons.play_arrow),label:const Text('Play preview'),onPressed:()async{try{await CompletionSoundService.preview(current);}catch(_){if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Preview playback failed.')));}}),TextButton.icon(icon:const Icon(Icons.stop),label:const Text('Stop'),onPressed:()=>CompletionSoundService.stopPreview())]),
+      const Padding(padding:EdgeInsets.only(top:8),child:Text('Calm plays a system alert. Custom audio is previewed here and used at timer completion.',textAlign:TextAlign.center))
+    ])),actions:[TextButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('Done'))]))));
   }
 
   @override
