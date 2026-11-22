@@ -94,7 +94,15 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                       current = ref.read(settingsProvider);
                       setDialogState(() {});
                       if (value != 'silent') {
-                        await CompletionSoundService.preview(current);
+                        try {
+                          await CompletionSoundService.preview(current);
+                        } catch (error) {
+                          if (dialogContext.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Sound preview failed: $error')),
+                            );
+                          }
+                        }
                       }
                     },
                   ),
