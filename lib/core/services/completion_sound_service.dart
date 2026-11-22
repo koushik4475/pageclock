@@ -1,9 +1,40 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/services.dart';
 import '../settings/app_settings.dart';
+
 class CompletionSoundService {
- static final AudioPlayer _player=AudioPlayer();
- static Future<void> play(AppSettings s) async { if(!s.pomodoroSoundEnabled||s.completionSoundTheme=='silent')return; try { if(s.completionSoundTheme=='custom'&&s.completionSoundCustomPath.isNotEmpty){await _player.stop();await _player.play(DeviceFileSource(s.completionSoundCustomPath));}else{await _player.play(AssetSource('audio/completion_preview.wav'));} }catch(_){try{await SystemSound.play(SystemSoundType.alert);}catch(_){}} }
- static Future<void> preview(AppSettings s) async {if(s.completionSoundTheme=='silent')return;if(s.completionSoundTheme=='custom'&&s.completionSoundCustomPath.isNotEmpty){await _player.stop();await _player.play(DeviceFileSource(s.completionSoundCustomPath));}else{await _player.play(AssetSource('audio/completion_preview.wav'));}}
- static Future<void> stopPreview()=>_player.stop();
+  static final AudioPlayer _player = AudioPlayer();
+
+  static Future<void> play(AppSettings settings) async {
+    if (!settings.pomodoroSoundEnabled ||
+        settings.completionSoundTheme == 'silent') return;
+    try {
+      if (settings.completionSoundTheme == 'custom' &&
+          settings.completionSoundCustomPath.isNotEmpty) {
+        await _player.stop();
+        await _player.play(DeviceFileSource(settings.completionSoundCustomPath));
+      } else if (settings.completionSoundTheme == 'calm') {
+        await SystemSound.play(SystemSoundType.alert);
+      }
+    } catch (_) {
+      // Timer completion should not be interrupted by an audio failure.
+    }
+  }
+
+  static Future<void> preview(AppSettings settings) async {
+    if (settings.completionSoundTheme == 'silent') return;
+    try {
+      if (settings.completionSoundTheme == 'custom' &&
+          settings.completionSoundCustomPath.isNotEmpty) {
+        await _player.stop();
+        await _player.play(DeviceFileSource(settings.completionSoundCustomPath));
+      } else if (settings.completionSoundTheme == 'calm') {
+        await SystemSound.play(SystemSoundType.alert);
+      }
+    } catch (_) {
+      rethrow;
+    }
+  }
+
+  static Future<void> stopPreview() => _player.stop();
 }
