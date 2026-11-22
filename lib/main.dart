@@ -82,6 +82,8 @@ Future<void> main() async {
   }
 
   await NotificationService.initialize();
+  // Request notification permission on first Android launch; audio playback does not require storage permission.
+  try { await NotificationService.requestPermission(); } catch (e) { debugPrint('[Main] Notification permission request skipped: $e'); }
 
   runApp(
     ProviderScope(
