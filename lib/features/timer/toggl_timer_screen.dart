@@ -50,6 +50,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   bool _isPomodoroBreak = false;
   bool _isLongBreak = false;
   bool _pomodoroBreakRunning = false;
+  int? _customPomodoroFocusTargetMs;
   int _pomodoroCompletedFocusSessions = 0;
   int _pomodoroBreakDurationMs = 0;
   int _pomodoroBreakRemainingMs = 0;
@@ -701,6 +702,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     final nowUtcMs = DateTime.now().toUtc().millisecondsSinceEpoch;
     final remainingMs = snapshot.remainingAt(nowUtcMs);
     setState(() {
+      _customPomodoroFocusTargetMs = null;
       _isPomodoroBreak = true;
       _isLongBreak = snapshot.isLongBreak;
       _pomodoroBreakDurationMs = snapshot.durationMs;
@@ -745,9 +747,28 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     return _pomodoroPersistenceQueue;
   }
 
+  Future<void> _startCustomPomodoro(BuildContext context) async {
+    final controller = TextEditingController(text: '45');
+    final minutes = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Custom focus duration'),
+        content: TextField(controller: controller, autofocus: true, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Minutes')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+          FilledButton(onPressed: () { final value = int.tryParse(controller.text.trim()); if (value == null || value <= 0) return; Navigator.pop(dialogContext, value); }, child: const Text('Start')),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (minutes == null || !mounted) return;
+    _customPomodoroFocusTargetMs = minutes * 60000;
+    await _startNewSession(context, project: ref.read(focusSelectedProjectProvider), description: _taskController.text);
+  }
+
   Future<void> _completePomodoroFocus(BuildContext context) async {
     final settings = ref.read(settingsProvider);
-    final focusTargetMs = settings.pomodoroFocusMinutes * 60000;
+    final focusTargetMs = _customPomodoroFocusTargetMs ?? settings.pomodoroFocusMinutes * 60000;
     final current = ref.read(stopwatchProvider);
     if (current.elapsedMs < focusTargetMs ||
         current.status != StopwatchStatus.running ||
@@ -1019,7 +1040,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
         NotificationService.syncTimer(next, ref.read(settingsProvider)),
       );
       if (_selectedMode != 1 || _isPomodoroBreak || previous == null) return;
-      final focusTargetMs = ref.read(settingsProvider).pomodoroFocusMinutes * 60000;
+      final focusTargetMs = _customPomodoroFocusTargetMs ?? ref.read(settingsProvider).pomodoroFocusMinutes * 60000;
       if (previous.elapsedMs < focusTargetMs &&
           next.elapsedMs >= focusTargetMs &&
           next.status == StopwatchStatus.running) {
@@ -1581,6 +1602,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           const SizedBox(height: 16),
 
           // "Pomodoro settings ▶" Link
+          TextButton(
+            onPressed: () => _startCustomPomodoro(context),
+            child: const Text('Set custom focus time'),
+          ),
           TextButton(
             onPressed: () {
               Navigator.push(
