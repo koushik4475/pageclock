@@ -36,7 +36,18 @@ class SyncCoordinator extends StateNotifier<SyncState> {
   bool _syncInProgress = false;
   bool _queuedSync = false;
   Timer? _debounceTimer;
+  Timer? _retryTimer;
   int consecutiveFailures = 0;
+
+  void _scheduleRetry() {
+    if (_isDisposed) return;
+    _retryTimer?.cancel();
+    final exponent = consecutiveFailures.clamp(1, 9);
+    final seconds = (1 << exponent).clamp(2, 300);
+    _retryTimer = Timer(Duration(seconds: seconds), () {
+      if (!_isDisposed) unawaited(sync());
+    });
+  }
 
   SyncCoordinator({
     required SharedPreferences prefs,
@@ -97,6 +108,8 @@ class SyncCoordinator extends StateNotifier<SyncState> {
         await _performSyncCycle(firstPullOverlap: firstPullOverlap);
       });
       consecutiveFailures = 0;
+      _retryTimer?.cancel();
+      _retryTimer = null;
     } catch (e, st) {
       consecutiveFailures++;
       debugPrint('[SyncCoordinator] Sync failed: $e\n$st');
@@ -120,6 +133,7 @@ class SyncCoordinator extends StateNotifier<SyncState> {
           quarantinedCount: _syncMeta.quarantine.length,
         );
       }
+      _scheduleRetry();
     } finally {
       _syncInProgress = false;
       if (_queuedSync && !_isDisposed) {
@@ -301,6 +315,7 @@ class SyncCoordinator extends StateNotifier<SyncState> {
   void dispose() {
     _isDisposed = true;
     _debounceTimer?.cancel();
+    _retryTimer?.cancel();
     super.dispose();
   }
 }
