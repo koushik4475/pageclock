@@ -284,27 +284,32 @@ class WebSessionRepository implements SessionRepository, CloudSyncSessionReposit
   Future<void> applyRemote(List<ReadingSession> remoteRows) async {
     if (remoteRows.isEmpty) return;
 
+    var changed = false;
     for (final remote in remoteRows) {
       final local = _cache[remote.id];
-      if (local == null) {
-        _cache[remote.id] = remote;
-      } else {
+      var shouldReplace = local == null;
+      if (local != null) {
         if (remote.updatedAt > local.updatedAt) {
-          _cache[remote.id] = remote;
+          shouldReplace = true;
         } else if (remote.updatedAt == local.updatedAt) {
-          // Tombstone wins on tie
-          if (remote.deletedAt != null && local.deletedAt == null) {
-            _cache[remote.id] = remote;
-          } else if (local.deletedAt != null && remote.deletedAt == null) {
-            // Keep local tombstone
-          } else {
-            // Server wins on identical timestamp
-            _cache[remote.id] = remote;
-          }
+          // Tombstone wins on tie; otherwise the server wins the tie.
+          shouldReplace =
+              remote.deletedAt != null || local.deletedAt == null;
         }
+      }
+
+      // A provider listening to this repository triggers another sync for
+      // every local stream emission. Do not write/broadcast an identical
+      // server row or pull->merge->push can keep scheduling itself forever.
+      if (shouldReplace &&
+          (local == null ||
+              jsonEncode(remote.toMap()) != jsonEncode(local.toMap()))) {
+        _cache[remote.id] = remote;
+        changed = true;
       }
     }
 
+    if (!changed) return;
     final list = _cache.values.map((s) => s.toMap()).toList();
     await _prefs.setString(_storageKey, json.encode(list));
     _broadcast();
