@@ -209,6 +209,15 @@ class SyncCoordinator extends StateNotifier<SyncState> {
           }
         } catch (e) {
           final errorMsg = e.toString();
+          // Network failures should retry the entire sync cycle, not be treated
+          // as poison-pill rows and quarantined during single-row isolation.
+          if (errorMsg.contains('network') ||
+              errorMsg.contains('SocketException') ||
+              errorMsg.contains('Failed host lookup') ||
+              errorMsg.contains('ClientException') ||
+              errorMsg.contains('offline')) {
+            rethrow;
+          }
           if (errorMsg.contains('reading_sessions_user_cap') ||
               errorMsg.contains('P0001')) {
             rethrow; // Surface storage cap error immediately
