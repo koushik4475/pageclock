@@ -5,23 +5,35 @@ These rules are strict release requirements. They apply to every contributor, co
 ## 1. A feature is NOT shipped until installed users can receive it
 
 - **STRICTLY FORBIDDEN:** Marking an Android feature, bug fix, UI change, or behavior change as "done", "complete", "released", or "delivered" merely because code was committed, a PR was merged, or CI passed.
-- Every successful merge to `main` MUST produce a production-signed Android APK and a matching SHA-256 checksum, publish both in a GitHub Release, and make that release discoverable through the exact GitHub Releases endpoint used by the in-app updater.
-- The default-branch release workflow is the enforcement mechanism. A successful merge without a successful, verified release is an incident that must be investigated and fixed immediately.
+- Every merge to `main` must pass dependency resolution, code generation, static analysis, the complete Flutter test suite, and the production web build.
+- A merge is not a shipped delivery until a production-signed APK and matching SHA-256 checksum are published in a stable GitHub Release and discoverable through the exact GitHub Releases endpoint used by the in-app updater.
+- Production signing and publishing MUST run only for a `push` event to a `v*` version tag. The tag must resolve to the exact current `main` HEAD at both build and publish time.
+- Ordinary pushes to `main`, `master`, `release/*`, pull requests, and manual workflow dispatch MUST NOT access production Android signing secrets or publish production APKs.
 - The latest published APK MUST include the merged `main` commit. Never publish an APK built from an older branch or an unmerged feature branch.
 - Do not report success until the release tag, APK asset, checksum asset, release target commit, and updater-visible latest version have all been verified.
 
 ## 2. Mandatory Android release pipeline
 
-For every push/merge to `main`:
+### Main, PR, and legacy branch pushes
 
-1. Run dependency resolution, code generation, static analysis, the complete Flutter test suite, and the production web build.
-2. Only after those checks pass, build the Android **release** APK using the established production signing keystore.
-3. Use a monotonically increasing Android build number. The release version must compare newer than the latest published release according to the app's actual `VersionComparator`.
-4. Publish a non-draft, non-prerelease GitHub Release with exactly matching version/tag, APK, and `.apk.sha256` sidecar. Preserve the same signing identity as previously distributed APKs.
-5. Verify the published release through `/repos/koushik4475/pageclock/releases/latest`. Verify the exact tag, APK asset, checksum asset, and checksum format before declaring the pipeline successful.
-6. If any step fails, the workflow MUST fail visibly. Never fall back to a debug-signed APK, unsigned APK, missing checksum, stale artifact, or success-shaped placeholder.
+1. Run dependency resolution, Drift code generation, `flutter analyze`, the complete `flutter test` suite, and the production web build.
+2. PRs may compile Android with debug signing only.
+3. Pushes to `main`, `master`, and legacy `release/*` branches must not load production signing secrets, build production-signed APKs, or publish releases.
+4. Manual workflow dispatch is validation-only and must not expose production signing secrets.
 
-Production signing secrets are required. Missing or invalid signing configuration MUST fail closed. Never create a new throwaway keystore to get a green build, and never change/rekey the signing identity without an explicit migration plan because Android will reject an update signed by a different key.
+### Production release from a version tag
+
+1. After the exact `main` HEAD has passed validation, create a tag using `vMAJOR.MINOR.PATCH+BUILD_NUMBER` on that exact commit. Never tag a legacy release branch or an unmerged feature branch.
+2. The `android-apk` and `publish-release` jobs must run only for a `push` event to `refs/tags/v*`.
+3. Before loading signing secrets, verify that the tag format matches `pubspec.yaml`, the tag resolves to `GITHUB_SHA`, and `GITHUB_SHA` is the exact current `main` HEAD. Recheck that `main` has not advanced before publishing.
+4. Use the build number encoded in the tag as Android's `versionCode`. It must increase monotonically and the version/build pair must compare newer than the latest stable release according to the app's actual `VersionComparator`.
+5. Build the Android **release** APK using the established production signing keystore. Missing or invalid signing configuration MUST fail closed.
+6. Validate signing-certificate and application-ID continuity against the currently published APK before packaging.
+7. Publish a non-draft, non-prerelease GitHub Release with exactly matching version/tag, APK, and `.apk.sha256` sidecar. Preserve the same signing identity as previously distributed APKs.
+8. Verify the published release through `/repos/koushik4475/pageclock/releases/latest`. Verify the exact tag, APK asset, checksum asset, checksum bytes, tag target commit, and updater visibility before declaring the release successful.
+9. If any step fails, the workflow MUST fail visibly. Never fall back to a debug-signed APK, unsigned APK, missing checksum, stale artifact, or success-shaped placeholder.
+
+Never create a throwaway keystore to get a green build, and never change/rekey the signing identity without an explicit migration plan because Android will reject an update signed by a different key.
 
 ## 3. In-app updater is part of release acceptance
 
@@ -36,7 +48,7 @@ Production signing secrets are required. Missing or invalid signing configuratio
 - PRs that change Android app behavior MUST include tests and must not be described as shipped before the post-merge release workflow succeeds.
 - For every merged PR, track the resulting `main` SHA and its release workflow. Ensure the release points at that SHA or a later `main` SHA containing it.
 - A cancelled, skipped, stale, failed, or still-running release job is NOT a successful release.
-- Never suppress, skip, or make the Android release job optional for ordinary `main` pushes.
+- The tag-triggered production release job is mandatory for `v*` tag pushes; ordinary branch pushes must never access production signing secrets.
 - Keep release failures visible in the PR/Actions workflow and fix the root cause. Do not solve failures by disabling tests, removing checksum verification, using debug signing, lowering security, or falsely reporting completion.
 
 ## 5. Security and data integrity
