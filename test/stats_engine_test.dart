@@ -340,6 +340,23 @@ void main() {
       expect(active.first.startUtc, start + 15 * 60000);
       expect(active.last.endUtc, end);
     });
+    test('calendar-day streak adjacency survives 23-hour and 25-hour DST gaps', () {
+      final adjacentDatePairs = <List<DateTime>>[
+        [DateTime.utc(2026, 3, 8, 1), DateTime.utc(2026, 3, 9)],
+        [DateTime.utc(2026, 11, 1), DateTime.utc(2026, 11, 2, 1)],
+      ];
+
+      for (final pair in adjacentDatePairs) {
+        final dailyTotals = {pair[0]: 10, pair[1]: 10};
+        final result = StatsEngine.calculateStreaks(
+          dailyTotals: dailyTotals,
+          today: pair[1],
+          thresholdMinutes: 10,
+        );
+        expect(result.bestStreak, 2);
+      }
+    });
+
     test('stored net duration prevents legacy pause metadata from inflating focus time', () {
       final start = DateTime.utc(2026, 11, 20, 9).millisecondsSinceEpoch;
       final end = start + 45 * 60000;
