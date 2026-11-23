@@ -44,7 +44,8 @@ class SyncCoordinator extends StateNotifier<SyncState> {
     _retryTimer?.cancel();
     // Exponential backoff (2s, 4s, 8s...) capped at five minutes so
     // transient network/auth-refresh issues recover without manual sync.
-    final seconds = (1 << (consecutiveFailures - 1)).clamp(2, 300);
+    final exponent = consecutiveFailures.clamp(1, 9);
+    final seconds = (1 << exponent).clamp(2, 300);
     _retryTimer = Timer(Duration(seconds: seconds), () {
       if (!_isDisposed) unawaited(sync());
     });
