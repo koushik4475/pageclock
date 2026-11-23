@@ -159,7 +159,7 @@ final adminAccessProvider = FutureProvider<bool>((ref) async {
 });
 
 
-final adminDashboardProvider = FutureProvider<AdminDashboardData>((ref) {
+final adminDashboardProvider = FutureProvider.autoDispose<AdminDashboardData>((ref) {
   return ref.watch(adminServiceProvider).loadDashboard();
 });
 
