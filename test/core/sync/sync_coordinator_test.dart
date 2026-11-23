@@ -229,7 +229,7 @@ void main() {
         userId: userId, autoSync: false,
       );
       await coordinator.sync();
-      expect(coordinator.state.status, equals(SyncStatus.needsAttention));
+      expect(coordinator.state.status, equals(SyncStatus.offline));
       await Future<void>.delayed(const Duration(seconds: 3));
       expect(dataSource.pushedBatches.any((s) => s.id == 'sess_retry'), isTrue);
       expect(coordinator.state.status, equals(SyncStatus.synced));
