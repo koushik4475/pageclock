@@ -157,5 +157,21 @@ void main() {
 
       expect(summary.completedMilliseconds, 10 * 60000);
     });
+    test('timer summary uses stored focused duration when legacy pauses are missing', () {
+      final session = _session(
+        id: 'legacy-15-focused-45-wall',
+        startedAtLocal: dayStart.add(const Duration(hours: 9)),
+        endedAtLocal: dayStart.add(const Duration(hours: 9, minutes: 45)),
+        durationMs: 15 * 60000,
+      );
+
+      final summary = summarize(
+        sessions: [session],
+        now: dayStart.add(const Duration(hours: 10)),
+      );
+
+      expect(summary.completedMilliseconds, 15 * 60000);
+      expect(summary.totalMilliseconds, 15 * 60000);
+    });
   });
 }
