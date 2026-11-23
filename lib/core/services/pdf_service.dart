@@ -18,12 +18,19 @@ class SessionPdfService {
     final activeSessions = sessions.where((s) => s.deletedAt == null).toList()
       ..sort((a, b) => b.startedAtUtc.compareTo(a.startedAtUtc));
 
-    final totalMinutes = activeSessions.fold<int>(0, (sum, s) => sum + (s.durationMs / 60000).round());
+    final focusDurationsMs = activeSessions
+        .map(StatsEngine.activeDurationMs)
+        .toList();
+    final totalFocusMs = focusDurationsMs.fold<int>(0, (sum, ms) => sum + ms);
+    final totalMinutes = (totalFocusMs / 60000).round();
     final totalHours = (totalMinutes / 60.0).toStringAsFixed(1);
-    final avgSession = activeSessions.isNotEmpty ? (totalMinutes / activeSessions.length).round() : 0;
-    final longestSession = activeSessions.isNotEmpty
-        ? activeSessions.map((s) => (s.durationMs / 60000).round()).reduce((a, b) => a > b ? a : b)
+    final avgSession = activeSessions.isNotEmpty
+        ? (totalFocusMs / activeSessions.length / 60000).round()
         : 0;
+    final longestSessionMs = focusDurationsMs.isNotEmpty
+        ? focusDurationsMs.reduce((a, b) => a > b ? a : b)
+        : 0;
+    final longestSession = (longestSessionMs / 60000).round();
 
     final dailyTotals = StatsEngine.calculateDailyTotals(activeSessions);
     final now = DateTime.now();
@@ -42,7 +49,7 @@ class SessionPdfService {
     );
 
     final last7DaysData = List.generate(7, (idx) {
-      final date = DateTime(now.year, now.month, now.day).subtract(Duration(days: 6 - idx));
+      final date = DateTime(now.year, now.month, now.day - (6 - idx));
       final dayName = DateFormat('E').format(date);
       final mins = dailyTotals[date] ?? 0;
       return {'day': dayName, 'mins': mins};
@@ -54,7 +61,7 @@ class SessionPdfService {
     final Map<String, int> projectBreakdown = {};
     for (final s in activeSessions) {
       final key = s.subjectName;
-      final mins = (s.durationMs / 60000).round();
+      final mins = (StatsEngine.activeDurationMs(s) / 60000).round();
       projectBreakdown[key] = (projectBreakdown[key] ?? 0) + mins;
     }
 
@@ -322,7 +329,7 @@ class SessionPdfService {
               data: List<List<String>>.generate(activeSessions.length, (i) {
                 final s = activeSessions[i];
                 final date = DateTime.fromMillisecondsSinceEpoch(s.startedAtUtc);
-                final mins = (s.durationMs / 60000).round();
+                final mins = (StatsEngine.activeDurationMs(s) / 60000).round();
                 return [
                   '${i + 1}',
                   DateFormat('yyyy-MM-dd  HH:mm').format(date),

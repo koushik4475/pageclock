@@ -340,5 +340,78 @@ void main() {
       expect(active.first.startUtc, start + 15 * 60000);
       expect(active.last.endUtc, end);
     });
+    test('calendar-day streak adjacency survives 23-hour and 25-hour DST gaps', () {
+      final adjacentDatePairs = <List<DateTime>>[
+        [DateTime.utc(2026, 3, 8, 1), DateTime.utc(2026, 3, 9)],
+        [DateTime.utc(2026, 11, 1), DateTime.utc(2026, 11, 2, 1)],
+      ];
+
+      for (final pair in adjacentDatePairs) {
+        final dailyTotals = {pair[0]: 10, pair[1]: 10};
+        final result = StatsEngine.calculateStreaks(
+          dailyTotals: dailyTotals,
+          today: pair[1],
+          thresholdMinutes: 10,
+        );
+        expect(result.bestStreak, 2);
+      }
+    });
+
+    test('stored net duration prevents legacy pause metadata from inflating focus time', () {
+      final start = DateTime.utc(2026, 11, 20, 9).millisecondsSinceEpoch;
+      final end = start + 45 * 60000;
+      final session = ReadingSession(
+        id: 'legacy-missing-pause-metadata',
+        startedAtUtc: start,
+        endedAtUtc: end,
+        // The saved 15 minutes is the net focused duration. The 45-minute
+        // wall-clock span includes an old pause that was not recorded.
+        durationMs: 15 * 60000,
+        pausedTotalMs: 0,
+        tzOffsetMin: 0,
+        createdAt: start,
+        updatedAt: end,
+      );
+
+      expect(StatsEngine.activeDurationMs(session), 15 * 60000);
+      expect(session.activeIntervals().fold<int>(
+        0,
+        (sum, interval) => sum + interval.durationMs,
+      ), 15 * 60000);
+      expect(
+        StatsEngine.calculateDailyTotals([session])[DateTime(2026, 11, 20)],
+        15,
+      );
+      expect(
+        StatsEngine.activeDurationInLocalRange(
+          session,
+          DateTime(2026, 11, 20),
+          DateTime(2026, 11, 21),
+        ),
+        15 * 60000,
+      );
+    });
+
+    test('stored net duration wins when recorded pause intervals are incomplete', () {
+      final start = DateTime.utc(2026, 11, 20, 9).millisecondsSinceEpoch;
+      final session = ReadingSession(
+        id: 'legacy-partial-pause-metadata',
+        startedAtUtc: start,
+        endedAtUtc: start + 45 * 60000,
+        durationMs: 15 * 60000,
+        pausedTotalMs: 15 * 60000,
+        pauseIntervals: [
+          PauseInterval(
+            startedAtUtc: start + 10 * 60000,
+            endedAtUtc: start + 25 * 60000,
+          ),
+        ],
+        tzOffsetMin: 0,
+        createdAt: start,
+        updatedAt: start + 45 * 60000,
+      );
+
+      expect(StatsEngine.activeDurationMs(session), 15 * 60000);
+    });
   });
 }

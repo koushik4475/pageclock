@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pageclock/core/db/app_database.dart';
@@ -59,6 +60,27 @@ void main() {
       session(updatedAt: 4000, note: 'Remote newer'),
     ]);
     expect((await repository.allForSync()).single.note, 'Remote newer');
+  });
+
+  test('applying an identical remote row does not emit a local change', () async {
+    final row = session(updatedAt: 6000, note: 'Same on both devices');
+    await repository.saveSession(row);
+
+    final emissions = <List<ReadingSession>>[];
+    final initial = Completer<void>();
+    final subscription = repository.watchAllSessions().listen((rows) {
+      emissions.add(rows);
+      if (!initial.isCompleted) initial.complete();
+    });
+    await initial.future;
+
+    await repository.applyRemote([row]);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    // The sync listener watches this stream; an unchanged pull must not
+    // re-emit or schedule another pull->merge->push cycle.
+    expect(emissions, hasLength(1));
+    await subscription.cancel();
   });
 
   test('equal timestamp tombstone wins over a live remote row', () async {
