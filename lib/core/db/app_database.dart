@@ -176,7 +176,9 @@ class DriftSessionRepository implements SessionRepository, CloudSyncSessionRepos
           remote.updatedAt > local.updatedAt ||
           (remote.updatedAt == local.updatedAt &&
               (remote.deletedAt != null || local.deletedAt == null));
-      if (shouldReplace) {
+      if (shouldReplace &&
+          (local == null ||
+              jsonEncode(remote.toMap()) != jsonEncode(local.toMap()))) {
         await saveSession(remote);
       }
     }
