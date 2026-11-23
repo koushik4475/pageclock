@@ -302,10 +302,38 @@ class MainNavigationShell extends ConsumerStatefulWidget {
   ConsumerState<MainNavigationShell> createState() => _MainNavigationShellState();
 }
 
-class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
+class _MainNavigationShellState extends ConsumerState<MainNavigationShell>
+    with WidgetsBindingObserver {
+  Timer? _automaticSyncTimer;
+
+  void _startAutomaticSyncTimer() {
+    _automaticSyncTimer?.cancel();
+    // Keep other signed-in devices reasonably fresh even if no local write
+    // causes a Drift/Web repository stream event on this device.
+    _automaticSyncTimer = Timer.periodic(const Duration(seconds: 45), (_) {
+      if (mounted) {
+        unawaited(ref.read(syncCoordinatorProvider.notifier).sync());
+      }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _startAutomaticSyncTimer();
+      unawaited(ref.read(syncCoordinatorProvider.notifier).sync());
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      _automaticSyncTimer?.cancel();
+      _automaticSyncTimer = null;
+    }
+  }
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _startAutomaticSyncTimer();
     NotificationService.setTimerActionHandler(_handleTimerNotificationAction);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkAutoUpdate();
@@ -341,6 +369,14 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
         UpdateDialog.show(context, update.releaseInfo!);
       }
     } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _automaticSyncTimer?.cancel();
+    _automaticSyncTimer = null;
+    super.dispose();
   }
 
   @override
