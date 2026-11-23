@@ -77,6 +77,11 @@ class DailyFocusSummary {
 }
 
 class StatsEngine {
+  /// Creates a local calendar date [dayOffset] days from [date].
+  /// Unlike adding a Duration of 24 hours, this preserves day boundaries
+  /// across daylight-saving transitions.
+  static DateTime _calendarDay(DateTime date, [int dayOffset = 0]) =>
+      DateTime(date.year, date.month, date.day + dayOffset);
   /// Converts one session into local-day focused minutes, excluding pauses.
   /// Day keys remain local DateTime values; interval arithmetic uses a UTC
   /// pseudo-local timeline so stored offsets are independent of device timezone.
@@ -273,7 +278,7 @@ class StatsEngine {
     int activeDays = 0;
 
     for (int i = 0; i < windowDays; i++) {
-      final date = normalizedToday.subtract(Duration(days: i));
+      final date = _calendarDay(normalizedToday, -i);
       final minutes = dailyTotals[date] ?? 0;
       if (minutes >= thresholdMinutes) {
         activeDays++;
@@ -303,7 +308,7 @@ class StatsEngine {
     var checkDate = normalizedToday;
 
     if ((dailyTotals[checkDate] ?? 0) < thresholdMinutes) {
-      checkDate = checkDate.subtract(const Duration(days: 1));
+      checkDate = _calendarDay(checkDate, -1);
     }
 
     while ((dailyTotals[checkDate] ?? 0) >= thresholdMinutes) {
@@ -314,22 +319,23 @@ class StatsEngine {
     // Best streak: longest consecutive run all-time
     int best = 0;
     if (dailyTotals.isNotEmpty) {
-      final sortedDates = dailyTotals.keys.toList()..sort();
+      final sortedActiveDates = dailyTotals.entries
+          .where((entry) => entry.value >= thresholdMinutes)
+          .map((entry) => _calendarDay(entry.key))
+          .toSet()
+          .toList()
+        ..sort();
       int tempStreak = 0;
       DateTime? prevDate;
 
-      for (final date in sortedDates) {
-        if ((dailyTotals[date] ?? 0) >= thresholdMinutes) {
-          if (prevDate != null && date.difference(prevDate).inDays == 1) {
-            tempStreak++;
-          } else {
-            tempStreak = 1;
-          }
-          if (tempStreak > best) best = tempStreak;
-          prevDate = date;
+      for (final date in sortedActiveDates) {
+        if (prevDate != null && date == _calendarDay(prevDate, 1)) {
+          tempStreak++;
         } else {
-          tempStreak = 0;
+          tempStreak = 1;
         }
+        if (tempStreak > best) best = tempStreak;
+        prevDate = date;
       }
     }
 
@@ -342,7 +348,7 @@ class StatsEngine {
     required DateTime today,
   }) {
     final t = DateTime(today.year, today.month, today.day);
-    final y = t.subtract(const Duration(days: 1));
+    final y = _calendarDay(t, -1);
 
     final todayMin = dailyTotals[t] ?? 0;
     final yestMin = dailyTotals[y] ?? 0;
@@ -434,7 +440,7 @@ class StatsEngine {
     final values = <int>[];
 
     for (int i = 0; i < windowDays; i++) {
-      final d = t.subtract(Duration(days: i));
+      final d = _calendarDay(t, -i);
       values.add(dailyTotals[d] ?? 0);
     }
 
@@ -506,12 +512,12 @@ class StatsEngine {
   ) {
     final normalized = DateTime(today.year, today.month, today.day);
     final daysFromStart = (normalized.weekday - weekStartDay + 7) % 7;
-    final thisWeekStart = normalized.subtract(Duration(days: daysFromStart));
-    final targetWeekStart = thisWeekStart.subtract(Duration(days: 7 * weeksAgo));
+    final thisWeekStart = _calendarDay(normalized, -daysFromStart);
+    final targetWeekStart = _calendarDay(thisWeekStart, -7 * weeksAgo);
 
     int sum = 0;
     for (int i = 0; i < 7; i++) {
-      final day = targetWeekStart.add(Duration(days: i));
+      final day = _calendarDay(targetWeekStart, i);
       sum += dailyTotals[day] ?? 0;
     }
     return sum;
