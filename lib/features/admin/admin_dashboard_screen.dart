@@ -455,6 +455,8 @@ class _AdminClientDirectoryState extends State<_AdminClientDirectory> {
         clients.where((client) => client.sessionCount > 0).length;
     final totalSyncedSessions =
         clients.fold<int>(0, (total, client) => total + client.sessionCount);
+    final lastPage = clients.isEmpty ? 0 : (clients.length - 1) ~/ _pageSize;
+    final effectivePage = _page > lastPage ? lastPage : _page;
     return Container(padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(color: dark ? const Color(0xFF191C2B) : Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -474,7 +476,7 @@ class _AdminClientDirectoryState extends State<_AdminClientDirectory> {
           style: TextStyle(fontSize: 10, color: muted),
         ),
         const SizedBox(height: 13),
-        TextField(onChanged: onSearch, decoration: InputDecoration(
+        TextField(onChanged: (value) { if (_page != 0) setState(() => _page = 0); onSearch(value); }, decoration: InputDecoration(
           hintText: 'Search by name or email', prefixIcon: const Icon(Icons.search_rounded, size: 19),
           isDense: true, filled: true,
           fillColor: dark ? Colors.white.withOpacity(.045) : const Color(0xFFF7F8FC),
@@ -498,7 +500,7 @@ class _AdminClientDirectoryState extends State<_AdminClientDirectory> {
             items: countryOptions.map((value) => DropdownMenuItem(
               value: value, child: Text(value, overflow: TextOverflow.ellipsis),
             )).toList(),
-            onChanged: (value) { if (value != null) onCountryChanged(value); },
+            onChanged: (value) { if (value != null) { if (_page != 0) setState(() => _page = 0); onCountryChanged(value); } },
           );
           final sort = DropdownButtonFormField<String>(
             value: sortOrder,
@@ -511,7 +513,7 @@ class _AdminClientDirectoryState extends State<_AdminClientDirectory> {
             ),
             items: const ['Most focus', 'Recently active', 'Recently joined', 'Name A–Z']
               .map((value) => DropdownMenuItem(value: value, child: Text(value))).toList(),
-            onChanged: (value) { if (value != null) onSortChanged(value); },
+            onChanged: (value) { if (value != null) { if (_page != 0) setState(() => _page = 0); onSortChanged(value); } },
           );
           if (compact) return Column(children: [
             country, const SizedBox(height: 9), sort,
@@ -523,14 +525,14 @@ class _AdminClientDirectoryState extends State<_AdminClientDirectory> {
         const SizedBox(height: 10),
         if (clients.isEmpty) Padding(padding: const EdgeInsets.all(24),
           child: Center(child: Text('No clients match your search.', style: TextStyle(color: muted))))
-        else ...clients.skip(_page * _pageSize).take(_pageSize).map((c) => _AdminClientRow(client: c, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminClientDetailScreen(client: c))))),
+        else ...clients.skip(effectivePage * _pageSize).take(_pageSize).map((c) => _AdminClientRow(client: c, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminClientDetailScreen(client: c))))),
         if (clients.length > _pageSize) ...[
           const SizedBox(height: 12),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text('Page ${_page + 1} of ${(clients.length / _pageSize).ceil()} · ${clients.length} clients', style: TextStyle(fontSize: 11, color: muted)),
+            Text('Page ${effectivePage + 1} of ${(clients.length / _pageSize).ceil()} · ${clients.length} clients', style: TextStyle(fontSize: 11, color: muted)),
             Row(mainAxisSize: MainAxisSize.min, children: [
-              IconButton(tooltip: 'Previous page', onPressed: _page == 0 ? null : () => setState(() => _page--), icon: const Icon(Icons.chevron_left_rounded)),
-              IconButton(tooltip: 'Next page', onPressed: (_page + 1) * _pageSize >= clients.length ? null : () => setState(() => _page++), icon: const Icon(Icons.chevron_right_rounded)),
+              IconButton(tooltip: 'Previous page', onPressed: effectivePage == 0 ? null : () => setState(() => _page = effectivePage - 1), icon: const Icon(Icons.chevron_left_rounded)),
+              IconButton(tooltip: 'Next page', onPressed: effectivePage >= lastPage ? null : () => setState(() => _page = effectivePage + 1), icon: const Icon(Icons.chevron_right_rounded)),
             ]),
           ]),
         ],
