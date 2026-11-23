@@ -887,8 +887,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     unawaited(_persistPomodoroBreakState());
   }
 
-  Future<void> _skipPomodoroShortBreak(BuildContext context) async {
-    if (!_isPomodoroBreak || _isLongBreak) return;
+  Future<void> _skipPomodoroBreak(BuildContext context) async {
+    if (!_isPomodoroBreak) return;
     _pomodoroBreakTicker?.cancel();
     setState(() {
       _isPomodoroBreak = false;
@@ -1567,13 +1567,13 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
               ),
             ),
           ),
-          if (_isPomodoroBreak && !_isLongBreak) ...[
+          if (_isPomodoroBreak) ...[
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.skip_next_rounded),
-                label: const Text('Skip short break'),
-                onPressed: () => _skipPomodoroShortBreak(context),
+                label: Text(_isLongBreak ? 'Skip long break' : 'Skip short break'),
+                onPressed: () => _skipPomodoroBreak(context),
               ),
             ),
             const SizedBox(height: 8),
