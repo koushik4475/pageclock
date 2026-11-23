@@ -17,6 +17,7 @@ class MockCloudSessionDataSource implements CloudSessionDataSource {
   bool failNextBatchWithPoisonPill = false;
   String poisonPillSessionId = '';
   bool failWithUserCap = false;
+  bool failNextPush = false;
 
   @override
   Future<CloudPullResponse> pullSessions({
@@ -46,6 +47,10 @@ class MockCloudSessionDataSource implements CloudSessionDataSource {
   }) async {
     if (failWithUserCap) {
       throw Exception('reading_sessions_user_cap (P0001)');
+    }
+    if (failNextPush) {
+      failNextPush = false;
+      throw Exception('Temporary network error');
     }
     if (failNextBatchWithPoisonPill) {
       failNextBatchWithPoisonPill = false;
@@ -213,6 +218,30 @@ void main() {
       expect(coordinator.syncMeta.isDirty(poisonSession), isFalse); // Quarantined rows excluded
       expect(coordinator.state.status, equals(SyncStatus.needsAttention));
       expect(coordinator.state.quarantinedCount, equals(1));
+    });
+
+    test('automatically retries a transient push failure', () async {
+      final session = createSession(id: 'sess_retry', updatedAt: 1000);
+      await repository.saveSession(session);
+      dataSource.failNextPush = true;
+
+      final coordinator = SyncCoordinator(
+        prefs: prefs,
+        repository: repository,
+        dataSource: dataSource,
+        userId: userId,
+        autoSync: false,
+      );
+
+      await coordinator.sync();
+      expect(coordinator.state.status, equals(SyncStatus.needsAttention));
+
+      // The first retry uses a two-second backoff and should recover without
+      // any manual sync invocation.
+      await Future<void>.delayed(const Duration(seconds: 3));
+      expect(dataSource.pushedBatches.any((s) => s.id == 'sess_retry'), isTrue);
+      expect(coordinator.state.status, equals(SyncStatus.synced));
+      coordinator.dispose();
     });
 
     test('server storage cap (P0001) surfaces account limit status', () async {
