@@ -109,7 +109,12 @@ class ReadingSession {
         DateTime.now().toUtc().millisecondsSinceEpoch;
     if (end <= startedAtUtc) return const [];
 
-    if (pauseIntervals.isEmpty && pausedTotalMs > 0) {
+    // When exact pause positions are unavailable, the persisted completed
+    // duration is the source of truth. Older rows can have a correct
+    // duration_ms but missing pause metadata (including paused_total_ms == 0).
+    // Using end-start in that case overcounts focused time by the unrecorded
+    // pause duration (for example, 15 focused minutes across a 45-minute span).
+    if (pauseIntervals.isEmpty) {
       final rawActiveMs = endedAtUtc != null
           ? (durationMs > 0
               ? durationMs
@@ -214,6 +219,24 @@ class ReadingSession {
     }
     if (cursor < end) {
       focused.add(SessionTimeInterval(startUtc: cursor, endUtc: end));
+    }
+
+    // Exact pause intervals are preferred for calendar/hour allocation, but
+    // incomplete legacy metadata must never contradict the saved net duration.
+    if (endedAtUtc != null && durationMs > 0) {
+      final wallDurationMs = end - startedAtUtc;
+      final expectedActiveMs =
+          durationMs < wallDurationMs ? durationMs : wallDurationMs;
+      final reconstructedActiveMs = focused.fold<int>(
+        0,
+        (total, interval) => total + interval.durationMs,
+      );
+      if (reconstructedActiveMs != expectedActiveMs) {
+        final fallbackEnd = startedAtUtc + expectedActiveMs;
+        return fallbackEnd > startedAtUtc
+            ? [SessionTimeInterval(startUtc: startedAtUtc, endUtc: fallbackEnd)]
+            : const [];
+      }
     }
     return focused;
   }
