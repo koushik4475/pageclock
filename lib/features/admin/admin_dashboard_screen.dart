@@ -436,6 +436,10 @@ class _AdminClientDirectory extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final muted = dark ? Colors.white54 : const Color(0xFF858BA2);
+    final clientsWithSyncedSessions =
+        clients.where((client) => client.sessionCount > 0).length;
+    final totalSyncedSessions =
+        clients.fold<int>(0, (total, client) => total + client.sessionCount);
     return Container(padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(color: dark ? const Color(0xFF191C2B) : Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -449,6 +453,11 @@ class _AdminClientDirectory extends StatelessWidget {
           ])),
           Text(clients.length.toString() + ' shown', style: TextStyle(fontSize: 10, color: muted)),
         ]),
+        const SizedBox(height: 5),
+        Text(
+          '${clientsWithSyncedSessions} of ${clients.length} shown clients have synced activity · ${totalSyncedSessions} sessions received',
+          style: TextStyle(fontSize: 10, color: muted),
+        ),
         const SizedBox(height: 13),
         TextField(onChanged: onSearch, decoration: InputDecoration(
           hintText: 'Search by name or email', prefixIcon: const Icon(Icons.search_rounded, size: 19),
@@ -536,10 +545,15 @@ class _AdminClientRow extends StatelessWidget {
           Text('${client.email} · ${client.signupCountryName ?? 'Country unknown'}',
             maxLines: 1, overflow: TextOverflow.ellipsis,
             style: TextStyle(fontSize: 10, color: muted)),
+          const SizedBox(height: 3),
+          Text(
+            '${client.sessionCount} synced sessions · ${formatAdminDuration(client.totalFocusMs)} focus · Last active ${_dateTime(client.lastActiveAt)}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 9, color: muted),
+          ),
         ])),
         if (MediaQuery.sizeOf(context).width > 540) ...[
-          Text(formatAdminDuration(client.totalFocusMs),
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
           const SizedBox(width: 13),
           Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
             decoration: BoxDecoration(color: const Color(0xFFE8F8EF), borderRadius: BorderRadius.circular(8)),
