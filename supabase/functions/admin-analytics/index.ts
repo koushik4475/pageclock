@@ -34,10 +34,12 @@ function activeIntervals(row: Record<string, unknown>): Interval[] {
       : [];
   }).filter((pause) => pause.end > pause.start).sort((a, b) => a.start - b.start);
 
-  // Legacy sessions have a pause total but no pause positions. Match the app's
-  // documented fallback: allocate their net active duration contiguously at start.
-  if (pauses.length === 0 && pausedTotal > 0) {
-    const stored = Number(row.duration_ms ?? 0);
+  // For completed sessions, duration_ms is the persisted net focus time.
+  // It remains authoritative when an older row has missing/incomplete pause
+  // metadata; otherwise wall-clock elapsed time can overcount (15 focused
+  // minutes recorded across a 45-minute span was previously reported as 45).
+  if (pauses.length === 0) {
+    const stored = Math.max(0, Number(row.duration_ms ?? 0));
     const active = stored > 0 ? stored : end - start - pausedTotal;
     const fallbackEnd = Math.min(end, start + Math.max(0, active));
     return fallbackEnd > start ? [{ start, end: fallbackEnd }] : [];
@@ -82,6 +84,18 @@ function activeIntervals(row: Record<string, unknown>): Interval[] {
     if (cursor >= end) break;
   }
   if (cursor < end) focused.push({ start: cursor, end });
+
+  // If pause records are incomplete, fall back to the persisted net duration
+  // rather than allowing interval reconstruction to inflate admin totals.
+  const stored = Math.max(0, Number(row.duration_ms ?? 0));
+  if (stored > 0) {
+    const expected = Math.min(end - start, stored);
+    const reconstructed = focused.reduce((sum, interval) => sum + interval.end - interval.start, 0);
+    if (reconstructed !== expected) {
+      const fallbackEnd = start + expected;
+      return fallbackEnd > start ? [{ start, end: fallbackEnd }] : [];
+    }
+  }
   return focused;
 }
 
