@@ -1406,102 +1406,69 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     );
   }
 
-  void _showPomodoroSettingsDialog(BuildContext context, AppSettings settings) {
-    int focus = settings.pomodoroFocusMinutes;
-    int shortB = settings.pomodoroShortBreakMinutes;
-    int longB = settings.pomodoroLongBreakMinutes;
+  Future<void> _showPomodoroSettingsDialog(BuildContext context, AppSettings settings) async {
+    final focusController = TextEditingController(text: settings.pomodoroFocusMinutes.toString());
+    final shortController = TextEditingController(text: settings.pomodoroShortBreakMinutes.toString());
+    final longController = TextEditingController(text: settings.pomodoroLongBreakMinutes.toString());
     int longBreakInterval = settings.pomodoroLongBreakInterval;
     bool autoStart = settings.pomodoroAutoStart;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
+    int? parseMinutes(TextEditingController controller, int max) {
+      final value = int.tryParse(controller.text.trim());
+      return value != null && value >= 1 && value <= max ? value : null;
+    }
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
             title: const Text('Pomodoro Intervals'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Focus Duration:'),
-                    DropdownButton<int>(
-                      value: focus,
-                      items: [15, 20, 25, 30, 45, 50, 60].map((v) => DropdownMenuItem(value: v, child: Text('$v min'))).toList(),
-                      onChanged: (v) { if (v != null) setDialogState(() => focus = v); },
-                    ),
-                  ],
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Short Break:'),
-                    DropdownButton<int>(
-                      value: shortB,
-                      items: [3, 5, 10, 15].map((v) => DropdownMenuItem(value: v, child: Text('$v min'))).toList(),
-                      onChanged: (v) { if (v != null) setDialogState(() => shortB = v); },
-                    ),
-                  ],
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Long Break:'),
-                    DropdownButton<int>(
-                      value: longB,
-                      items: [10, 15, 20, 25, 30].map((v) => DropdownMenuItem(value: v, child: Text('$v min'))).toList(),
-                      onChanged: (v) { if (v != null) setDialogState(() => longB = v); },
-                    ),
-                  ],
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Long break after:'),
-                    DropdownButton<int>(
-                      value: longBreakInterval,
-                      items: [2, 3, 4, 5, 6].map(
-                        (v) => DropdownMenuItem(value: v, child: Text('$v sessions')),
-                      ).toList(),
-                      onChanged: (v) {
-                        if (v != null) {
-                          setDialogState(() => longBreakInterval = v);
-                        }
-                      },
-                    ),
-                  ],
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Auto-start next interval'),
-                  value: autoStart,
-                  onChanged: (value) =>
-                      setDialogState(() => autoStart = value),
-                ),
-              ],
+            content: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                _durationInput('Focus duration (1–180 min)', focusController),
+                _durationInput('Short break (1–120 min)', shortController),
+                _durationInput('Long break (1–120 min)', longController),
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  const Text('Long break after:'),
+                  DropdownButton<int>(
+                    value: longBreakInterval,
+                    items: List.generate(9, (i) => i + 2).map((v) => DropdownMenuItem(value: v, child: Text('$v sessions'))).toList(),
+                    onChanged: (v) { if (v != null) setDialogState(() => longBreakInterval = v); },
+                  ),
+                ]),
+                SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('Auto-start next interval'), value: autoStart, onChanged: (value) => setDialogState(() => autoStart = value)),
+                const Text('Enter any whole number of minutes. Focus: 1–180; breaks: 1–120.', style: TextStyle(fontSize: 12)),
+              ]),
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  ref.read(settingsProvider.notifier).update((s) => s.copyWith(
-                    pomodoroFocusMinutes: focus,
-                    pomodoroShortBreakMinutes: shortB,
-                    pomodoroLongBreakMinutes: longB,
-                    pomodoroLongBreakInterval: longBreakInterval,
-                    pomodoroAutoStart: autoStart,
-                  ));
-                  Navigator.pop(ctx);
-                },
-                child: const Text('Save'),
-              ),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              FilledButton(onPressed: () {
+                final focus = parseMinutes(focusController, 180);
+                final shortB = parseMinutes(shortController, 120);
+                final longB = parseMinutes(longController, 120);
+                if (focus == null || shortB == null || longB == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter valid whole-minute durations within the limits.')));
+                  return;
+                }
+                ref.read(settingsProvider.notifier).update((s) => s.copyWith(pomodoroFocusMinutes: focus, pomodoroShortBreakMinutes: shortB, pomodoroLongBreakMinutes: longB, pomodoroLongBreakInterval: longBreakInterval, pomodoroAutoStart: autoStart));
+                Navigator.pop(ctx);
+              }, child: const Text('Save')),
             ],
-          );
-        },
+          ),
+        ),
+      );
+    } finally {
+      focusController.dispose(); shortController.dispose(); longController.dispose();
+    }
+  }
+
+  Widget _durationInput(String label, TextEditingController controller) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: TextField(
+        controller: controller,
+        keyboardType: const TextInputType.numberWithOptions(decimal: false),
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        decoration: InputDecoration(labelText: label, suffixText: 'minutes', border: const OutlineInputBorder()),
       ),
     );
   }
