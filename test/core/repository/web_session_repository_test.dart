@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pageclock/core/models/reading_session.dart';
@@ -132,6 +133,32 @@ void main() {
         expect(s.note, isNull);
         expect(s.updatedAt, greaterThanOrEqualTo(1000));
       }
+    });
+
+    test('applying an identical remote row does not broadcast a local change', () async {
+      final prefs = await SharedPreferences.getInstance();
+      const key = 'pageclock_web_sessions_v2_user_identical';
+      final repo = WebSessionRepository(prefs, storageKey: key, isUser: true);
+      final row = makeSession(
+        id: 'same-row',
+        updatedAt: 9000,
+        note: 'Identical remote row',
+      );
+      await repo.saveSession(row);
+
+      final emissions = <List<ReadingSession>>[];
+      final initial = Completer<void>();
+      final subscription = repo.watchAllSessions().listen((rows) {
+        emissions.add(rows);
+        if (!initial.isCompleted) initial.complete();
+      });
+      await initial.future;
+
+      await repo.applyRemote([row]);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(emissions, hasLength(1));
+      await subscription.cancel();
     });
 
     test('applyRemote merges incoming rows without losing local unsynced edits', () async {
