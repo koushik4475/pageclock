@@ -415,7 +415,7 @@ class _AdminFocusChart extends StatelessWidget {
   }
 }
 
-class _AdminClientDirectory extends StatelessWidget {
+class _AdminClientDirectory extends StatefulWidget {
   final List<AdminClient> clients;
   final List<String> countryOptions;
   final String selectedCountry;
@@ -433,7 +433,22 @@ class _AdminClientDirectory extends StatelessWidget {
     required this.onSearch,
   });
   @override
+  State<_AdminClientDirectory> createState() => _AdminClientDirectoryState();
+}
+
+class _AdminClientDirectoryState extends State<_AdminClientDirectory> {
+  static const _pageSize = 50;
+  int _page = 0;
+
+  @override
   Widget build(BuildContext context) {
+    final clients = widget.clients;
+    final countryOptions = widget.countryOptions;
+    final selectedCountry = widget.selectedCountry;
+    final onCountryChanged = widget.onCountryChanged;
+    final sortOrder = widget.sortOrder;
+    final onSortChanged = widget.onSortChanged;
+    final onSearch = widget.onSearch;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final muted = dark ? Colors.white54 : const Color(0xFF858BA2);
     final clientsWithSyncedSessions =
@@ -508,7 +523,17 @@ class _AdminClientDirectory extends StatelessWidget {
         const SizedBox(height: 10),
         if (clients.isEmpty) Padding(padding: const EdgeInsets.all(24),
           child: Center(child: Text('No clients match your search.', style: TextStyle(color: muted))))
-        else ...clients.map((c) => _AdminClientRow(client: c, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminClientDetailScreen(client: c))))),
+        else ...clients.skip(_page * _pageSize).take(_pageSize).map((c) => _AdminClientRow(client: c, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminClientDetailScreen(client: c))))),
+        if (clients.length > _pageSize) ...[
+          const SizedBox(height: 12),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('Page ${_page + 1} of ${(clients.length / _pageSize).ceil()} · ${clients.length} clients', style: TextStyle(fontSize: 11, color: muted)),
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              IconButton(tooltip: 'Previous page', onPressed: _page == 0 ? null : () => setState(() => _page--), icon: const Icon(Icons.chevron_left_rounded)),
+              IconButton(tooltip: 'Next page', onPressed: (_page + 1) * _pageSize >= clients.length ? null : () => setState(() => _page++), icon: const Icon(Icons.chevron_right_rounded)),
+            ]),
+          ]),
+        ],
         const SizedBox(height: 8),
         Row(children: [
           const Icon(Icons.lock_outline_rounded, size: 14, color: Color(0xFF5146E5)),
