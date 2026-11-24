@@ -792,7 +792,19 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
         content: TextField(controller: controller, autofocus: true, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Minutes')),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
-          FilledButton(onPressed: () { final value = int.tryParse(controller.text.trim()); if (value == null || value <= 0) return; Navigator.pop(dialogContext, value); }, child: const Text('Start')),
+          FilledButton(
+            onPressed: () {
+              final value = int.tryParse(controller.text.trim());
+              if (value == null || value <= 0 || value > 180) return;
+              // Prepare browser audio while the Start button's user activation
+              // is still active; the dialog result resumes asynchronously.
+              if (ref.read(settingsProvider).pomodoroSoundEnabled) {
+                unawaited(CompletionSoundService.prepareFromUserGesture());
+              }
+              Navigator.pop(dialogContext, value);
+            },
+            child: const Text('Start'),
+          ),
         ],
       ),
     );
