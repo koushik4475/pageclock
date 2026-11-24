@@ -256,6 +256,7 @@ Deno.serve(async (req) => {
         lastActiveAt: a.last ? new Date(a.last).toISOString() : null,
         totalFocusMs: a.total,
         weekFocusMs: week,
+        todayFocusMs: a.daily.get(today) ?? 0,
         sessionCount: a.count,
         currentStreak: s.currentStreak,
         bestStreak: s.bestStreak,

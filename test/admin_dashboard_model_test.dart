@@ -28,6 +28,7 @@ void main() {
             'signupCountryName': 'India',
             'totalFocusMs': 120000,
             'weekFocusMs': 60000,
+            'todayFocusMs': 30000,
             'sessionCount': 2,
             'currentStreak': 1,
             'bestStreak': 2,
@@ -40,6 +41,7 @@ void main() {
       expect(data.countryDetectedClients, 2);
       expect(data.countryDistribution.first['countryCode'], 'IN');
       expect(data.clients.single.signupCountryName, 'India');
+      expect(data.clients.single.todayFocusMs, 30000);
     });
 
     test('older responses without country fields remain compatible', () {
@@ -58,6 +60,7 @@ void main() {
       expect(data.countriesReached, 0);
       expect(data.countryDetectedClients, 0);
       expect(data.countryDistribution, isEmpty);
+      expect(data.clients, isEmpty);
     });
   });
 }

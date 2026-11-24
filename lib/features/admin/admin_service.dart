@@ -14,6 +14,7 @@ class AdminClient {
   final String? signupCountryName;
   final int totalFocusMs;
   final int weekFocusMs;
+  final int todayFocusMs;
   final int sessionCount;
   final int currentStreak;
   final int bestStreak;
@@ -31,6 +32,7 @@ class AdminClient {
     required this.signupCountryName,
     required this.totalFocusMs,
     required this.weekFocusMs,
+    required this.todayFocusMs,
     required this.sessionCount,
     required this.currentStreak,
     required this.bestStreak,
@@ -49,6 +51,7 @@ class AdminClient {
         signupCountryName: json['signupCountryName'] as String?,
         totalFocusMs: (json['totalFocusMs'] as num?)?.toInt() ?? 0,
         weekFocusMs: (json['weekFocusMs'] as num?)?.toInt() ?? 0,
+        todayFocusMs: (json['todayFocusMs'] as num?)?.toInt() ?? 0,
         sessionCount: (json['sessionCount'] as num?)?.toInt() ?? 0,
         currentStreak: (json['currentStreak'] as num?)?.toInt() ?? 0,
         bestStreak: (json['bestStreak'] as num?)?.toInt() ?? 0,

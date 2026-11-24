@@ -744,11 +744,12 @@ class AdminClientDetailScreen extends StatelessWidget {
         const SizedBox(height: 22),
         LayoutBuilder(builder: (context, box) => GridView.count(
           shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: box.maxWidth > 650 ? 4 : 2,
+          crossAxisCount: box.maxWidth > 1000 ? 5 : box.maxWidth > 650 ? 3 : 2,
           crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.7,
           children: [
             _Metric('Lifetime focus', formatAdminDuration(client.totalFocusMs), Icons.timer, cs.primary),
             _Metric('This week', formatAdminDuration(client.weekFocusMs), Icons.date_range, const Color(0xFF0EA5E9)),
+            _Metric('Today', formatAdminDuration(client.todayFocusMs), Icons.today_rounded, const Color(0xFF16A36A)),
             _Metric('Current streak', client.currentStreak.toString() + ' days', Icons.local_fire_department, const Color(0xFFF97316)),
             _Metric('Best streak', client.bestStreak.toString() + ' days', Icons.emoji_events, const Color(0xFF8B5CF6)),
           ])),
