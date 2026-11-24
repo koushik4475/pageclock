@@ -51,7 +51,7 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
   bool _startInProgress = false;
 
   StopwatchNotifier(this._repository, {int Function()? nowUtcMs})
-      : _nowUtcMs = nowUtcMs ?? (() => DateTime.now().toUtc().millisecondsSinceEpoch),
+      : _nowUtcMs = nowUtcMs ?? (() => _nowUtcMs()),
         super(const StopwatchState(status: StopwatchStatus.idle)) {
     _restoreFuture = _restoreActiveSession();
   }
@@ -78,7 +78,7 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
     _ticker?.cancel();
     _ticker = Timer.periodic(const Duration(milliseconds: 250), (_) {
       if (state.status == StopwatchStatus.running && state.currentSession != null) {
-        final nowUtc = DateTime.now().toUtc().millisecondsSinceEpoch;
+        final nowUtc = _nowUtcMs();
         final elapsed = state.currentSession!.calculateCurrentDurationMs(nowUtc);
         state = state.copyWith(elapsedMs: elapsed);
       }
@@ -102,7 +102,7 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
         return;
       }
 
-      final nowUtc = DateTime.now().toUtc().millisecondsSinceEpoch;
+      final nowUtc = _nowUtcMs();
       final tzOffset = DateTime.now().timeZoneOffset.inMinutes;
 
       final session = ReadingSession(
@@ -141,7 +141,7 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
     if (state.status != StopwatchStatus.running || state.currentSession == null) return;
 
     _ticker?.cancel();
-    final nowUtc = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final nowUtc = _nowUtcMs();
 
     final updated = state.currentSession!.copyWith(
       pausedAtUtc: nowUtc,
@@ -160,7 +160,7 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
     await _restoreFuture;
     if (state.status != StopwatchStatus.paused || state.currentSession == null) return;
 
-    final nowUtc = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final nowUtc = _nowUtcMs();
     final pauseStart = state.currentSession!.pausedAtUtc ?? state.pauseTimestampUtc ?? nowUtc;
     final pauseDuration = (nowUtc - pauseStart).clamp(0, double.maxFinite.toInt());
 
@@ -194,7 +194,7 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
     if (state.currentSession == null) return null;
 
     _ticker?.cancel();
-    final nowUtc = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final nowUtc = _nowUtcMs();
 
     var session = state.currentSession!;
     if (state.status == StopwatchStatus.paused) {
