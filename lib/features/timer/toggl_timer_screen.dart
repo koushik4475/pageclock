@@ -646,9 +646,14 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       subjectId: project,
       note: description.trim().isEmpty ? null : description.trim(),
     );
-    if (pomodoroFocusTargetMs != null && pomodoroFocusTargetMs > 0) {
-      _customPomodoroFocusTargetMs = pomodoroFocusTargetMs;
-      await ref.read(sharedPreferencesProvider).setInt(_pomodoroFocusTargetKey, pomodoroFocusTargetMs);
+    final effectivePomodoroTargetMs = pomodoroFocusTargetMs ??
+        (_selectedMode == 1 ? settings.pomodoroFocusMinutes * 60000 : null);
+    if (effectivePomodoroTargetMs != null && effectivePomodoroTargetMs > 0) {
+      _customPomodoroFocusTargetMs = effectivePomodoroTargetMs;
+      await ref.read(sharedPreferencesProvider).setInt(
+        _pomodoroFocusTargetKey,
+        effectivePomodoroTargetMs,
+      );
       if (mounted) setState(() {});
     } else {
       await _clearPomodoroFocusTarget();
@@ -844,7 +849,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     ));
     if (settings.pomodoroSoundEnabled) {
       HapticFeedback.mediumImpact();
-      unawaited(CompletionSoundService.play(settings));
+      _playCompletionSoundWithFeedback(context, settings);
     }
     if (settings.pomodoroAutoStart) {
       _startPomodoroBreak(context);
@@ -960,6 +965,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
         context,
         project: ref.read(focusSelectedProjectProvider),
         description: _taskController.text,
+        pomodoroFocusTargetMs: ref.read(settingsProvider).pomodoroFocusMinutes * 60000,
       );
     }
   }
@@ -974,7 +980,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     ));
     if (settings.pomodoroSoundEnabled) {
       HapticFeedback.mediumImpact();
-      unawaited(CompletionSoundService.play(settings));
+      _playCompletionSoundWithFeedback(context, settings);
     }
     if (!settings.pomodoroAutoStart) {
       unawaited(_showBreakCompleteDialog(context));
@@ -996,6 +1002,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
         context,
         project: ref.read(focusSelectedProjectProvider),
         description: _taskController.text,
+        pomodoroFocusTargetMs: settings.pomodoroFocusMinutes * 60000,
       );
     }
   }
@@ -1038,6 +1045,24 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     }
   }
 
+  void _playCompletionSoundWithFeedback(
+    BuildContext context,
+    AppSettings settings,
+  ) {
+    unawaited(CompletionSoundService.play(settings).then((played) {
+      if (!played && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'PageClock could not play the completion sound. Check browser sound permissions and tap the sound button to enable audio.',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }));
+  }
+
   void _togglePomodoroSound() {
     final enabled = !ref.read(settingsProvider).pomodoroSoundEnabled;
     ref.read(settingsProvider.notifier).update(
@@ -1076,7 +1101,9 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       unawaited(
         NotificationService.syncTimer(next, ref.read(settingsProvider)),
       );
-      if (_selectedMode != 1 || _isPomodoroBreak || previous == null) return;
+      if (_customPomodoroFocusTargetMs == null ||
+          _isPomodoroBreak ||
+          previous == null) return;
       final focusTargetMs = _customPomodoroFocusTargetMs ?? ref.read(settingsProvider).pomodoroFocusMinutes * 60000;
       if (previous.elapsedMs < focusTargetMs &&
           next.elapsedMs >= focusTargetMs &&
@@ -1136,9 +1163,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => AppleMacFlipClockScreen(
-                    targetMinutes: _selectedMode == 1
-                        ? ((_customPomodoroFocusTargetMs ?? settings.pomodoroFocusMinutes * 60000) ~/ 60000)
-                        : null,
+                    targetMinutes: _customPomodoroFocusTargetMs != null
+                        ? (_customPomodoroFocusTargetMs! ~/ 60000)
+                        : (_selectedMode == 1
+                            ? settings.pomodoroFocusMinutes
+                            : null),
                     description: taskDescription,
                     projectName: selectedProject,
                     isSpecial1: isSpecial1,
@@ -1697,6 +1726,70 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_isPomodoroBreak) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: accent.withOpacity(0.45)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _isLongBreak ? 'LONG BREAK' : 'SHORT BREAK',
+                        style: TextStyle(
+                          color: accent,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      Text(
+                        _formatElapsed(_pomodoroBreakRemainingMs),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: _pomodoroBreakRunning
+                            ? _pausePomodoroBreak
+                            : () => _startPomodoroBreak(context),
+                        icon: Icon(
+                          _pomodoroBreakRunning
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                        ),
+                        label: Text(
+                          _pomodoroBreakRunning ? 'Pause break' : 'Start break',
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => _skipPomodoroBreak(context),
+                        icon: const Icon(Icons.skip_next_rounded),
+                        label: Text(
+                          _isLongBreak ? 'Skip long break' : 'Skip short break',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           // Daily focus goal reflects actual tracked time, including
           // the currently running session, instead of a static onboarding value.
           Builder(
