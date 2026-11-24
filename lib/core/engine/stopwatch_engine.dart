@@ -51,7 +51,7 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
   bool _startInProgress = false;
 
   StopwatchNotifier(this._repository, {int Function()? nowUtcMs})
-      : _nowUtcMs = nowUtcMs ?? (() => _nowUtcMs()),
+      : _nowUtcMs = nowUtcMs ?? (() => DateTime.now().toUtc().millisecondsSinceEpoch),
         super(const StopwatchState(status: StopwatchStatus.idle)) {
     _restoreFuture = _restoreActiveSession();
   }
