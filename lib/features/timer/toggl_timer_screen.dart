@@ -1044,7 +1044,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           (settings) => settings.copyWith(pomodoroSoundEnabled: enabled),
         );
     setState(() => _soundEnabled = enabled);
-    if (enabled) HapticFeedback.selectionClick();
+    if (enabled) {
+      HapticFeedback.selectionClick();
+      unawaited(CompletionSoundService.prepareFromUserGesture());
+    }
   }
 
   @override
