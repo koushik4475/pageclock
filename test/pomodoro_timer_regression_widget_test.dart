@@ -146,7 +146,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     await tester.tap(find.text('List view'));
-    await tester.pumpAndSettle();
+    await tester.pump();
     await tester.pump(const Duration(minutes: 1));
     await tester.pump(const Duration(seconds: 1));
 
