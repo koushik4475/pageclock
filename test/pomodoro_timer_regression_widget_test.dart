@@ -13,8 +13,17 @@ void expectNear45MinuteCountdown(WidgetTester tester) {
   expect(
     find.byWidgetPredicate((widget) {
       if (widget is! Text || widget.data == null) return false;
-      return widget.data == '45:00' ||
-          RegExp(r'^44:[0-5]\d
+      final value = widget.data!;
+      if (value == '45:00') return true;
+      if (!value.startsWith('44:')) return false;
+      final seconds = int.tryParse(value.substring(3));
+      return seconds != null && seconds >= 0 && seconds < 60;
+    }),
+    findsOneWidget,
+  );
+}
+
+void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
