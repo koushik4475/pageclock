@@ -715,10 +715,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   Future<void> _restorePomodoroState() async {
     final preferences = ref.read(sharedPreferencesProvider);
     await ref.read(stopwatchProvider.notifier).ready;
+    if (!mounted) return;
     final activeSession = ref.read(stopwatchProvider);
     final savedFocusTarget = preferences.getInt(_pomodoroFocusTargetKey);
     if (activeSession.currentSession != null && activeSession.status != StopwatchStatus.idle && savedFocusTarget != null && savedFocusTarget > 0) {
-      _customPomodoroFocusTargetMs = savedFocusTarget;
+      setState(() => _customPomodoroFocusTargetMs = savedFocusTarget);
     } else if (savedFocusTarget != null) {
       await preferences.remove(_pomodoroFocusTargetKey);
     }
