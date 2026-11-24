@@ -7,11 +7,20 @@ import '../settings/app_settings.dart';
 class CompletionSoundService {
   static final AudioPlayer _player = AudioPlayer();
   static bool _webPlaybackPrepared = false;
+  static Future<void>? _webPreparation;
 
   /// Starts a muted preview during a real user gesture so web browsers can
   /// authorize later timer-completion playback outside the gesture callback.
-  static Future<void> prepareFromUserGesture() async {
-    if (!kIsWeb || _webPlaybackPrepared) return;
+  /// Concurrent start paths share one preparation attempt because they use
+  /// the same AudioPlayer instance.
+  static Future<void> prepareFromUserGesture() {
+    if (!kIsWeb || _webPlaybackPrepared) return Future<void>.value();
+    return _webPreparation ??= _prepareWebPlayback().whenComplete(() {
+      _webPreparation = null;
+    });
+  }
+
+  static Future<void> _prepareWebPlayback() async {
     try {
       await _player.play(
         AssetSource('audio/completion_preview.wav'),
