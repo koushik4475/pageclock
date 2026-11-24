@@ -191,6 +191,12 @@ void main() {
   testWidgets('Pomodoro completion continues after switching to List view',
       (tester) async {
     final preferences = await SharedPreferences.getInstance();
+    final settings = SettingsNotifier(preferences);
+    await settings.update((value) => value.copyWith(
+          pomodoroSoundEnabled: false,
+          pomodoroNotificationsEnabled: false,
+        ));
+    settings.dispose();
     final repository = InMemorySessionRepository();
     var nowUtcMs = DateTime.now().toUtc().millisecondsSinceEpoch;
     final stopwatch = StopwatchNotifier(
