@@ -42,6 +42,7 @@ class StopwatchState {
 
 class StopwatchNotifier extends StateNotifier<StopwatchState> {
   final SessionRepository _repository;
+  final int Function() _nowUtcMs;
   Timer? _ticker;
   static const _uuid = Uuid();
 
@@ -49,8 +50,9 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
   Future<void> get ready => _restoreFuture;
   bool _startInProgress = false;
 
-  StopwatchNotifier(this._repository)
-      : super(const StopwatchState(status: StopwatchStatus.idle)) {
+  StopwatchNotifier(this._repository, {int Function()? nowUtcMs})
+      : _nowUtcMs = nowUtcMs ?? (() => DateTime.now().toUtc().millisecondsSinceEpoch),
+        super(const StopwatchState(status: StopwatchStatus.idle)) {
     _restoreFuture = _restoreActiveSession();
   }
 
@@ -58,7 +60,7 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
     final active = await _repository.getActiveSession();
     if (!mounted || active == null) return;
 
-    final nowUtc = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final nowUtc = _nowUtcMs();
     final elapsed = active.calculateCurrentDurationMs(nowUtc);
     final isPaused = active.pausedAtUtc != null;
     state = StopwatchState(
