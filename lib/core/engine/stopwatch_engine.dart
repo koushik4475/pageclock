@@ -46,6 +46,7 @@ class StopwatchNotifier extends StateNotifier<StopwatchState> {
   static const _uuid = Uuid();
 
   late final Future<void> _restoreFuture;
+  Future<void> get ready => _restoreFuture;
   bool _startInProgress = false;
 
   StopwatchNotifier(this._repository)
