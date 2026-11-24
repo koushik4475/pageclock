@@ -51,6 +51,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   bool _isLongBreak = false;
   bool _pomodoroBreakRunning = false;
   int? _customPomodoroFocusTargetMs;
+  bool _pomodoroCompletionInProgress = false;
   int _pomodoroCompletedFocusSessions = 0;
   int _pomodoroBreakDurationMs = 0;
   int _pomodoroBreakRemainingMs = 0;
@@ -76,13 +77,17 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     final settings = ref.read(settingsProvider);
     _selectedMode = settings.selectedTimerMode;
     _soundEnabled = settings.pomodoroSoundEnabled;
-    ref.read(focusSelectedProjectProvider.notifier).state =
-        settings.lastSelectedProject;
     _taskController = TextEditingController(
       text: ref.read(focusTaskDescriptionProvider),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(_restorePomodoroState());
+      if (!mounted) return;
+      // StateProvider writes from initState can race with listeners being
+      // mounted in the same ProviderScope. Defer the persisted selection
+      // until the first frame has completed.
+      ref.read(focusSelectedProjectProvider.notifier).state =
+          settings.lastSelectedProject;
+      unawaited(_restorePomodoroState());
     });
   }
 
@@ -646,6 +651,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       subjectId: project,
       note: description.trim().isEmpty ? null : description.trim(),
     );
+    _pomodoroCompletionInProgress = false;
     final effectivePomodoroTargetMs = pomodoroFocusTargetMs ??
         (_selectedMode == 1 ? settings.pomodoroFocusMinutes * 60000 : null);
     if (effectivePomodoroTargetMs != null && effectivePomodoroTargetMs > 0) {
@@ -663,6 +669,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
 
   Future<void> _clearPomodoroFocusTarget() async {
     _customPomodoroFocusTargetMs = null;
+    _pomodoroCompletionInProgress = false;
     await ref.read(sharedPreferencesProvider).remove(_pomodoroFocusTargetKey);
     if (mounted) setState(() {});
   }
@@ -806,8 +813,10 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   }
 
   Future<void> _completePomodoroFocus(BuildContext context) async {
+    if (_pomodoroCompletionInProgress) return;
     final settings = ref.read(settingsProvider);
-    final focusTargetMs = _customPomodoroFocusTargetMs ?? settings.pomodoroFocusMinutes * 60000;
+    final focusTargetMs =
+        _customPomodoroFocusTargetMs ?? settings.pomodoroFocusMinutes * 60000;
     final current = ref.read(stopwatchProvider);
     if (current.elapsedMs < focusTargetMs ||
         current.status != StopwatchStatus.running ||
@@ -815,51 +824,62 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       return;
     }
 
-    await ref.read(stopwatchProvider.notifier).stop(
-          minSessionDurationMs: 0,
-          forceSave: true,
-        );
-    _customPomodoroFocusTargetMs = null;
-    await ref.read(sharedPreferencesProvider).remove(_pomodoroFocusTargetKey);
-    if (!mounted) return;
+    // Set the guard before the first await: several ticker updates can arrive
+    // while the completed session is being persisted.
+    _pomodoroCompletionInProgress = true;
+    try {
+      await ref.read(stopwatchProvider.notifier).stop(
+            minSessionDurationMs: 0,
+            forceSave: true,
+          );
+      _customPomodoroFocusTargetMs = null;
+      await ref.read(sharedPreferencesProvider).remove(_pomodoroFocusTargetKey);
+      if (!mounted) return;
 
-    _pomodoroCompletedFocusSessions++;
-    await ref.read(sharedPreferencesProvider).setInt(
-          _pomodoroCompletedSessionsKey,
-          _pomodoroCompletedFocusSessions,
-        );
-    if (!mounted) return;
-    final longBreakDue = settings.pomodoroLongBreakInterval > 0 &&
-        _pomodoroCompletedFocusSessions %
-                settings.pomodoroLongBreakInterval ==
-            0;
-    final breakMinutes = longBreakDue
-        ? settings.pomodoroLongBreakMinutes
-        : settings.pomodoroShortBreakMinutes;
+      _pomodoroCompletedFocusSessions++;
+      await ref.read(sharedPreferencesProvider).setInt(
+            _pomodoroCompletedSessionsKey,
+            _pomodoroCompletedFocusSessions,
+          );
+      if (!mounted) return;
+      final longBreakDue = settings.pomodoroLongBreakInterval > 0 &&
+          _pomodoroCompletedFocusSessions %
+                  settings.pomodoroLongBreakInterval ==
+              0;
+      final breakMinutes = longBreakDue
+          ? settings.pomodoroLongBreakMinutes
+          : settings.pomodoroShortBreakMinutes;
 
-    setState(() {
-      _isPomodoroBreak = true;
-      _isLongBreak = longBreakDue;
-      _pomodoroBreakDurationMs = breakMinutes * 60000;
-      _pomodoroBreakRemainingMs = _pomodoroBreakDurationMs;
-      _pomodoroBreakRunning = false;
-    });
-    await _persistPomodoroBreakState();
-    if (!mounted) return;
+      setState(() {
+        _isPomodoroBreak = true;
+        _isLongBreak = longBreakDue;
+        _pomodoroBreakDurationMs = breakMinutes * 60000;
+        _pomodoroBreakRemainingMs = _pomodoroBreakDurationMs;
+        _pomodoroBreakRunning = false;
+      });
+      await _persistPomodoroBreakState();
+      if (!mounted) return;
 
-    unawaited(NotificationService.showPomodoroComplete(
-      settings,
-      title: 'Focus session complete',
-      body: 'Time for a ${longBreakDue ? 'long' : 'short'} break.',
-    ));
-    if (settings.pomodoroSoundEnabled) {
-      HapticFeedback.mediumImpact();
-      _playCompletionSoundWithFeedback(context, settings);
-    }
-    if (settings.pomodoroAutoStart) {
-      _startPomodoroBreak(context);
-    } else {
-      unawaited(_showFocusCompleteDialog(context, longBreakDue));
+      unawaited(NotificationService.showPomodoroComplete(
+        settings,
+        title: 'Focus session complete',
+        body: 'Time for a ${longBreakDue ? 'long' : 'short'} break.',
+      ));
+      if (settings.pomodoroSoundEnabled) {
+        HapticFeedback.mediumImpact();
+        _playCompletionSoundWithFeedback(context, settings);
+      }
+      if (settings.pomodoroAutoStart) {
+        _startPomodoroBreak(context);
+      } else {
+        unawaited(_showFocusCompleteDialog(context, longBreakDue));
+      }
+    } finally {
+      // Keep the guard latched while the break is active. A new focus session
+      // resets it in _startNewSession.
+      if (mounted && !_isPomodoroBreak) {
+        _pomodoroCompletionInProgress = false;
+      }
     }
   }
 
@@ -1108,12 +1128,15 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       );
       if (_customPomodoroFocusTargetMs == null ||
           _isPomodoroBreak ||
+          _pomodoroCompletionInProgress ||
           previous == null) return;
-      final focusTargetMs = _customPomodoroFocusTargetMs ?? ref.read(settingsProvider).pomodoroFocusMinutes * 60000;
-      if (previous.elapsedMs < focusTargetMs &&
-          next.elapsedMs >= focusTargetMs &&
+      final focusTargetMs = _customPomodoroFocusTargetMs!;
+      // Check the current threshold rather than requiring a single crossing
+      // event. This also completes sessions restored after the target elapsed
+      // while the app was suspended or the timer view was not visible.
+      if (next.elapsedMs >= focusTargetMs &&
           next.status == StopwatchStatus.running) {
-        _completePomodoroFocus(context);
+        unawaited(_completePomodoroFocus(context));
       }
     });
     ref.listen<AppSettings>(settingsProvider, (previous, next) {
