@@ -37,6 +37,7 @@ void main() {
   testWidgets('custom focus duration drives the visible countdown', (tester) async {
     await mountTimer(tester);
 
+    await tester.ensureVisible(find.text('Set custom focus time'));
     await tester.tap(find.text('Set custom focus time'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last, '45');
@@ -53,6 +54,7 @@ void main() {
   testWidgets('custom focus target survives restoring a running session', (tester) async {
     final mounted = await mountTimer(tester);
 
+    await tester.ensureVisible(find.text('Set custom focus time'));
     await tester.tap(find.text('Set custom focus time'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last, '45');
@@ -116,6 +118,7 @@ void main() {
     expect(find.text('LONG BREAK'), findsOneWidget);
     expect(find.text('Skip long break'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Skip long break'));
     await tester.tap(find.text('Skip long break'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -155,6 +158,7 @@ void main() {
 
     expect(find.text('LONG BREAK'), findsOneWidget);
     expect(find.text('Skip long break'), findsOneWidget);
+    await tester.ensureVisible(find.text('Skip long break'));
     await tester.tap(find.text('Skip long break'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -173,6 +177,7 @@ void main() {
       (tester) async {
     await mountTimer(tester);
 
+    await tester.ensureVisible(find.text('Set custom focus time'));
     await tester.tap(find.text('Set custom focus time'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last, '1');
