@@ -48,14 +48,18 @@ class CompletionSoundService {
     throw StateError('Custom completion sound has no saved audio data or file path.');
   }
 
-  static Future<void> play(AppSettings settings) async {
+  static Future<bool> play(AppSettings settings) async {
     if (!settings.pomodoroSoundEnabled ||
-        settings.completionSoundTheme == 'silent') return;
+        settings.completionSoundTheme == 'silent') {
+      return true;
+    }
     try {
       await preview(settings);
+      return true;
     } catch (error, stackTrace) {
       debugPrint('[CompletionSoundService] Playback failed: $error');
       debugPrintStack(stackTrace: stackTrace);
+      return false;
     }
   }
 
