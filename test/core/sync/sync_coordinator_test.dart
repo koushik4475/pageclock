@@ -18,6 +18,7 @@ class MockCloudSessionDataSource implements CloudSessionDataSource {
   String poisonPillSessionId = '';
   bool failWithUserCap = false;
   bool failNextPush = false;
+  bool failNextSingleWithNetwork = false;
 
   @override
   Future<CloudPullResponse> pullSessions({
@@ -64,6 +65,10 @@ class MockCloudSessionDataSource implements CloudSessionDataSource {
     required String userId,
     required ReadingSession session,
   }) async {
+    if (failNextSingleWithNetwork) {
+      failNextSingleWithNetwork = false;
+      throw Exception('SocketException: Connection reset by peer');
+    }
     if (session.id == poisonPillSessionId) {
       throw Exception('PostgrestException: Invalid session ID format');
     }
@@ -233,6 +238,34 @@ void main() {
       await Future<void>.delayed(const Duration(seconds: 3));
       expect(dataSource.pushedBatches.any((s) => s.id == 'sess_retry'), isTrue);
       expect(coordinator.state.status, equals(SyncStatus.synced));
+      coordinator.dispose();
+    });
+
+    test('network failure during poison-pill isolation retries instead of quarantining', () async {
+      final first = createSession(id: 'sess_network_first', updatedAt: 1000);
+      final second = createSession(id: 'sess_network_second', updatedAt: 1001);
+      await repository.saveSession(first);
+      await repository.saveSession(second);
+      dataSource.failNextBatchWithPoisonPill = true;
+      dataSource.failNextSingleWithNetwork = true;
+
+      final coordinator = SyncCoordinator(
+        prefs: prefs,
+        repository: repository,
+        dataSource: dataSource,
+        userId: userId,
+        autoSync: false,
+      );
+
+      await coordinator.sync();
+      expect(coordinator.state.status, equals(SyncStatus.offline));
+      expect(coordinator.syncMeta.quarantine, isEmpty);
+
+      await Future<void>.delayed(const Duration(seconds: 3));
+      expect(coordinator.state.status, equals(SyncStatus.synced));
+      expect(dataSource.pushedBatches.map((s) => s.id).toSet(),
+          containsAll([first.id, second.id]));
+      expect(coordinator.syncMeta.quarantine, isEmpty);
       coordinator.dispose();
     });
 
