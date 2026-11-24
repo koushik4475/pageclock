@@ -650,8 +650,16 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       _customPomodoroFocusTargetMs = pomodoroFocusTargetMs;
       await ref.read(sharedPreferencesProvider).setInt(_pomodoroFocusTargetKey, pomodoroFocusTargetMs);
       if (mounted) setState(() {});
+    } else {
+      await _clearPomodoroFocusTarget();
     }
     _triggerHaptic();
+  }
+
+  Future<void> _clearPomodoroFocusTarget() async {
+    _customPomodoroFocusTargetMs = null;
+    await ref.read(sharedPreferencesProvider).remove(_pomodoroFocusTargetKey);
+    if (mounted) setState(() {});
   }
 
   Future<bool> _stopCurrentSession(BuildContext context) async {
@@ -689,9 +697,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       } else {
         await notifier.cancel();
       }
+      await _clearPomodoroFocusTarget();
       return true;
     }
     await notifier.stop(minSessionDurationMs: minDurationMs);
+    await _clearPomodoroFocusTarget();
     _triggerHaptic();
     return true;
   }
