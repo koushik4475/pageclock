@@ -49,6 +49,40 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('custom focus target survives restoring a running session', (tester) async {
+    final mounted = await mountTimer(tester);
+
+    await tester.tap(find.text('Set custom focus time'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, '45');
+    await tester.tap(find.text('Start'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      mounted.preferences.getInt('pageclock_pomodoro_focus_target_ms_v1'),
+      45 * 60000,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(mounted.preferences),
+          sessionRepositoryProvider.overrideWithValue(mounted.repository),
+        ],
+        child: const MaterialApp(home: TogglTimerScreen()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('45:00'), findsOneWidget);
+    expect(find.text('SESSION ACTIVE'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('skipping a restored long break starts the next focus session',
       (tester) async {
     final preferences = await SharedPreferences.getInstance();
