@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:pageclock/core/engine/pomodoro_break_snapshot.dart';
 import 'package:pageclock/core/repository/session_repository.dart';
+import 'package:pageclock/core/settings/app_settings.dart';
 import 'package:pageclock/features/timer/toggl_timer_screen.dart';
 
 void main() {
