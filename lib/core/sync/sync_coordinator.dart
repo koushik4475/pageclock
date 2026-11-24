@@ -39,6 +39,24 @@ class SyncCoordinator extends StateNotifier<SyncState> {
   Timer? _retryTimer;
   int consecutiveFailures = 0;
 
+  /// Network/transient failures must never be mistaken for invalid session rows.
+  /// Keep this platform-neutral because the coordinator is also compiled for web.
+  bool _isTransientNetworkError(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('network') ||
+        message.contains('socketexception') ||
+        message.contains('failed host lookup') ||
+        message.contains('clientexception') ||
+        message.contains('offline') ||
+        message.contains('timeoutexception') ||
+        message.contains('handshakeexception') ||
+        message.contains('connection reset') ||
+        message.contains('connection refused') ||
+        message.contains('connection closed') ||
+        message.contains('network is unreachable') ||
+        message.contains('no address associated');
+  }
+
   void _scheduleRetry() {
     if (_isDisposed) return;
     _retryTimer?.cancel();
@@ -121,11 +139,7 @@ class SyncCoordinator extends StateNotifier<SyncState> {
           quarantinedCount: _syncMeta.quarantine.length,
           hasStorageCapError: true,
         );
-      } else if (errorMsg.contains('network') ||
-          errorMsg.contains('SocketException') ||
-          errorMsg.contains('Failed host lookup') ||
-          errorMsg.contains('ClientException') ||
-          errorMsg.contains('offline')) {
+      } else if (_isTransientNetworkError(e)) {
         state = const SyncState.offline();
       } else {
         state = SyncState.needsAttention(
@@ -211,11 +225,7 @@ class SyncCoordinator extends StateNotifier<SyncState> {
           final errorMsg = e.toString();
           // Network failures should retry the entire sync cycle, not be treated
           // as poison-pill rows and quarantined during single-row isolation.
-          if (errorMsg.contains('network') ||
-              errorMsg.contains('SocketException') ||
-              errorMsg.contains('Failed host lookup') ||
-              errorMsg.contains('ClientException') ||
-              errorMsg.contains('offline')) {
+          if (_isTransientNetworkError(e)) {
             rethrow;
           }
           if (errorMsg.contains('reading_sessions_user_cap') ||
@@ -230,6 +240,10 @@ class SyncCoordinator extends StateNotifier<SyncState> {
               await _dataSource.pushSingle(userId: _userId, session: s);
               _syncMeta.markSynced(s.id, batchSnapshots[s.id]!);
             } catch (singleErr) {
+              // A transient failure while isolating a bad batch is still a
+              // transport failure. Abort and retry the cycle instead of
+              // permanently quarantining healthy sessions.
+              if (_isTransientNetworkError(singleErr)) rethrow;
               _syncMeta.markQuarantined(s.id, singleErr.toString());
             }
           }
