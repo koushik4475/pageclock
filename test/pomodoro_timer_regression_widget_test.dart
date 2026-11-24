@@ -91,4 +91,69 @@ void main() {
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets('long-break skip remains available in List view', (tester) async {
+    final preferences = await SharedPreferences.getInstance();
+    const snapshot = PomodoroBreakSnapshot(
+      isLongBreak: true,
+      durationMs: 900000,
+      remainingMs: 600000,
+      isRunning: false,
+      deadlineUtcMs: null,
+    );
+    await preferences.setString(
+      'pageclock_pomodoro_break_state_v1',
+      snapshot.toJson(),
+    );
+    final repository = InMemorySessionRepository();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(preferences),
+          sessionRepositoryProvider.overrideWithValue(repository),
+        ],
+        child: const MaterialApp(home: TogglTimerScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('LONG BREAK'), findsOneWidget);
+    expect(find.text('Skip long break'), findsOneWidget);
+    await tester.tap(find.text('Skip long break'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('LONG BREAK'), findsNothing);
+    expect(await repository.getActiveSession(), isNotNull);
+    expect(
+      preferences.getInt('pageclock_pomodoro_focus_target_ms_v1'),
+      25 * 60000,
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('Pomodoro completion continues after switching to List view',
+      (tester) async {
+    await mountTimer(tester);
+
+    await tester.tap(find.text('Set custom focus time'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, '1');
+    await tester.tap(find.text('Start'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.text('List view'));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(minutes: 1));
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text('SHORT BREAK'), findsOneWidget);
+    expect(find.text('Skip short break'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
 }
