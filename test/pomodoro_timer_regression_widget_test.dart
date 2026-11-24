@@ -191,4 +191,27 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  test('custom Pomodoro settings persist after app settings reload', () async {
+    final preferences = await SharedPreferences.getInstance();
+    final notifier = SettingsNotifier(preferences);
+
+    await notifier.update((settings) => settings.copyWith(
+          pomodoroFocusMinutes: 27,
+          pomodoroShortBreakMinutes: 6,
+          pomodoroLongBreakMinutes: 22,
+          pomodoroLongBreakInterval: 3,
+          pomodoroAutoStart: true,
+        ));
+
+    final restored = SettingsNotifier(preferences);
+    expect(restored.state.pomodoroFocusMinutes, 27);
+    expect(restored.state.pomodoroShortBreakMinutes, 6);
+    expect(restored.state.pomodoroLongBreakMinutes, 22);
+    expect(restored.state.pomodoroLongBreakInterval, 3);
+    expect(restored.state.pomodoroAutoStart, isTrue);
+
+    notifier.dispose();
+    restored.dispose();
+  });
+
 }
