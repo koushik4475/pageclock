@@ -8,6 +8,7 @@ import 'package:pageclock/core/engine/stopwatch_engine.dart';
 import 'package:pageclock/core/repository/session_repository.dart';
 import 'package:pageclock/core/settings/app_settings.dart';
 import 'package:pageclock/features/timer/toggl_timer_screen.dart';
+import 'package:pageclock/features/settings/toggl_settings_screen.dart';
 
 void expectNear45MinuteCountdown(WidgetTester tester) {
   expect(
@@ -237,6 +238,57 @@ void main() {
 
     expect(find.text('SHORT BREAK'), findsOneWidget);
     expect(find.text('Skip short break'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('Pomodoro settings validate and persist arbitrary durations',
+      (tester) async {
+    final preferences = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(preferences),
+          sessionRepositoryProvider.overrideWithValue(
+            InMemorySessionRepository(),
+          ),
+        ],
+        child: const MaterialApp(home: TogglSettingsScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Pomodoro intervals'));
+    await tester.tap(find.text('Pomodoro intervals'));
+    await tester.pumpAndSettle();
+
+    final dialog = find.byType(AlertDialog);
+    final fields = find.descendant(
+      of: dialog,
+      matching: find.byType(TextField),
+    );
+    expect(fields, findsNWidgets(3));
+
+    await tester.enterText(fields.at(0), '0');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Enter valid whole-minute durations within the limits.'),
+      findsOneWidget,
+    );
+
+    await tester.enterText(fields.at(0), '27');
+    await tester.enterText(fields.at(1), '6');
+    await tester.enterText(fields.at(2), '22');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    final restored = SettingsNotifier(preferences);
+    expect(restored.state.pomodoroFocusMinutes, 27);
+    expect(restored.state.pomodoroShortBreakMinutes, 6);
+    expect(restored.state.pomodoroLongBreakMinutes, 22);
+    expect(tester.takeException(), isNull);
+    restored.dispose();
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
