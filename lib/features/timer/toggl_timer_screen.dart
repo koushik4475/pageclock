@@ -51,6 +51,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   bool _isLongBreak = false;
   bool _pomodoroBreakRunning = false;
   int? _customPomodoroFocusTargetMs;
+  bool _pomodoroCompletionInProgress = false;
   int _pomodoroCompletedFocusSessions = 0;
   int _pomodoroBreakDurationMs = 0;
   int _pomodoroBreakRemainingMs = 0;
@@ -60,6 +61,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
 
   static const _pomodoroBreakStateKey = 'pageclock_pomodoro_break_state_v1';
   static const _pomodoroCompletedSessionsKey = 'pageclock_pomodoro_completed_focus_sessions_v1';
+  static const _pomodoroFocusTargetKey = 'pageclock_pomodoro_focus_target_ms_v1';
 
   final List<String> _availableProjects = const [
     'General Focus',
@@ -75,13 +77,17 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     final settings = ref.read(settingsProvider);
     _selectedMode = settings.selectedTimerMode;
     _soundEnabled = settings.pomodoroSoundEnabled;
-    ref.read(focusSelectedProjectProvider.notifier).state =
-        settings.lastSelectedProject;
     _taskController = TextEditingController(
       text: ref.read(focusTaskDescriptionProvider),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(_restorePomodoroState());
+      if (!mounted) return;
+      // StateProvider writes from initState can race with listeners being
+      // mounted in the same ProviderScope. Defer the persisted selection
+      // until the first frame has completed.
+      ref.read(focusSelectedProjectProvider.notifier).state =
+          settings.lastSelectedProject;
+      unawaited(_restorePomodoroState());
     });
   }
 
@@ -609,7 +615,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   Future<void> _startNewSession(BuildContext context, {
     required String project,
     required String description,
+    int? pomodoroFocusTargetMs,
   }) async {
+    if (ref.read(settingsProvider).pomodoroSoundEnabled) {
+      unawaited(CompletionSoundService.prepareFromUserGesture());
+    }
     final notifier = ref.read(stopwatchProvider.notifier);
     final current = ref.read(stopwatchProvider);
     final settings = ref.read(settingsProvider);
@@ -641,7 +651,27 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       subjectId: project,
       note: description.trim().isEmpty ? null : description.trim(),
     );
+    _pomodoroCompletionInProgress = false;
+    final effectivePomodoroTargetMs = pomodoroFocusTargetMs ??
+        (_selectedMode == 1 ? settings.pomodoroFocusMinutes * 60000 : null);
+    if (effectivePomodoroTargetMs != null && effectivePomodoroTargetMs > 0) {
+      _customPomodoroFocusTargetMs = effectivePomodoroTargetMs;
+      await ref.read(sharedPreferencesProvider).setInt(
+        _pomodoroFocusTargetKey,
+        effectivePomodoroTargetMs,
+      );
+      if (mounted) setState(() {});
+    } else {
+      await _clearPomodoroFocusTarget();
+    }
     _triggerHaptic();
+  }
+
+  Future<void> _clearPomodoroFocusTarget() async {
+    _customPomodoroFocusTargetMs = null;
+    _pomodoroCompletionInProgress = false;
+    await ref.read(sharedPreferencesProvider).remove(_pomodoroFocusTargetKey);
+    if (mounted) setState(() {});
   }
 
   Future<bool> _stopCurrentSession(BuildContext context) async {
@@ -679,9 +709,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       } else {
         await notifier.cancel();
       }
+      await _clearPomodoroFocusTarget();
       return true;
     }
     await notifier.stop(minSessionDurationMs: minDurationMs);
+    await _clearPomodoroFocusTarget();
     _triggerHaptic();
     return true;
   }
@@ -689,6 +721,15 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
 
   Future<void> _restorePomodoroState() async {
     final preferences = ref.read(sharedPreferencesProvider);
+    await ref.read(stopwatchProvider.notifier).ready;
+    if (!mounted) return;
+    final activeSession = ref.read(stopwatchProvider);
+    final savedFocusTarget = preferences.getInt(_pomodoroFocusTargetKey);
+    if (activeSession.currentSession != null && activeSession.status != StopwatchStatus.idle && savedFocusTarget != null && savedFocusTarget > 0) {
+      setState(() => _customPomodoroFocusTargetMs = savedFocusTarget);
+    } else if (savedFocusTarget != null) {
+      await preferences.remove(_pomodoroFocusTargetKey);
+    }
     final completedSessions = preferences.getInt(_pomodoroCompletedSessionsKey);
     if (completedSessions != null && completedSessions >= 0) {
       _pomodoroCompletedFocusSessions = completedSessions;
@@ -698,6 +739,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       preferences.getString(_pomodoroBreakStateKey),
     );
     if (snapshot == null || !mounted) return;
+    _customPomodoroFocusTargetMs = null;
+    await preferences.remove(_pomodoroFocusTargetKey);
 
     final nowUtcMs = DateTime.now().toUtc().millisecondsSinceEpoch;
     final remainingMs = snapshot.remainingAt(nowUtcMs);
@@ -748,27 +791,32 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   }
 
   Future<void> _startCustomPomodoro(BuildContext context) async {
-    final controller = TextEditingController(text: '45');
     final minutes = await showDialog<int>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Custom focus duration'),
-        content: TextField(controller: controller, autofocus: true, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Minutes')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
-          FilledButton(onPressed: () { final value = int.tryParse(controller.text.trim()); if (value == null || value <= 0) return; Navigator.pop(dialogContext, value); }, child: const Text('Start')),
-        ],
+      builder: (_) => _CustomFocusDurationDialog(
+        onStartGesture: () {
+          // Prepare browser audio while the Start button's user activation
+          // is still active; the dialog result resumes asynchronously.
+          if (ref.read(settingsProvider).pomodoroSoundEnabled) {
+            unawaited(CompletionSoundService.prepareFromUserGesture());
+          }
+        },
       ),
     );
-    controller.dispose();
     if (minutes == null || !mounted) return;
-    _customPomodoroFocusTargetMs = minutes * 60000;
-    await _startNewSession(context, project: ref.read(focusSelectedProjectProvider), description: _taskController.text);
+    await _startNewSession(
+      context,
+      project: ref.read(focusSelectedProjectProvider),
+      description: _taskController.text,
+      pomodoroFocusTargetMs: minutes * 60000,
+    );
   }
 
   Future<void> _completePomodoroFocus(BuildContext context) async {
+    if (_pomodoroCompletionInProgress) return;
     final settings = ref.read(settingsProvider);
-    final focusTargetMs = _customPomodoroFocusTargetMs ?? settings.pomodoroFocusMinutes * 60000;
+    final focusTargetMs =
+        _customPomodoroFocusTargetMs ?? settings.pomodoroFocusMinutes * 60000;
     final current = ref.read(stopwatchProvider);
     if (current.elapsedMs < focusTargetMs ||
         current.status != StopwatchStatus.running ||
@@ -776,49 +824,62 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       return;
     }
 
-    await ref.read(stopwatchProvider.notifier).stop(
-          minSessionDurationMs: 0,
-          forceSave: true,
-        );
-    if (!mounted) return;
+    // Set the guard before the first await: several ticker updates can arrive
+    // while the completed session is being persisted.
+    _pomodoroCompletionInProgress = true;
+    try {
+      await ref.read(stopwatchProvider.notifier).stop(
+            minSessionDurationMs: 0,
+            forceSave: true,
+          );
+      _customPomodoroFocusTargetMs = null;
+      await ref.read(sharedPreferencesProvider).remove(_pomodoroFocusTargetKey);
+      if (!mounted) return;
 
-    _pomodoroCompletedFocusSessions++;
-    await ref.read(sharedPreferencesProvider).setInt(
-          _pomodoroCompletedSessionsKey,
-          _pomodoroCompletedFocusSessions,
-        );
-    if (!mounted) return;
-    final longBreakDue = settings.pomodoroLongBreakInterval > 0 &&
-        _pomodoroCompletedFocusSessions %
-                settings.pomodoroLongBreakInterval ==
-            0;
-    final breakMinutes = longBreakDue
-        ? settings.pomodoroLongBreakMinutes
-        : settings.pomodoroShortBreakMinutes;
+      _pomodoroCompletedFocusSessions++;
+      await ref.read(sharedPreferencesProvider).setInt(
+            _pomodoroCompletedSessionsKey,
+            _pomodoroCompletedFocusSessions,
+          );
+      if (!mounted) return;
+      final longBreakDue = settings.pomodoroLongBreakInterval > 0 &&
+          _pomodoroCompletedFocusSessions %
+                  settings.pomodoroLongBreakInterval ==
+              0;
+      final breakMinutes = longBreakDue
+          ? settings.pomodoroLongBreakMinutes
+          : settings.pomodoroShortBreakMinutes;
 
-    setState(() {
-      _isPomodoroBreak = true;
-      _isLongBreak = longBreakDue;
-      _pomodoroBreakDurationMs = breakMinutes * 60000;
-      _pomodoroBreakRemainingMs = _pomodoroBreakDurationMs;
-      _pomodoroBreakRunning = false;
-    });
-    await _persistPomodoroBreakState();
-    if (!mounted) return;
+      setState(() {
+        _isPomodoroBreak = true;
+        _isLongBreak = longBreakDue;
+        _pomodoroBreakDurationMs = breakMinutes * 60000;
+        _pomodoroBreakRemainingMs = _pomodoroBreakDurationMs;
+        _pomodoroBreakRunning = false;
+      });
+      await _persistPomodoroBreakState();
+      if (!mounted) return;
 
-    unawaited(NotificationService.showPomodoroComplete(
-      settings,
-      title: 'Focus session complete',
-      body: 'Time for a ${longBreakDue ? 'long' : 'short'} break.',
-    ));
-    if (settings.pomodoroSoundEnabled) {
-      HapticFeedback.mediumImpact();
-      unawaited(CompletionSoundService.play(settings));
-    }
-    if (settings.pomodoroAutoStart) {
-      _startPomodoroBreak(context);
-    } else {
-      unawaited(_showFocusCompleteDialog(context, longBreakDue));
+      unawaited(NotificationService.showPomodoroComplete(
+        settings,
+        title: 'Focus session complete',
+        body: 'Time for a ${longBreakDue ? 'long' : 'short'} break.',
+      ));
+      if (settings.pomodoroSoundEnabled) {
+        HapticFeedback.mediumImpact();
+        _playCompletionSoundWithFeedback(context, settings);
+      }
+      if (settings.pomodoroAutoStart) {
+        _startPomodoroBreak(context);
+      } else {
+        unawaited(_showFocusCompleteDialog(context, longBreakDue));
+      }
+    } finally {
+      // Keep the guard latched while the break is active. A new focus session
+      // resets it in _startNewSession.
+      if (mounted && !_isPomodoroBreak) {
+        _pomodoroCompletionInProgress = false;
+      }
     }
   }
 
@@ -911,6 +972,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   Future<void> _skipPomodoroBreak(BuildContext context) async {
     if (!_isPomodoroBreak) return;
     _pomodoroBreakTicker?.cancel();
+    _customPomodoroFocusTargetMs = null;
+    await ref.read(sharedPreferencesProvider).remove(_pomodoroFocusTargetKey);
     setState(() {
       _isPomodoroBreak = false;
       _isLongBreak = false;
@@ -927,6 +990,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
         context,
         project: ref.read(focusSelectedProjectProvider),
         description: _taskController.text,
+        pomodoroFocusTargetMs: ref.read(settingsProvider).pomodoroFocusMinutes * 60000,
       );
     }
   }
@@ -941,7 +1005,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     ));
     if (settings.pomodoroSoundEnabled) {
       HapticFeedback.mediumImpact();
-      unawaited(CompletionSoundService.play(settings));
+      _playCompletionSoundWithFeedback(context, settings);
     }
     if (!settings.pomodoroAutoStart) {
       unawaited(_showBreakCompleteDialog(context));
@@ -963,6 +1027,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
         context,
         project: ref.read(focusSelectedProjectProvider),
         description: _taskController.text,
+        pomodoroFocusTargetMs: settings.pomodoroFocusMinutes * 60000,
       );
     }
   }
@@ -988,6 +1053,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   context,
                   project: ref.read(focusSelectedProjectProvider),
                   description: _taskController.text,
+                  pomodoroFocusTargetMs: ref.read(settingsProvider).pomodoroFocusMinutes * 60000,
                 );
               }
             },
@@ -1004,13 +1070,34 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     }
   }
 
+  void _playCompletionSoundWithFeedback(
+    BuildContext context,
+    AppSettings settings,
+  ) {
+    unawaited(CompletionSoundService.play(settings).then((played) {
+      if (!played && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'PageClock could not play the completion sound. Check browser sound permissions and tap the sound button to enable audio.',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }));
+  }
+
   void _togglePomodoroSound() {
     final enabled = !ref.read(settingsProvider).pomodoroSoundEnabled;
     ref.read(settingsProvider.notifier).update(
           (settings) => settings.copyWith(pomodoroSoundEnabled: enabled),
         );
     setState(() => _soundEnabled = enabled);
-    if (enabled) HapticFeedback.selectionClick();
+    if (enabled) {
+      HapticFeedback.selectionClick();
+      unawaited(CompletionSoundService.prepareFromUserGesture());
+    }
   }
 
   @override
@@ -1039,12 +1126,17 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       unawaited(
         NotificationService.syncTimer(next, ref.read(settingsProvider)),
       );
-      if (_selectedMode != 1 || _isPomodoroBreak || previous == null) return;
-      final focusTargetMs = _customPomodoroFocusTargetMs ?? ref.read(settingsProvider).pomodoroFocusMinutes * 60000;
-      if (previous.elapsedMs < focusTargetMs &&
-          next.elapsedMs >= focusTargetMs &&
+      if (_customPomodoroFocusTargetMs == null ||
+          _isPomodoroBreak ||
+          _pomodoroCompletionInProgress ||
+          previous == null) return;
+      final focusTargetMs = _customPomodoroFocusTargetMs!;
+      // Check the current threshold rather than requiring a single crossing
+      // event. This also completes sessions restored after the target elapsed
+      // while the app was suspended or the timer view was not visible.
+      if (next.elapsedMs >= focusTargetMs &&
           next.status == StopwatchStatus.running) {
-        _completePomodoroFocus(context);
+        unawaited(_completePomodoroFocus(context));
       }
     });
     ref.listen<AppSettings>(settingsProvider, (previous, next) {
@@ -1099,9 +1191,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (_) => AppleMacFlipClockScreen(
-                    targetMinutes: _selectedMode == 1
-                        ? settings.pomodoroFocusMinutes
-                        : null,
+                    targetMinutes: _customPomodoroFocusTargetMs != null
+                        ? (_customPomodoroFocusTargetMs! ~/ 60000)
+                        : (_selectedMode == 1
+                            ? settings.pomodoroFocusMinutes
+                            : null),
                     description: taskDescription,
                     projectName: selectedProject,
                     isSpecial1: isSpecial1,
@@ -1250,7 +1344,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         isDark,
                         stopwatchState,
                         isSpecial1,
-                        settings.pomodoroFocusMinutes,
+                        _customPomodoroFocusTargetMs ?? settings.pomodoroFocusMinutes * 60000,
                         colorScheme,
                         accent,
                         selectedProject,
@@ -1287,12 +1381,12 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     bool isDark,
     StopwatchState stopwatchState,
     bool isSpecial1,
-    int focusMinutes,
+    int focusTargetMs,
     ColorScheme colorScheme,
     Color accent,
     String selectedProject,
   ) {
-    final targetMs = focusMinutes * 60 * 1000;
+    final targetMs = focusTargetMs;
     final isFocusOvertime = !_isPomodoroBreak &&
         stopwatchState.status != StopwatchStatus.idle &&
         stopwatchState.elapsedMs >= targetMs;
@@ -1426,6 +1520,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   context,
                   project: ref.read(focusSelectedProjectProvider),
                   description: _taskController.text,
+                  pomodoroFocusTargetMs: ref.read(settingsProvider).pomodoroFocusMinutes * 60000,
                 );
               }
             },
@@ -1569,6 +1664,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     context,
                     project: ref.read(focusSelectedProjectProvider),
                     description: _taskController.text,
+                    pomodoroFocusTargetMs: ref.read(settingsProvider).pomodoroFocusMinutes * 60000,
                   );
                 }
               },
@@ -1658,6 +1754,70 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_isPomodoroBreak) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: accent.withOpacity(0.45)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _isLongBreak ? 'LONG BREAK' : 'SHORT BREAK',
+                        style: TextStyle(
+                          color: accent,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      Text(
+                        _formatElapsed(_pomodoroBreakRemainingMs),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: _pomodoroBreakRunning
+                            ? _pausePomodoroBreak
+                            : () => _startPomodoroBreak(context),
+                        icon: Icon(
+                          _pomodoroBreakRunning
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                        ),
+                        label: Text(
+                          _pomodoroBreakRunning ? 'Pause break' : 'Start break',
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => _skipPomodoroBreak(context),
+                        icon: const Icon(Icons.skip_next_rounded),
+                        label: Text(
+                          _isLongBreak ? 'Skip long break' : 'Skip short break',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           // Daily focus goal reflects actual tracked time, including
           // the currently running session, instead of a static onboarding value.
           Builder(
@@ -2088,3 +2248,61 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   }
 }
 
+/// Owns its input controller for the full route/widget lifetime. A dialog's
+/// reverse transition can outlive showDialog's result future, so a controller
+/// created in the caller must not be disposed immediately after that future
+/// completes while the exiting TextField may still be mounted.
+class _CustomFocusDurationDialog extends StatefulWidget {
+  const _CustomFocusDurationDialog({required this.onStartGesture});
+
+  final VoidCallback onStartGesture;
+
+  @override
+  State<_CustomFocusDurationDialog> createState() =>
+      _CustomFocusDurationDialogState();
+}
+
+class _CustomFocusDurationDialogState
+    extends State<_CustomFocusDurationDialog> {
+  late final TextEditingController _minutesController;
+
+  @override
+  void initState() {
+    super.initState();
+    _minutesController = TextEditingController(text: '45');
+  }
+
+  @override
+  void dispose() {
+    _minutesController.dispose();
+    super.dispose();
+  }
+
+  void _start() {
+    final minutes = int.tryParse(_minutesController.text.trim());
+    if (minutes == null || minutes < 1 || minutes > 180) return;
+    widget.onStartGesture();
+    Navigator.of(context).pop(minutes);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Custom focus duration'),
+      content: TextField(
+        controller: _minutesController,
+        autofocus: true,
+        keyboardType: TextInputType.number,
+        decoration: const InputDecoration(labelText: 'Minutes'),
+        onSubmitted: (_) => _start(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(onPressed: _start, child: const Text('Start')),
+      ],
+    );
+  }
+}

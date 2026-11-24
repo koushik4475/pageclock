@@ -1406,104 +1406,16 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     );
   }
 
-  void _showPomodoroSettingsDialog(BuildContext context, AppSettings settings) {
-    int focus = settings.pomodoroFocusMinutes;
-    int shortB = settings.pomodoroShortBreakMinutes;
-    int longB = settings.pomodoroLongBreakMinutes;
-    int longBreakInterval = settings.pomodoroLongBreakInterval;
-    bool autoStart = settings.pomodoroAutoStart;
-
-    showDialog(
+  Future<void> _showPomodoroSettingsDialog(
+    BuildContext context,
+    AppSettings settings,
+  ) async {
+    final updated = await showDialog<AppSettings>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: const Text('Pomodoro Intervals'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Focus Duration:'),
-                    DropdownButton<int>(
-                      value: focus,
-                      items: [15, 20, 25, 30, 45, 50, 60].map((v) => DropdownMenuItem(value: v, child: Text('$v min'))).toList(),
-                      onChanged: (v) { if (v != null) setDialogState(() => focus = v); },
-                    ),
-                  ],
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Short Break:'),
-                    DropdownButton<int>(
-                      value: shortB,
-                      items: [3, 5, 10, 15].map((v) => DropdownMenuItem(value: v, child: Text('$v min'))).toList(),
-                      onChanged: (v) { if (v != null) setDialogState(() => shortB = v); },
-                    ),
-                  ],
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Long Break:'),
-                    DropdownButton<int>(
-                      value: longB,
-                      items: [10, 15, 20, 25, 30].map((v) => DropdownMenuItem(value: v, child: Text('$v min'))).toList(),
-                      onChanged: (v) { if (v != null) setDialogState(() => longB = v); },
-                    ),
-                  ],
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Long break after:'),
-                    DropdownButton<int>(
-                      value: longBreakInterval,
-                      items: [2, 3, 4, 5, 6].map(
-                        (v) => DropdownMenuItem(value: v, child: Text('$v sessions')),
-                      ).toList(),
-                      onChanged: (v) {
-                        if (v != null) {
-                          setDialogState(() => longBreakInterval = v);
-                        }
-                      },
-                    ),
-                  ],
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Auto-start next interval'),
-                  value: autoStart,
-                  onChanged: (value) =>
-                      setDialogState(() => autoStart = value),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  ref.read(settingsProvider.notifier).update((s) => s.copyWith(
-                    pomodoroFocusMinutes: focus,
-                    pomodoroShortBreakMinutes: shortB,
-                    pomodoroLongBreakMinutes: longB,
-                    pomodoroLongBreakInterval: longBreakInterval,
-                    pomodoroAutoStart: autoStart,
-                  ));
-                  Navigator.pop(ctx);
-                },
-                child: const Text('Save'),
-              ),
-            ],
-          );
-        },
-      ),
+      builder: (_) => _PomodoroSettingsDialog(settings: settings),
     );
+    if (updated == null || !mounted) return;
+    await ref.read(settingsProvider.notifier).setSettings(updated);
   }
 
   // --- Data & Backup Actions ---
@@ -2280,3 +2192,164 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
     );
   }
 }
+
+/// Keeps its text controllers alive until the dialog route has fully left the
+/// widget tree. The showDialog future can complete as the reverse transition
+/// begins, so controllers created by the caller must not be disposed there.
+class _PomodoroSettingsDialog extends StatefulWidget {
+  const _PomodoroSettingsDialog({required this.settings});
+
+  final AppSettings settings;
+
+  @override
+  State<_PomodoroSettingsDialog> createState() =>
+      _PomodoroSettingsDialogState();
+}
+
+class _PomodoroSettingsDialogState extends State<_PomodoroSettingsDialog> {
+  late final TextEditingController _focusController;
+  late final TextEditingController _shortController;
+  late final TextEditingController _longController;
+  late int _longBreakInterval;
+  late bool _autoStart;
+  bool _showValidationError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final settings = widget.settings;
+    _focusController =
+        TextEditingController(text: settings.pomodoroFocusMinutes.toString());
+    _shortController = TextEditingController(
+      text: settings.pomodoroShortBreakMinutes.toString(),
+    );
+    _longController =
+        TextEditingController(text: settings.pomodoroLongBreakMinutes.toString());
+    _longBreakInterval =
+        settings.pomodoroLongBreakInterval.clamp(2, 10).toInt();
+    _autoStart = settings.pomodoroAutoStart;
+  }
+
+  @override
+  void dispose() {
+    _focusController.dispose();
+    _shortController.dispose();
+    _longController.dispose();
+    super.dispose();
+  }
+
+  int? _parseMinutes(TextEditingController controller, int maximum) {
+    final value = int.tryParse(controller.text.trim());
+    return value != null && value >= 1 && value <= maximum ? value : null;
+  }
+
+  void _save() {
+    final focus = _parseMinutes(_focusController, 180);
+    final shortBreak = _parseMinutes(_shortController, 120);
+    final longBreak = _parseMinutes(_longController, 120);
+    if (focus == null || shortBreak == null || longBreak == null) {
+      setState(() => _showValidationError = true);
+      return;
+    }
+
+    Navigator.of(context).pop(
+      widget.settings.copyWith(
+        pomodoroFocusMinutes: focus,
+        pomodoroShortBreakMinutes: shortBreak,
+        pomodoroLongBreakMinutes: longBreak,
+        pomodoroLongBreakInterval: _longBreakInterval,
+        pomodoroAutoStart: _autoStart,
+      ),
+    );
+  }
+
+  Widget _durationInput(String label, TextEditingController controller) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: TextField(
+        controller: controller,
+        keyboardType: const TextInputType.numberWithOptions(decimal: false),
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        maxLength: 3,
+        decoration: InputDecoration(
+          labelText: label,
+          suffixText: 'minutes',
+          border: const OutlineInputBorder(),
+          counterText: '',
+        ),
+        onChanged: (_) {
+          if (_showValidationError) {
+            setState(() => _showValidationError = false);
+          }
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Pomodoro Intervals'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _durationInput('Focus duration (1–180 min)', _focusController),
+            _durationInput('Short break (1–120 min)', _shortController),
+            _durationInput('Long break (1–120 min)', _longController),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Long break after:'),
+                DropdownButton<int>(
+                  value: _longBreakInterval,
+                  items: List.generate(9, (index) => index + 2)
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text('$value sessions'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _longBreakInterval = value);
+                    }
+                  },
+                ),
+              ],
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Auto-start next interval'),
+              value: _autoStart,
+              onChanged: (value) => setState(() => _autoStart = value),
+            ),
+            const Text(
+              'Enter any whole number of minutes. Focus: 1–180; breaks: 1–120.',
+              style: TextStyle(fontSize: 12),
+            ),
+            if (_showValidationError) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Enter valid whole-minute durations within the limits.',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _save,
+          child: const Text('Save'),
+        ),
+      ],
+    );
+  }
+}
+
