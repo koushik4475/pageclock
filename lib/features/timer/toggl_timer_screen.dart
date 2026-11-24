@@ -60,6 +60,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
 
   static const _pomodoroBreakStateKey = 'pageclock_pomodoro_break_state_v1';
   static const _pomodoroCompletedSessionsKey = 'pageclock_pomodoro_completed_focus_sessions_v1';
+  static const _pomodoroFocusTargetKey = 'pageclock_pomodoro_focus_target_ms_v1';
 
   final List<String> _availableProjects = const [
     'General Focus',
@@ -609,7 +610,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   Future<void> _startNewSession(BuildContext context, {
     required String project,
     required String description,
+    int? pomodoroFocusTargetMs,
   }) async {
+    if (ref.read(settingsProvider).pomodoroSoundEnabled) {
+      unawaited(CompletionSoundService.prepareFromUserGesture());
+    }
     final notifier = ref.read(stopwatchProvider.notifier);
     final current = ref.read(stopwatchProvider);
     final settings = ref.read(settingsProvider);
@@ -641,6 +646,11 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       subjectId: project,
       note: description.trim().isEmpty ? null : description.trim(),
     );
+    if (pomodoroFocusTargetMs != null && pomodoroFocusTargetMs > 0) {
+      _customPomodoroFocusTargetMs = pomodoroFocusTargetMs;
+      await ref.read(sharedPreferencesProvider).setInt(_pomodoroFocusTargetKey, pomodoroFocusTargetMs);
+      if (mounted) setState(() {});
+    }
     _triggerHaptic();
   }
 
@@ -689,6 +699,14 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
 
   Future<void> _restorePomodoroState() async {
     final preferences = ref.read(sharedPreferencesProvider);
+    await ref.read(stopwatchProvider.notifier).ready;
+    final activeSession = ref.read(stopwatchProvider);
+    final savedFocusTarget = preferences.getInt(_pomodoroFocusTargetKey);
+    if (activeSession.currentSession != null && activeSession.status != StopwatchStatus.idle && savedFocusTarget != null && savedFocusTarget > 0) {
+      _customPomodoroFocusTargetMs = savedFocusTarget;
+    } else if (savedFocusTarget != null) {
+      await preferences.remove(_pomodoroFocusTargetKey);
+    }
     final completedSessions = preferences.getInt(_pomodoroCompletedSessionsKey);
     if (completedSessions != null && completedSessions >= 0) {
       _pomodoroCompletedFocusSessions = completedSessions;
@@ -698,6 +716,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
       preferences.getString(_pomodoroBreakStateKey),
     );
     if (snapshot == null || !mounted) return;
+    _customPomodoroFocusTargetMs = null;
+    await preferences.remove(_pomodoroFocusTargetKey);
 
     final nowUtcMs = DateTime.now().toUtc().millisecondsSinceEpoch;
     final remainingMs = snapshot.remainingAt(nowUtcMs);
@@ -762,8 +782,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     );
     controller.dispose();
     if (minutes == null || !mounted) return;
-    _customPomodoroFocusTargetMs = minutes * 60000;
-    await _startNewSession(context, project: ref.read(focusSelectedProjectProvider), description: _taskController.text);
+    await _startNewSession(context, project: ref.read(focusSelectedProjectProvider), description: _taskController.text, pomodoroFocusTargetMs: minutes * 60000);
   }
 
   Future<void> _completePomodoroFocus(BuildContext context) async {
@@ -780,6 +799,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           minSessionDurationMs: 0,
           forceSave: true,
         );
+    _customPomodoroFocusTargetMs = null;
+    await ref.read(sharedPreferencesProvider).remove(_pomodoroFocusTargetKey);
     if (!mounted) return;
 
     _pomodoroCompletedFocusSessions++;
@@ -911,6 +932,8 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   Future<void> _skipPomodoroBreak(BuildContext context) async {
     if (!_isPomodoroBreak) return;
     _pomodoroBreakTicker?.cancel();
+    _customPomodoroFocusTargetMs = null;
+    await ref.read(sharedPreferencesProvider).remove(_pomodoroFocusTargetKey);
     setState(() {
       _isPomodoroBreak = false;
       _isLongBreak = false;
@@ -988,6 +1011,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   context,
                   project: ref.read(focusSelectedProjectProvider),
                   description: _taskController.text,
+                  pomodoroFocusTargetMs: ref.read(settingsProvider).pomodoroFocusMinutes * 60000,
                 );
               }
             },
@@ -1100,7 +1124,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                 MaterialPageRoute(
                   builder: (_) => AppleMacFlipClockScreen(
                     targetMinutes: _selectedMode == 1
-                        ? settings.pomodoroFocusMinutes
+                        ? ((_customPomodoroFocusTargetMs ?? settings.pomodoroFocusMinutes * 60000) ~/ 60000)
                         : null,
                     description: taskDescription,
                     projectName: selectedProject,
@@ -1250,7 +1274,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         isDark,
                         stopwatchState,
                         isSpecial1,
-                        settings.pomodoroFocusMinutes,
+                        _customPomodoroFocusTargetMs ?? settings.pomodoroFocusMinutes * 60000,
                         colorScheme,
                         accent,
                         selectedProject,
@@ -1287,12 +1311,12 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     bool isDark,
     StopwatchState stopwatchState,
     bool isSpecial1,
-    int focusMinutes,
+    int focusTargetMs,
     ColorScheme colorScheme,
     Color accent,
     String selectedProject,
   ) {
-    final targetMs = focusMinutes * 60 * 1000;
+    final targetMs = focusTargetMs;
     final isFocusOvertime = !_isPomodoroBreak &&
         stopwatchState.status != StopwatchStatus.idle &&
         stopwatchState.elapsedMs >= targetMs;
@@ -1426,6 +1450,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   context,
                   project: ref.read(focusSelectedProjectProvider),
                   description: _taskController.text,
+                  pomodoroFocusTargetMs: ref.read(settingsProvider).pomodoroFocusMinutes * 60000,
                 );
               }
             },
@@ -1569,6 +1594,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     context,
                     project: ref.read(focusSelectedProjectProvider),
                     description: _taskController.text,
+                    pomodoroFocusTargetMs: ref.read(settingsProvider).pomodoroFocusMinutes * 60000,
                   );
                 }
               },
