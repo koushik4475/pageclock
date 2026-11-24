@@ -784,33 +784,25 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   }
 
   Future<void> _startCustomPomodoro(BuildContext context) async {
-    final controller = TextEditingController(text: '45');
     final minutes = await showDialog<int>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Custom focus duration'),
-        content: TextField(controller: controller, autofocus: true, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Minutes')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () {
-              final value = int.tryParse(controller.text.trim());
-              if (value == null || value <= 0 || value > 180) return;
-              // Prepare browser audio while the Start button's user activation
-              // is still active; the dialog result resumes asynchronously.
-              if (ref.read(settingsProvider).pomodoroSoundEnabled) {
-                unawaited(CompletionSoundService.prepareFromUserGesture());
-              }
-              Navigator.pop(dialogContext, value);
-            },
-            child: const Text('Start'),
-          ),
-        ],
+      builder: (_) => _CustomFocusDurationDialog(
+        onStartGesture: () {
+          // Prepare browser audio while the Start button's user activation
+          // is still active; the dialog result resumes asynchronously.
+          if (ref.read(settingsProvider).pomodoroSoundEnabled) {
+            unawaited(CompletionSoundService.prepareFromUserGesture());
+          }
+        },
       ),
     );
-    controller.dispose();
     if (minutes == null || !mounted) return;
-    await _startNewSession(context, project: ref.read(focusSelectedProjectProvider), description: _taskController.text, pomodoroFocusTargetMs: minutes * 60000);
+    await _startNewSession(
+      context,
+      project: ref.read(focusSelectedProjectProvider),
+      description: _taskController.text,
+      pomodoroFocusTargetMs: minutes * 60000,
+    );
   }
 
   Future<void> _completePomodoroFocus(BuildContext context) async {
@@ -2233,3 +2225,61 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   }
 }
 
+/// Owns its input controller for the full route/widget lifetime. A dialog's
+/// reverse transition can outlive showDialog's result future, so a controller
+/// created in the caller must not be disposed immediately after that future
+/// completes while the exiting TextField may still be mounted.
+class _CustomFocusDurationDialog extends StatefulWidget {
+  const _CustomFocusDurationDialog({required this.onStartGesture});
+
+  final VoidCallback onStartGesture;
+
+  @override
+  State<_CustomFocusDurationDialog> createState() =>
+      _CustomFocusDurationDialogState();
+}
+
+class _CustomFocusDurationDialogState
+    extends State<_CustomFocusDurationDialog> {
+  late final TextEditingController _minutesController;
+
+  @override
+  void initState() {
+    super.initState();
+    _minutesController = TextEditingController(text: '45');
+  }
+
+  @override
+  void dispose() {
+    _minutesController.dispose();
+    super.dispose();
+  }
+
+  void _start() {
+    final minutes = int.tryParse(_minutesController.text.trim());
+    if (minutes == null || minutes < 1 || minutes > 180) return;
+    widget.onStartGesture();
+    Navigator.of(context).pop(minutes);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Custom focus duration'),
+      content: TextField(
+        controller: _minutesController,
+        autofocus: true,
+        keyboardType: TextInputType.number,
+        decoration: const InputDecoration(labelText: 'Minutes'),
+        onSubmitted: (_) => _start(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(onPressed: _start, child: const Text('Start')),
+      ],
+    );
+  }
+}
