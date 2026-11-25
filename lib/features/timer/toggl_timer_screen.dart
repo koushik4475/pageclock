@@ -9,6 +9,7 @@ import '../../core/engine/pomodoro_break_snapshot.dart';
 import '../../core/format/formatters.dart';
 import '../../core/models/reading_session.dart';
 import '../../core/repository/session_repository.dart';
+import '../../core/repository/subject_repository.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/services/completion_sound_service.dart';
@@ -17,6 +18,7 @@ import '../../main.dart';
 import '../../stats/stats_engine.dart';
 import '../settings/toggl_settings_screen.dart';
 import 'widgets/fullscreen_ambient_focus_screen.dart';
+import 'timer_project_options.dart';
 
 final focusTaskDescriptionProvider = StateProvider<String>((ref) => '');
 final focusSelectedProjectProvider = StateProvider<String>((ref) => 'General Focus');
@@ -63,13 +65,20 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
   static const _pomodoroCompletedSessionsKey = 'pageclock_pomodoro_completed_focus_sessions_v1';
   static const _pomodoroFocusTargetKey = 'pageclock_pomodoro_focus_target_ms_v1';
 
-  final List<String> _availableProjects = const [
-    'General Focus',
-    'Coding',
-    'Reading',
-    'Deep Work',
-    'Study',
-  ];
+  bool _projectFallbackScheduled = false;
+
+  void _scheduleProjectFallback() {
+    if (_projectFallbackScheduled) return;
+    _projectFallbackScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      _projectFallbackScheduled = false;
+      if (!mounted) return;
+      ref.read(focusSelectedProjectProvider.notifier).state = 'General Focus';
+      await ref.read(settingsProvider.notifier).update(
+            (settings) => settings.copyWith(lastSelectedProject: 'General Focus'),
+          );
+    });
+  }
 
   @override
   void initState() {
@@ -98,12 +107,13 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     super.dispose();
   }
 
-  void _showAddEntryModal(BuildContext context) {
+  void _showAddEntryModal(BuildContext context, List<String> availableProjects) {
     final accent = Theme.of(context).colorScheme.primary;
     final descCtrl = TextEditingController();
     final minsCtrl = TextEditingController(text: '30');
     final isDark = Theme.of(context).brightness == Brightness.dark;
     String selectedProj = ref.read(focusSelectedProjectProvider);
+    if (!availableProjects.contains(selectedProj)) selectedProj = 'General Focus';
 
     showModalBottomSheet(
       context: context,
@@ -185,7 +195,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: _availableProjects.map((proj) {
+                    children: availableProjects.map((proj) {
                       final isSel = selectedProj == proj;
                       return ChoiceChip(
                         label: Text(proj),
@@ -266,12 +276,16 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     );
   }
 
-  void _showEditEntryModal(BuildContext context, ReadingSession session) {
+  void _showEditEntryModal(
+    BuildContext context,
+    ReadingSession session,
+    List<String> availableProjects,
+  ) {
     var description = session.note ?? '';
     var durationText =
         (session.durationMs / 60000).round().clamp(1, 525600).toString();
     final projects = <String>{
-      ..._availableProjects,
+      ...availableProjects,
       session.subjectName,
     }.toList();
     var selectedProject = session.subjectName;
@@ -525,7 +539,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     }
   }
 
-  void _showProjectPicker(BuildContext context) {
+  void _showProjectPicker(BuildContext context, List<String> availableProjects) {
     final accent = Theme.of(context).colorScheme.primary;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
@@ -555,7 +569,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  ..._availableProjects.map((project) {
+                  ...availableProjects.map((project) {
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: Icon(Icons.circle, color: accent, size: 14),
@@ -1122,6 +1136,14 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     final todayTotalMs = todayFocusSummary.totalMilliseconds;
     final taskDescription = ref.watch(focusTaskDescriptionProvider);
     final selectedProject = ref.watch(focusSelectedProjectProvider);
+    final allSubjectsAsync = ref.watch(allSubjectsProvider);
+    final allSubjects = allSubjectsAsync.valueOrNull ?? const [];
+    final availableProjects = buildTimerProjectOptions(allSubjects);
+    if (allSubjectsAsync.hasValue &&
+        ref.read(subjectRepositoryProvider).storageIssue == null &&
+        !availableProjects.contains(selectedProject)) {
+      _scheduleProjectFallback();
+    }
     ref.listen<StopwatchState>(stopwatchProvider, (previous, next) {
       unawaited(
         NotificationService.syncTimer(next, ref.read(settingsProvider)),
@@ -1181,7 +1203,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
           IconButton(
             icon: Icon(Icons.add_circle_outline_rounded, color: headerIconColor),
             tooltip: 'Add Manual Time Entry',
-            onPressed: () => _showAddEntryModal(context),
+            onPressed: () => _showAddEntryModal(context, availableProjects),
           ),
           IconButton(
             icon: Icon(Icons.fullscreen_rounded, color: headerIconColor),
@@ -1348,6 +1370,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         colorScheme,
                         accent,
                         selectedProject,
+                        availableProjects,
                       )
                     : _buildListView(
                         context,
@@ -1363,6 +1386,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         accent,
                         taskDescription,
                         selectedProject,
+                        availableProjects,
                       ),
               ),
 
@@ -1385,6 +1409,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     ColorScheme colorScheme,
     Color accent,
     String selectedProject,
+    List<String> availableProjects,
   ) {
     final targetMs = focusTargetMs;
     final isFocusOvertime = !_isPomodoroBreak &&
@@ -1495,7 +1520,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                         : accent,
                   ),
                   tooltip: 'Choose Project',
-                  onPressed: () => _showProjectPicker(context),
+                  onPressed: () => _showProjectPicker(context, availableProjects),
                 ),
               ],
             ),
@@ -1748,6 +1773,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     Color accent,
     String taskDescription,
     String selectedProject,
+    List<String> availableProjects,
   ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -1993,6 +2019,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
               groupSimilar: groupSimilar,
               isDark: isDark,
               durationFormat: durationFormat,
+              availableProjects: availableProjects,
             ),
           const SizedBox(height: 24),
         ],
@@ -2007,6 +2034,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     required bool groupSimilar,
     required bool isDark,
     required String durationFormat,
+    required List<String> availableProjects,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
     final accent = colorScheme.primary;
@@ -2080,7 +2108,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
                   tooltip: 'Entry actions',
                   onSelected: (action) {
                     if (action == 'edit') {
-                      _showEditEntryModal(context, latest);
+                      _showEditEntryModal(context, latest, availableProjects);
                     } else if (action == 'delete') {
                       unawaited(_deleteSessionWithUndo(latest));
                     }
