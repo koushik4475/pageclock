@@ -14,6 +14,7 @@ void main() {
       expect(scope.storageKey, equals(AccountScope.guestSessionsKey));
       expect(scope.storageKey, equals('pageclock_web_sessions_v2_guest'));
       expect(scope.syncMetaStorageKey, isEmpty);
+      expect(scope.subjectsStorageKey, equals(AccountScope.guestSubjectsKey));
       expect(scope.serialize(), equals('guest'));
     });
 
@@ -29,6 +30,10 @@ void main() {
       expect(
         scope.syncMetaStorageKey,
         equals('pageclock_sync_meta_v1_user_usr_uuid_12345'),
+      );
+      expect(
+        scope.subjectsStorageKey,
+        equals('pageclock_subjects_v1_user_usr_uuid_12345'),
       );
       expect(scope.serialize(), equals('user:usr_uuid_12345'));
     });
