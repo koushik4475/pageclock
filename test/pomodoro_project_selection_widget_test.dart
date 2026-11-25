@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pageclock/core/repository/session_repository.dart';
+import 'package:pageclock/core/repository/subject_repository.dart';
 import 'package:pageclock/core/settings/app_settings.dart';
 import 'package:pageclock/features/timer/toggl_timer_screen.dart';
 
@@ -19,6 +20,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+            subjectRepositoryProvider.overrideWith((ref) => InMemorySubjectRepository()),
           sharedPreferencesProvider.overrideWithValue(preferences),
           sessionRepositoryProvider.overrideWithValue(
             InMemorySessionRepository(),
