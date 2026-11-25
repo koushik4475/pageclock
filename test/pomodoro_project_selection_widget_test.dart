@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pageclock/core/repository/session_repository.dart';
 import 'package:pageclock/core/repository/subject_repository.dart';
 import 'package:pageclock/core/settings/app_settings.dart';
+import 'package:pageclock/core/models/subject.dart';
 import 'package:pageclock/features/timer/toggl_timer_screen.dart';
 
 void main() {
@@ -59,4 +60,41 @@ void main() {
     expect(find.text('Build a feature'), findsOneWidget);
     expect(find.text('Coding'), findsOneWidget);
   });
+  testWidgets('managed subjects replace legacy project choices in the timer picker',
+      (tester) async {
+    final preferences = await SharedPreferences.getInstance();
+    final subjects = InMemorySubjectRepository([
+      const Subject(id: 'math', name: 'Mathematics', color: '#4F46E5'),
+    ]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(preferences),
+          sessionRepositoryProvider.overrideWithValue(InMemorySessionRepository()),
+          subjectRepositoryProvider.overrideWithValue(subjects),
+        ],
+        child: const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(size: Size(360, 640)),
+            child: TogglTimerScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pomodoro'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Choose Project'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mathematics'), findsOneWidget);
+    expect(find.text('Coding'), findsNothing);
+    await tester.tap(find.text('Mathematics'));
+    await tester.pumpAndSettle();
+    expect(find.text('Mathematics'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await subjects.dispose();
+  });
+
 }
