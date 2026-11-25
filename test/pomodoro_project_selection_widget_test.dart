@@ -21,7 +21,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-            subjectRepositoryProvider.overrideWith((ref) => InMemorySubjectRepository()),
+          subjectRepositoryProvider.overrideWith((ref) => InMemorySubjectRepository()),
           sharedPreferencesProvider.overrideWithValue(preferences),
           sessionRepositoryProvider.overrideWithValue(
             InMemorySessionRepository(),
