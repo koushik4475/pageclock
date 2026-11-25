@@ -23,6 +23,7 @@ class AccountScope {
   static const String legacyV1Key = 'pageclock_web_sessions_v1';
   static const String guestSessionsKey = 'pageclock_web_sessions_v2_guest';
   static const String guestImportLogKey = 'pageclock_guest_import_log_v1';
+  static const String guestSubjectsKey = 'pageclock_subjects_v1_guest';
 
   static String userSessionsKey(String uid) =>
       'pageclock_web_sessions_v2_user_$uid';
@@ -30,9 +31,15 @@ class AccountScope {
   static String syncMetaKey(String uid) =>
       'pageclock_sync_meta_v1_user_$uid';
 
+  static String userSubjectsKey(String uid) =>
+      'pageclock_subjects_v1_user_$uid';
+
   String get storageKey => isUser ? userSessionsKey(userId!) : guestSessionsKey;
 
   String get syncMetaStorageKey => isUser ? syncMetaKey(userId!) : '';
+
+  String get subjectsStorageKey =>
+      isUser ? userSubjectsKey(userId!) : guestSubjectsKey;
 
   static String storageKeyForScope(AccountScope scope) => scope.storageKey;
 
