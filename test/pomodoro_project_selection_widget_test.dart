@@ -107,8 +107,8 @@ void main() {
       (tester) async {
     final preferences = await SharedPreferences.getInstance();
     final subjects = InMemorySubjectRepository();
-    await tester.view.setPhysicalSize(const Size(360, 640));
-    await tester.view.setDevicePixelRatio(1);
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
     addTearDown(() async {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
