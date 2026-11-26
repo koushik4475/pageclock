@@ -6,6 +6,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../core/account/account_scope.dart';
 import '../../core/format/formatters.dart';
 import '../../core/models/reading_session.dart';
+import '../../core/repository/subject_repository.dart';
 import '../../core/services/pdf_service.dart';
 import '../../core/settings/app_settings.dart';
 import '../../stats/stats_engine.dart';
@@ -38,7 +39,6 @@ class ReportsScreen extends ConsumerStatefulWidget {
 }
 
 class _ReportsScreenState extends ConsumerState<ReportsScreen> {
-  int _groupByIndex = 0; // 0: Projects, 1: Books
   String _selectedFilter = 'This week';
 
   _ReportRange? _selectedRange(int weekStartDay, DateTime now) {
@@ -112,20 +112,27 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       format: settings.durationFormat,
     );
 
-    // Grouping by Project (Subject) or Book
-    final Map<String, int> distribution = {};
-    for (final s in filteredSessions) {
-      final key = _groupByIndex == 0
-          ? s.subjectName
-          : (s.bookTitle ?? 'Uncategorized');
-      final mins = (focusedDurationFor(s) / 60000).round();
-      distribution[key] = (distribution[key] ?? 0) + mins;
+    // Reports are grouped by the user's currently available (non-archived) tags.
+    final availableTags =
+        ref.watch(activeSubjectsProvider).valueOrNull ?? const [];
+    final tagNamesById = {
+      for (final tag in availableTags) tag.id: tag.name,
+    };
+    final Map<String, int> distribution = {
+      for (final tag in availableTags) tag.id: 0,
+    };
+    for (final session in filteredSessions) {
+      final tagId = session.subjectId;
+      if (tagId == null || !distribution.containsKey(tagId)) continue;
+      final mins = (focusedDurationFor(session) / 60000).round();
+      distribution[tagId] = distribution[tagId]! + mins;
     }
 
     final sortedEntries = distribution.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-
-    final totalMins = distribution.values.fold<int>(0, (a, b) => a + b);
+    final trackedEntries =
+        sortedEntries.where((entry) => entry.value > 0).toList();
+    final totalMins = trackedEntries.fold<int>(0, (a, b) => a + b);
 
     // Color palette from Toggl Track
     const palette = [
@@ -326,7 +333,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'GROUP BY',
+                    'AVAILABLE TAGS',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
@@ -336,72 +343,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Segmented Switch: Projects vs Books
-                  Container(
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface.withOpacity(.85),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    padding: const EdgeInsets.all(3),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: () => setState(() => _groupByIndex = 0),
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: _groupByIndex == 0
-                                    ? colorScheme.surface
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'Projects',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: _groupByIndex == 0
-                                      ? colorScheme.onSurface
-                                      : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: InkWell(
-                            onTap: () => setState(() => _groupByIndex = 1),
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: _groupByIndex == 1
-                                    ? colorScheme.surface
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'Books',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: _groupByIndex == 1
-                                      ? colorScheme.onSurface
-                                      : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                   const SizedBox(height: 24),
 
-                  if (distribution.isEmpty || totalMins == 0) ...[
+
+                  if (trackedEntries.isEmpty) ...[
                     // Empty state
                     Container(
                       height: 160,
@@ -439,8 +384,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                 sectionsSpace: 2,
                                 centerSpaceRadius: 65,
                                 startDegreeOffset: -90,
-                                sections: List.generate(sortedEntries.length, (i) {
-                                  final entry = sortedEntries[i];
+                                sections: List.generate(trackedEntries.length, (i) {
+                                  final entry = trackedEntries[i];
                                   final color = palette[i % palette.length];
                                   return PieChartSectionData(
                                     value: entry.value.toDouble(),
@@ -465,7 +410,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                   ),
                                 ),
                                 Text(
-                                  _groupByIndex == 0 ? 'Projects' : 'Books',
+                                  'Tags',
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
@@ -500,7 +445,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                entry.key,
+                                tagNamesById[entry.key] ?? 'Unknown tag',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
