@@ -649,7 +649,7 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 520),
               child: SizedBox(
-                height: (height * 0.76).clamp(280.0, 620.0),
+                height: (height * 0.76).clamp(280.0, 620.0).toDouble(),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
                   child: Column(
