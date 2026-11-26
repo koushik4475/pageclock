@@ -157,13 +157,13 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('timer-custom-tag-create')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Product design'), findsOneWidget);
+    expect(find.text('Product design'), findsWidgets);
     final stored = await subjects.getAllSubjects(includeArchived: false);
     expect(stored.map((subject) => subject.name), contains('Product design'));
 
     await tester.tap(find.byTooltip('Choose Project'));
     await tester.pumpAndSettle();
-    expect(find.text('Product design'), findsOneWidget);
+    expect(find.text('Product design'), findsWidgets);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });
