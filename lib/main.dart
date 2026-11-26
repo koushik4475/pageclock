@@ -304,6 +304,8 @@ class MainNavigationShell extends ConsumerStatefulWidget {
 
 class _MainNavigationShellState extends ConsumerState<MainNavigationShell>
     with WidgetsBindingObserver {
+  bool _updateCheckInProgress = false;
+  String? _promptedReleaseTag;
   Timer? _automaticSyncTimer;
   void _startAutomaticSyncTimer() {
     _automaticSyncTimer?.cancel();
@@ -315,6 +317,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _startAutomaticSyncTimer();
+      unawaited(_checkAutoUpdate());
       unawaited(ref.read(syncCoordinatorProvider.notifier).sync());
     } else if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive || state == AppLifecycleState.detached) {
       _automaticSyncTimer?.cancel();
@@ -350,17 +353,29 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell>
     }
   }
 
-  void _checkAutoUpdate() async {
-    if (kIsWeb) return;
+  Future<void> _checkAutoUpdate() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android ||
+        _updateCheckInProgress) return;
+    _updateCheckInProgress = true;
     try {
       final active = await ref.read(sessionRepositoryProvider).getActiveSession();
       if (active != null) return;
 
       final update = await AppUpdateService().checkForUpdate();
-      if (mounted && update.hasUpdate && update.releaseInfo != null) {
-        UpdateDialog.show(context, update.releaseInfo!);
-      }
-    } catch (_) {}
+      final release = update.releaseInfo;
+      if (!mounted || !update.hasUpdate || release == null ||
+          release.tagName == _promptedReleaseTag) return;
+      final activeAfterCheck =
+          await ref.read(sessionRepositoryProvider).getActiveSession();
+      if (!mounted || activeAfterCheck != null ||
+          WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) return;
+      _promptedReleaseTag = release.tagName;
+      await UpdateDialog.show(context, release);
+    } catch (error) {
+      debugPrint('Automatic update check failed: $error');
+    } finally {
+      _updateCheckInProgress = false;
+    }
   }
 
   @override

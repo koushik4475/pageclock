@@ -26,7 +26,9 @@ class AppUpdateService {
   final String repoOwner;
   final String repoName;
 
-  static const Duration cacheDuration = Duration(hours: 6);
+  // A short cache prevents a pre-release 'up to date' response from hiding a
+  // newly published APK for hours. Explicit user checks can still force refresh.
+  static const Duration cacheDuration = Duration(minutes: 5);
   static DateTime? _lastCheckTime;
   static UpdateCheckResult? _cachedResult;
 
@@ -38,7 +40,7 @@ class AppUpdateService {
 
   /// Checks for available updates from GitHub Releases.
   Future<UpdateCheckResult> checkForUpdate({bool force = false}) async {
-    // Check in-memory 6-hour cache if not forced
+    // Reuse a recent result briefly unless the caller explicitly forces refresh.
     if (!force && _cachedResult != null && _lastCheckTime != null) {
       if (DateTime.now().difference(_lastCheckTime!) < cacheDuration) {
         return _cachedResult!;
