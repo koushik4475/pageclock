@@ -26,7 +26,10 @@ class AppUpdateService {
   final String repoOwner;
   final String repoName;
 
-  static const Duration cacheDuration = Duration(hours: 6);
+  // Keep this short so a newly published release becomes visible promptly.
+  // A long negative-result cache made phones report 'up to date' for hours
+  // after GitHub had published a newer stable APK.
+  static const Duration cacheDuration = Duration(minutes: 5);
   static DateTime? _lastCheckTime;
   static UpdateCheckResult? _cachedResult;
 
@@ -38,7 +41,7 @@ class AppUpdateService {
 
   /// Checks for available updates from GitHub Releases.
   Future<UpdateCheckResult> checkForUpdate({bool force = false}) async {
-    // Check in-memory 6-hour cache if not forced
+    // Reuse a recent result briefly unless the caller explicitly forces a refresh.
     if (!force && _cachedResult != null && _lastCheckTime != null) {
       if (DateTime.now().difference(_lastCheckTime!) < cacheDuration) {
         return _cachedResult!;
