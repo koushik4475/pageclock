@@ -28,3 +28,9 @@ final allSubjectsProvider = StreamProvider<List<Subject>>((ref) {
   final repository = ref.watch(subjectRepositoryProvider);
   return repository.watchSubjects(includeArchived: true);
 });
+
+/// User-created tags available for selection and reporting.
+final activeSubjectsProvider = StreamProvider<List<Subject>>((ref) {
+  final repository = ref.watch(subjectRepositoryProvider);
+  return repository.watchSubjects(includeArchived: false);
+});
