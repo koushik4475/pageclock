@@ -92,6 +92,10 @@ void main() {
   });
 
   group('AppUpdateService Tests', () {
+    test('Keeps update-check cache short so new releases appear promptly', () {
+      expect(AppUpdateService.cacheDuration, const Duration(minutes: 5));
+    });
+
     test('Detects update when remote version is higher', () async {
       final mockClient = MockClient((request) async {
         if (request.url.path.contains('/releases/latest')) {
