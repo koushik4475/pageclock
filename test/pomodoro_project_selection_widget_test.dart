@@ -102,4 +102,70 @@ void main() {
     await subjects.dispose();
   });
 
+
+  testWidgets('compact picker keeps create action visible and only offers focus tags',
+      (tester) async {
+    final preferences = await SharedPreferences.getInstance();
+    final subjects = InMemorySubjectRepository();
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() async {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+      await subjects.dispose();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(preferences),
+          sessionRepositoryProvider.overrideWithValue(InMemorySessionRepository()),
+          subjectRepositoryProvider.overrideWithValue(subjects),
+        ],
+        child: const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(size: Size(360, 640)),
+            child: TogglTimerScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pomodoro'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Choose Project'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('General Focus'), findsOneWidget);
+    expect(find.text('Coding'), findsNothing);
+    expect(find.text('Reading'), findsNothing);
+    expect(find.text('Deep Work'), findsNothing);
+    expect(find.text('Study'), findsNothing);
+    final createAction = find.byKey(
+      const ValueKey('timer-create-custom-tag-action'),
+    );
+    expect(createAction, findsOneWidget);
+    expect(tester.getRect(createAction).bottom, lessThanOrEqualTo(640));
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(createAction);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('timer-custom-tag-field')),
+      'Product design',
+    );
+    await tester.tap(find.byKey(const ValueKey('timer-custom-tag-create')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Product design'), findsWidgets);
+    final stored = await subjects.getAllSubjects(includeArchived: false);
+    expect(stored.map((subject) => subject.name), contains('Product design'));
+
+    await tester.tap(find.byTooltip('Choose Project'));
+    await tester.pumpAndSettle();
+    expect(find.text('Product design'), findsWidgets);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
 }

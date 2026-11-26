@@ -8,6 +8,7 @@ import '../../core/engine/pomodoro_clock.dart';
 import '../../core/engine/pomodoro_break_snapshot.dart';
 import '../../core/format/formatters.dart';
 import '../../core/models/reading_session.dart';
+import '../../core/models/subject.dart';
 import '../../core/repository/session_repository.dart';
 import '../../core/repository/subject_repository.dart';
 import '../../core/settings/app_settings.dart';
@@ -539,70 +540,216 @@ class _TogglTimerScreenState extends ConsumerState<TogglTimerScreen> {
     }
   }
 
+  Future<void> _createCustomProjectTag(
+    BuildContext context,
+    List<String> existingProjects,
+  ) async {
+    var draft = '';
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        String? error;
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) => AlertDialog(
+            title: const Text('Create custom tag'),
+            content: TextField(
+              key: const ValueKey('timer-custom-tag-field'),
+              autofocus: true,
+              maxLength: 32,
+              textCapitalization: TextCapitalization.sentences,
+              onChanged: (value) {
+                draft = value;
+                if (error != null) setDialogState(() => error = null);
+              },
+              decoration: InputDecoration(
+                labelText: 'Tag name',
+                hintText: 'e.g. Product design',
+                errorText: error,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                key: const ValueKey('timer-custom-tag-create'),
+                onPressed: () {
+                  final value = draft.trim();
+                  if (value.isEmpty) {
+                    setDialogState(() => error = 'Enter a tag name.');
+                    return;
+                  }
+                  if (value.length > 32) {
+                    setDialogState(() => error = 'Use 32 characters or fewer.');
+                    return;
+                  }
+                  if (existingProjects.any(
+                    (project) => project.toLowerCase() == value.toLowerCase(),
+                  )) {
+                    setDialogState(
+                      () => error = 'A tag with this name already exists.',
+                    );
+                    return;
+                  }
+                  Navigator.pop(dialogContext, value);
+                },
+                child: const Text('Create tag'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (name == null || !mounted) return;
+    try {
+      await ref.read(subjectRepositoryProvider).saveSubject(
+            Subject(
+              id: 'timer-tag-${DateTime.now().microsecondsSinceEpoch}',
+              name: name,
+              color: '#F97316',
+            ),
+          );
+      if (!mounted) return;
+      ref.read(focusSelectedProjectProvider.notifier).state = name;
+      await ref.read(settingsProvider.notifier).update(
+            (settings) => settings.copyWith(lastSelectedProject: name),
+          );
+      if (context.mounted) Navigator.of(context).pop();
+    } on SubjectNameConflictException {
+      if (!mounted || !context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('A tag with this name already exists.')),
+      );
+    } catch (_) {
+      if (!mounted || !context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save the custom tag. Please try again.')),
+      );
+    }
+  }
+
   void _showProjectPicker(BuildContext context, List<String> availableProjects) {
-    final accent = Theme.of(context).colorScheme.primary;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
+    final selectedProject = ref.read(focusSelectedProjectProvider);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: theme.colorScheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      builder: (ctx) {
+        final height = MediaQuery.sizeOf(ctx).height;
+        return SafeArea(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 500),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Select Project',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: Theme.of(ctx).colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ...availableProjects.map((project) {
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.circle, color: accent, size: 14),
-                      title: Text(
-                        project,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : Colors.black87,
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: SizedBox(
+                height: (height * 0.76).clamp(280.0, 620.0).toDouble(),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 36,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
+                            borderRadius: BorderRadius.circular(99),
+                          ),
                         ),
                       ),
-                      trailing:
-                          ref.read(focusSelectedProjectProvider) == project
-                              ? Icon(Icons.check_rounded, color: accent)
-                              : null,
-                      onTap: () {
-                        ref
-                            .read(focusSelectedProjectProvider.notifier)
-                            .state = project;
-                        ref.read(settingsProvider.notifier).update(
-                              (settings) => settings.copyWith(
-                                lastSelectedProject: project,
+                      const SizedBox(height: 18),
+                      Text(
+                        'Choose a focus tag',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Pick General Focus or one of your custom tags.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: ListView.separated(
+                          key: const ValueKey('timer-project-options'),
+                          padding: EdgeInsets.zero,
+                          itemCount: availableProjects.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 4),
+                          itemBuilder: (context, index) {
+                            final project = availableProjects[index];
+                            final isSelected = selectedProject == project;
+                            return Material(
+                              color: isSelected
+                                  ? accent.withOpacity(0.10)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                              child: ListTile(
+                                dense: true,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                leading: Icon(
+                                  project == 'General Focus'
+                                      ? Icons.center_focus_strong_rounded
+                                      : Icons.sell_outlined,
+                                  color: accent,
+                                ),
+                                title: Text(
+                                  project,
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                                trailing: isSelected
+                                    ? Icon(Icons.check_circle_rounded, color: accent)
+                                    : null,
+                                onTap: () async {
+                                  ref.read(focusSelectedProjectProvider.notifier).state =
+                                      project;
+                                  await ref.read(settingsProvider.notifier).update(
+                                        (settings) => settings.copyWith(
+                                          lastSelectedProject: project,
+                                        ),
+                                      );
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                },
                               ),
                             );
-                        Navigator.pop(ctx);
-                      },
-                    );
-                  }),
-                ],
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(height: 1),
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
+                        key: const ValueKey('timer-create-custom-tag-action'),
+                        onPressed: () => _createCustomProjectTag(ctx, availableProjects),
+                        icon: const Icon(Icons.add_rounded),
+                        label: const Text('Create custom tag'),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(50),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
