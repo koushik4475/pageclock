@@ -93,7 +93,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Mathematics'), findsOneWidget);
-    expect(find.text('Custom Tag'), findsNothing);
+    expect(find.text('Coding'), findsNothing);
     await tester.tap(find.text('Mathematics'));
     await tester.pumpAndSettle();
     expect(find.text('Mathematics'), findsOneWidget);
