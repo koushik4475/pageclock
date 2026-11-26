@@ -132,7 +132,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       ..sort((a, b) => b.value.compareTo(a.value));
     final trackedEntries =
         sortedEntries.where((entry) => entry.value > 0).toList();
-    final totalMins = trackedEntries.fold<int>(0, (a, b) => a + b);
+    final totalMins = trackedEntries.fold<int>(0, (sum, entry) => sum + entry.value);
 
     // Color palette from Toggl Track
     const palette = [
