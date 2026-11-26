@@ -11,6 +11,14 @@ class Subject {
     this.archived = false,
   });
 
+  Subject copyWith({String? id, String? name, String? color, bool? archived}) =>
+      Subject(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        color: color ?? this.color,
+        archived: archived ?? this.archived,
+      );
+
   Map<String, dynamic> toMap() => {
         'id': id,
         'name': name,

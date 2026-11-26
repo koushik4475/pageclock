@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pageclock/core/engine/pomodoro_break_snapshot.dart';
 import 'package:pageclock/core/engine/stopwatch_engine.dart';
 import 'package:pageclock/core/repository/session_repository.dart';
+import 'package:pageclock/core/repository/subject_repository.dart';
 import 'package:pageclock/core/settings/app_settings.dart';
 import 'package:pageclock/features/timer/toggl_timer_screen.dart';
 import 'package:pageclock/features/settings/toggl_settings_screen.dart';
@@ -38,6 +39,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+            subjectRepositoryProvider.overrideWith((ref) => InMemorySubjectRepository()),
           sharedPreferencesProvider.overrideWithValue(preferences),
           sessionRepositoryProvider.overrideWithValue(repository),
         ],
@@ -87,6 +89,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+            subjectRepositoryProvider.overrideWith((ref) => InMemorySubjectRepository()),
           sharedPreferencesProvider.overrideWithValue(mounted.preferences),
           sessionRepositoryProvider.overrideWithValue(mounted.repository),
         ],
@@ -121,6 +124,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+            subjectRepositoryProvider.overrideWith((ref) => InMemorySubjectRepository()),
           sharedPreferencesProvider.overrideWithValue(preferences),
           sessionRepositoryProvider.overrideWithValue(repository),
         ],
@@ -164,6 +168,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+            subjectRepositoryProvider.overrideWith((ref) => InMemorySubjectRepository()),
           sharedPreferencesProvider.overrideWithValue(preferences),
           sessionRepositoryProvider.overrideWithValue(repository),
         ],
@@ -208,6 +213,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+            subjectRepositoryProvider.overrideWith((ref) => InMemorySubjectRepository()),
           sharedPreferencesProvider.overrideWithValue(preferences),
           sessionRepositoryProvider.overrideWithValue(repository),
           stopwatchProvider.overrideWith((ref) => stopwatch),
@@ -248,6 +254,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+            subjectRepositoryProvider.overrideWith((ref) => InMemorySubjectRepository()),
           sharedPreferencesProvider.overrideWithValue(preferences),
           sessionRepositoryProvider.overrideWithValue(
             InMemorySessionRepository(),
