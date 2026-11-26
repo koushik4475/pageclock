@@ -318,7 +318,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             ),
             const SizedBox(height: 20),
 
-            // 4. GROUP BY Section with Donut & Legend
+            // 4. Available Tags with Donut & Breakdown
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -343,9 +343,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  const SizedBox(height: 24),
-
-
                   if (trackedEntries.isEmpty) ...[
                     // Empty state
                     Container(
@@ -361,7 +358,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            'No sessions recorded for this period',
+                            availableTags.isEmpty
+                                ? 'No tags available yet'
+                                : 'No sessions recorded for this period',
                             style: TextStyle(
                               fontSize: 12,
                               color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
@@ -425,7 +424,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Legend and Breakdown Rows
+                  ],
+                  if (sortedEntries.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    // Include available tags even when they have no focus time
+                    // in the selected reporting period.
                     ...List.generate(sortedEntries.length, (i) {
                       final entry = sortedEntries[i];
                       final color = palette[i % palette.length];
