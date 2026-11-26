@@ -109,10 +109,10 @@ void main() {
     final subjects = InMemorySubjectRepository();
     await tester.view.setPhysicalSize(const Size(360, 640));
     await tester.view.setDevicePixelRatio(1);
-    addTearDown(() {
+    addTearDown(() async {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
-      subjects.dispose();
+      await subjects.dispose();
     });
 
     await tester.pumpWidget(
