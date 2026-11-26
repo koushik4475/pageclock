@@ -10,11 +10,11 @@ void main() {
         archived: archived,
       );
 
-  test('preserves legacy choices until the first managed subject exists', () {
-    expect(buildTimerProjectOptions(const []), legacyTimerProjectOptions);
+  test('offers only General Focus when no custom subjects exist', () {
+    expect(buildTimerProjectOptions(const []), ['General Focus']);
   });
 
-  test('offers active managed subjects and a single General Focus fallback', () {
+  test('offers General Focus and active user-created subjects only', () {
     final options = buildTimerProjectOptions([
       subject('reading', 'Reading'),
       subject('research', 'Research'),
@@ -22,14 +22,23 @@ void main() {
     ]);
 
     expect(options, ['General Focus', 'Reading', 'Research']);
-    expect(options.where((name) => name == 'General Focus'), hasLength(1));
+    expect(options, isNot(contains('Coding')));
+    expect(options, isNot(contains('Deep Work')));
+    expect(options, isNot(contains('Study')));
   });
 
-  test('keeps General Focus as the only new-session choice when all subjects are archived', () {
+  test('keeps General Focus as the only choice when all subjects are archived', () {
     expect(
       buildTimerProjectOptions([
         subject('reading', 'Reading', archived: true),
       ]),
+      ['General Focus'],
+    );
+  });
+
+  test('does not duplicate General Focus when a custom subject uses that name', () {
+    expect(
+      buildTimerProjectOptions([subject('general', 'General Focus')]),
       ['General Focus'],
     );
   });
