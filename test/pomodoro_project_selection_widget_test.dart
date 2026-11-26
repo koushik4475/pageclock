@@ -18,10 +18,13 @@ void main() {
   testWidgets('selected Pomodoro project is reflected on the main timer screen',
       (tester) async {
     final preferences = await SharedPreferences.getInstance();
+    final subjects = InMemorySubjectRepository([
+      const Subject(id: 'custom-tag', name: 'Custom Tag', color: '#F97316'),
+    ]);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          subjectRepositoryProvider.overrideWith((ref) => InMemorySubjectRepository()),
+          subjectRepositoryProvider.overrideWithValue(subjects),
           sharedPreferencesProvider.overrideWithValue(preferences),
           sessionRepositoryProvider.overrideWithValue(
             InMemorySessionRepository(),
@@ -44,21 +47,23 @@ void main() {
     await tester.pumpAndSettle();
     // Ensure the picker remains usable in a compact viewport; its content
     // must scroll instead of overflowing the modal route.
-    await tester.ensureVisible(find.text('Coding'));
+    await tester.ensureVisible(find.text('Custom Tag'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    await tester.tap(find.text('Coding'));
+    await tester.tap(find.text('Custom Tag'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Coding'), findsOneWidget);
+    expect(find.text('Custom Tag'), findsOneWidget);
     final focusField = tester.widget<TextField>(find.byType(TextField).first);
-    expect(focusField.decoration?.hintText, "I'm focusing on Coding...");
+    expect(focusField.decoration?.hintText, "I'm focusing on Custom Tag...");
 
     // Selecting a project must not overwrite the independently editable task.
     await tester.enterText(find.byType(TextField).first, 'Build a feature');
     await tester.pump();
     expect(find.text('Build a feature'), findsOneWidget);
-    expect(find.text('Coding'), findsOneWidget);
+    expect(find.text('Custom Tag'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await subjects.dispose();
   });
   testWidgets('managed subjects replace legacy project choices in the timer picker',
       (tester) async {
