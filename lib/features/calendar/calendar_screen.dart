@@ -248,16 +248,23 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       );
                     }),
 
-                    // Session Time Blocks (split at selected-day boundaries)
+                    // Session blocks adapt to their actual focused duration.
+                    // Very short intervals stay readable without overflowing:
+                    // hide text below 12 minutes, and omit notes below 36 minutes.
                     ...daySegments.map((segment) {
                       final session = segment.session;
+                      final compact = segment.height < 36;
+                      final tiny = segment.height < 12;
                       return Positioned(
                         top: segment.top,
                         left: 72,
                         right: 16,
                         height: segment.height,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: compact ? 4 : 12,
+                            vertical: compact ? 0 : 6,
+                          ),
                           decoration: BoxDecoration(
                             color: colorScheme.primary.withOpacity(0.16),
                             borderRadius: BorderRadius.circular(8),
@@ -266,32 +273,38 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                               width: 1,
                             ),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                session.subjectName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: colorScheme.primary,
+                          child: tiny
+                              ? null
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      session.subjectName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: compact ? 9 : 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: colorScheme.primary,
+                                      ),
+                                    ),
+                                    if (!compact &&
+                                        session.bookTitle != null &&
+                                        session.bookTitle!.isNotEmpty)
+                                      Text(
+                                        session.bookTitle!,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: isDark
+                                              ? Colors.white70
+                                              : Colors.black87,
+                                        ),
+                                      ),
+                                  ],
                                 ),
-                              ),
-                              if (session.bookTitle != null && session.bookTitle!.isNotEmpty)
-                                Text(
-                                  session.bookTitle!,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: isDark ? Colors.white70 : Colors.black87,
-                                  ),
-                                ),
-                            ],
-                          ),
                         ),
                       );
                     }),
