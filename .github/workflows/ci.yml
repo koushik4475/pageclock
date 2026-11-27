@@ -209,6 +209,9 @@ jobs:
       - name: Build Android debug APK without release credentials
         run: flutter build apk --debug --target-platform=android-arm64,android-x64 --no-pub
 
+      - name: Test matching, different and invalid APK signatures
+        run: bash scripts/test_android_signer_continuity.sh build/app/outputs/flutter-apk/app-debug.apk
+
       - name: Enable KVM acceleration for Android emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
