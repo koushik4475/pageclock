@@ -24,12 +24,24 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
       backgroundColor: dark ? const Color(0xFF10111A) : const Color(0xFFF7F8FC),
       body: SafeArea(child: LayoutBuilder(builder: (context, constraints) {
         final wide = constraints.maxWidth >= 1050 && constraints.maxHeight >= 620;
+        final rail = constraints.maxWidth >= 600 && constraints.maxHeight >= 480;
+        final selected = _destinations.indexWhere((item) => item.label == section);
+        void select(int index) => setState(() => section = _destinations[index].label);
         return Row(children: [
-          if (wide) _AdminRail(selected: section, onSelect: (v) => setState(() => section = v)),
+          if (rail) NavigationRail(
+            extended: wide,
+            selectedIndex: selected,
+            onDestinationSelected: select,
+            labelType: wide ? NavigationRailLabelType.none : NavigationRailLabelType.selected,
+            destinations: [
+              for (final item in _destinations)
+                NavigationRailDestination(icon: Icon(item.icon), label: Text(item.label)),
+            ],
+          ),
+          if (rail) const VerticalDivider(width: 1),
           Expanded(child: Column(children: [
             _AdminHeader(wide: wide, onRefresh: () => ref.invalidate(adminDashboardProvider),
               onWorkspace: () => Navigator.pop(context)),
-            if (!wide) _AdminMobileNav(selected: section, onSelect: (v) => setState(() => section = v)),
             Expanded(child: async.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -74,9 +86,18 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       if (section == 'Overview' || section == 'Analytics') ...[
                         _AdminMetrics(data: data),
                         const SizedBox(height: 18),
-                        _AdminCountryPanel(data: data),
-                        const SizedBox(height: 18),
-                        _AdminChartPanel(points: data.dailyFocus),
+                        LayoutBuilder(builder: (context, box) {
+                          final trend = _AdminChartPanel(points: data.dailyFocus);
+                          final countries = _AdminCountryPanel(data: data);
+                          if (box.maxWidth < 840) {
+                            return Column(children: [trend, const SizedBox(height: 18), countries]);
+                          }
+                          return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Expanded(flex: 3, child: trend),
+                            const SizedBox(width: 18),
+                            Expanded(flex: 2, child: countries),
+                          ]);
+                        }),
                         if (section == 'Overview') ...[
                           const SizedBox(height: 16),
                           const _AdminPrivacy(),
@@ -108,6 +129,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 );
               },
             )),
+            if (!rail) NavigationBar(
+              selectedIndex: selected,
+              onDestinationSelected: select,
+              labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+              destinations: [
+                for (final item in _destinations)
+                  NavigationDestination(icon: Icon(item.icon), label: item.label),
+              ],
+            ),
           ])),
         ]);
       })),
@@ -115,79 +145,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 }
 
-class _AdminRail extends StatelessWidget {
-  final String selected;
-  final ValueChanged<String> onSelect;
-  const _AdminRail({required this.selected, required this.onSelect});
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final fg = dark ? Colors.white : const Color(0xFF171A35);
-    final muted = dark ? Colors.white70 : const Color(0xFF59647A);
-    return Container(width: 232,
-      decoration: BoxDecoration(color: dark ? const Color(0xFF171927) : Colors.white,
-        border: Border(right: BorderSide(color: dark ? Colors.white10 : const Color(0xFFE8EAF2)))),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(padding: const EdgeInsets.fromLTRB(21, 25, 12, 30),
-          child: Row(children: [
-            Container(width: 38, height: 38, decoration: BoxDecoration(
-              color: const Color(0xFF5146E5), borderRadius: BorderRadius.circular(12)),
-              child: const Icon(Icons.auto_stories_rounded, color: Colors.white)),
-            const SizedBox(width: 10),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('PageClock', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: fg)),
-              Text('ADMIN CONSOLE', style: TextStyle(fontSize: 9, letterSpacing: 1.4,
-                fontWeight: FontWeight.w800, color: muted)),
-            ]),
-          ])),
-        Padding(padding: const EdgeInsets.symmetric(horizontal: 15),
-          child: Text('WORKSPACE', style: TextStyle(fontSize: 10, letterSpacing: 1.4,
-            fontWeight: FontWeight.w900, color: muted))),
-        const SizedBox(height: 9),
-        for (final item in ['Overview', 'Clients', 'Analytics', 'Activity', 'Settings'])
-          _AdminNavItem(label: item, selected: selected == item,
-            onTap: () => onSelect(item)),
-      ]),
-    );
-  }
-}
-
-class _AdminNavItem extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  const _AdminNavItem({required this.label, required this.selected, required this.onTap});
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final muted = dark ? Colors.white60 : const Color(0xFF747A94);
-    final icon = switch (label) {
-      'Overview' => Icons.grid_view_rounded,
-      'Clients' => Icons.people_alt_outlined,
-      'Analytics' => Icons.query_stats_rounded,
-      'Activity' => Icons.shield_outlined,
-      _ => Icons.tune_rounded,
-    };
-    return Padding(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      child: Material(color: selected
-        ? (dark ? const Color(0xFF5146E5).withOpacity(.22) : const Color(0xFFEFEEFF))
-        : Colors.transparent, borderRadius: BorderRadius.circular(11),
-        child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(11),
-          child: Padding(padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
-            child: Row(children: [
-              Icon(icon, size: 18, color: selected ? const Color(0xFF5146E5) : muted),
-              const SizedBox(width: 12),
-              Text(label, style: TextStyle(fontSize: 12, fontWeight: selected
-                ? FontWeight.w800 : FontWeight.w600,
-                color: selected ? const Color(0xFF5146E5) : (dark ? Colors.white70 : const Color(0xFF414761)))),
-
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
-}
+const _destinations = [
+  (label: 'Overview', icon: Icons.dashboard_outlined),
+  (label: 'Clients', icon: Icons.people_alt_outlined),
+  (label: 'Analytics', icon: Icons.query_stats_rounded),
+  (label: 'Activity', icon: Icons.history_rounded),
+  (label: 'Settings', icon: Icons.tune_rounded),
+];
 
 class _AdminHeader extends StatelessWidget {
   final bool wide;
@@ -221,22 +185,6 @@ class _AdminHeader extends StatelessWidget {
       ]),
     );
   }
-}
-
-class _AdminMobileNav extends StatelessWidget {
-  final String selected;
-  final ValueChanged<String> onSelect;
-  const _AdminMobileNav({required this.selected, required this.onSelect});
-  @override
-  Widget build(BuildContext context) => SingleChildScrollView(scrollDirection: Axis.horizontal,
-    padding: const EdgeInsets.fromLTRB(12, 9, 12, 3),
-    child: Row(children: [
-      for (final item in ['Overview', 'Clients', 'Analytics', 'Activity', 'Settings'])
-        Padding(padding: const EdgeInsets.only(right: 7),
-          child: ChoiceChip(label: Text(item), selected: selected == item,
-            onSelected: (_) => onSelect(item))),
-    ]),
-  );
 }
 
 class _AdminHeading extends StatelessWidget {
