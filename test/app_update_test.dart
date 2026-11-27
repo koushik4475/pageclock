@@ -273,6 +273,71 @@ void main() {
       expect(untrustedRequested, isFalse);
     });
 
+
+    test('fetches a matching checksum sidecar through an approved GitHub CDN redirect', () async {
+      const checksum = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+      final mockClient = MockClient((request) async {
+        if (request.url.path.endsWith('/releases/latest')) {
+          return http.Response(json.encode({
+            'tag_name': 'v4.0.3',
+            'body': 'Release notes.',
+            'draft': false,
+            'prerelease': false,
+            'assets': [
+              {
+                'name': 'PageClock-v4.0.3.apk',
+                'browser_download_url': 'https://github.com/koushik4475/pageclock/releases/download/v4.0.3/PageClock-v4.0.3.apk',
+                'size': 12345,
+              },
+              {
+                'name': 'PageClock-v4.0.3.apk.sha256',
+                'browser_download_url': 'https://github.com/koushik4475/pageclock/releases/download/v4.0.3/PageClock-v4.0.3.apk.sha256',
+                'size': 90,
+              },
+            ],
+          }), 200);
+        }
+        if (request.url.path.endsWith('.sha256')) {
+          return http.Response('', 302, headers: {
+            'location': 'https://release-assets.githubusercontent.com/signed/checksum',
+          });
+        }
+        if (request.url.host == 'release-assets.githubusercontent.com') {
+          return http.Response('$checksum  PageClock-v4.0.3.apk\n', 200);
+        }
+        return http.Response('Not Found', 404);
+      });
+      final service = AppUpdateService(client: mockClient);
+      AppUpdateService.clearCache();
+      final result = await service.checkForUpdate(force: true);
+      expect(result.hasUpdate, isTrue);
+      expect(result.releaseInfo?.expectedSha256, checksum);
+    });
+
+    test('rejects an APK asset whose release path tag does not match the API tag', () async {
+      final mockClient = MockClient((request) async => http.Response(
+        json.encode({
+          'tag_name': 'v4.0.4',
+          'body': 'SHA256: ${'b' * 64}',
+          'draft': false,
+          'prerelease': false,
+          'assets': [
+            {
+              'name': 'PageClock-v4.0.3.apk',
+              'browser_download_url': 'https://github.com/koushik4475/pageclock/releases/download/v4.0.3/PageClock-v4.0.3.apk',
+              'size': 12345,
+            },
+          ],
+        }),
+        200,
+      ));
+      final service = AppUpdateService(client: mockClient);
+      AppUpdateService.clearCache();
+      final result = await service.checkForUpdate(force: true);
+      expect(result.hasUpdate, isFalse);
+      expect(result.errorMessage, contains('trusted PageClock GitHub release asset'));
+    });
+
     test('Handles 403 API rate limit cleanly', () async {
       final mockClient = MockClient((request) async {
         return http.Response('{"message": "API rate limit exceeded"}', 403);
