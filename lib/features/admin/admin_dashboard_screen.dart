@@ -23,13 +23,25 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     return Scaffold(
       backgroundColor: dark ? const Color(0xFF10111A) : const Color(0xFFF7F8FC),
       body: SafeArea(child: LayoutBuilder(builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 1050;
+        final wide = constraints.maxWidth >= 1050 && constraints.maxHeight >= 620;
+        final rail = constraints.maxWidth >= 600 && constraints.maxHeight >= 480;
+        final selected = _destinations.indexWhere((item) => item.label == section);
+        void select(int index) => setState(() => section = _destinations[index].label);
         return Row(children: [
-          if (wide) _AdminRail(selected: section, onSelect: (v) => setState(() => section = v)),
+          if (rail) NavigationRail(
+            extended: wide,
+            selectedIndex: selected,
+            onDestinationSelected: select,
+            labelType: wide ? NavigationRailLabelType.none : NavigationRailLabelType.selected,
+            destinations: [
+              for (final item in _destinations)
+                NavigationRailDestination(icon: Icon(item.icon), label: Text(item.label)),
+            ],
+          ),
+          if (rail) const VerticalDivider(width: 1),
           Expanded(child: Column(children: [
             _AdminHeader(wide: wide, onRefresh: () => ref.invalidate(adminDashboardProvider),
               onWorkspace: () => Navigator.pop(context)),
-            if (!wide) _AdminMobileNav(selected: section, onSelect: (v) => setState(() => section = v)),
             Expanded(child: async.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -42,7 +54,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               ])),
               data: (data) {
                 final q = query.trim().toLowerCase();
-                final clients = data.clients.where((c) {
+                final showDirectory = section == 'Overview' || section == 'Clients';
+                final clients = !showDirectory ? <AdminClient>[] : (data.clients.where((c) {
                   final matchesQuery = q.isEmpty ||
                     c.name.toLowerCase().contains(q) ||
                     c.email.toLowerCase().contains(q) ||
@@ -63,7 +76,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       default:
                         return b.totalFocusMs.compareTo(a.totalFocusMs);
                     }
-                  });
+                  }));
                 return RefreshIndicator(
                   onRefresh: () => ref.refresh(adminDashboardProvider.future).then((_) {}),
                   child: ListView(padding: EdgeInsets.fromLTRB(wide ? 30 : 18, 25, wide ? 30 : 18, 36),
@@ -73,15 +86,24 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                       if (section == 'Overview' || section == 'Analytics') ...[
                         _AdminMetrics(data: data),
                         const SizedBox(height: 18),
-                        _AdminCountryPanel(data: data),
-                        const SizedBox(height: 18),
-                        _AdminChartPanel(points: data.dailyFocus),
+                        LayoutBuilder(builder: (context, box) {
+                          final trend = _AdminChartPanel(points: data.dailyFocus);
+                          final countries = _AdminCountryPanel(data: data);
+                          if (box.maxWidth < 840) {
+                            return Column(children: [trend, const SizedBox(height: 18), countries]);
+                          }
+                          return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Expanded(flex: 3, child: trend),
+                            const SizedBox(width: 18),
+                            Expanded(flex: 2, child: countries),
+                          ]);
+                        }),
                         if (section == 'Overview') ...[
                           const SizedBox(height: 16),
                           const _AdminPrivacy(),
                         ],
                       ],
-                      if (section == 'Overview' || section == 'Clients') ...[
+                      if (showDirectory) ...[
                         const SizedBox(height: 25),
                         _AdminClientDirectory(
                           clients: clients,
@@ -107,6 +129,15 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                 );
               },
             )),
+            if (!rail) NavigationBar(
+              selectedIndex: selected,
+              onDestinationSelected: select,
+              labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+              destinations: [
+                for (final item in _destinations)
+                  NavigationDestination(icon: Icon(item.icon), label: item.label),
+              ],
+            ),
           ])),
         ]);
       })),
@@ -114,94 +145,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 }
 
-class _AdminRail extends StatelessWidget {
-  final String selected;
-  final ValueChanged<String> onSelect;
-  const _AdminRail({required this.selected, required this.onSelect});
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final fg = dark ? Colors.white : const Color(0xFF171A35);
-    final muted = dark ? Colors.white54 : const Color(0xFF858BA2);
-    return Container(width: 232,
-      decoration: BoxDecoration(color: dark ? const Color(0xFF171927) : Colors.white,
-        border: Border(right: BorderSide(color: dark ? Colors.white10 : const Color(0xFFE8EAF2)))),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(padding: const EdgeInsets.fromLTRB(21, 25, 12, 30),
-          child: Row(children: [
-            Container(width: 38, height: 38, decoration: BoxDecoration(
-              color: const Color(0xFF5146E5), borderRadius: BorderRadius.circular(12)),
-              child: const Icon(Icons.auto_stories_rounded, color: Colors.white)),
-            const SizedBox(width: 10),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('PageClock', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: fg)),
-              Text('ADMIN CONSOLE', style: TextStyle(fontSize: 9, letterSpacing: 1.4,
-                fontWeight: FontWeight.w800, color: muted)),
-            ]),
-          ])),
-        Padding(padding: const EdgeInsets.symmetric(horizontal: 15),
-          child: Text('WORKSPACE', style: TextStyle(fontSize: 10, letterSpacing: 1.4,
-            fontWeight: FontWeight.w900, color: muted))),
-        const SizedBox(height: 9),
-        for (final item in ['Overview', 'Clients', 'Analytics', 'Activity', 'Settings'])
-          _AdminNavItem(label: item, selected: selected == item,
-            onTap: () => onSelect(item)),
-        const Spacer(),
-        Container(margin: const EdgeInsets.all(14), padding: const EdgeInsets.all(13),
-          decoration: BoxDecoration(color: dark ? Colors.white.withOpacity(.045) : const Color(0xFFF3F2FF),
-            borderRadius: BorderRadius.circular(14), border: Border.all(
-              color: dark ? Colors.white10 : const Color(0xFFE8E5FF))),
-          child: Row(children: [
-            const CircleAvatar(radius: 17, backgroundColor: Color(0xFF5146E5),
-              child: Text('K', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900))),
-            const SizedBox(width: 9),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Koushik HY', style: TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w800)),
-              Text('Owner · Admin', style: TextStyle(color: muted, fontSize: 10)),
-            ])),
-            const Icon(Icons.verified_user_outlined, size: 16, color: Color(0xFF5146E5)),
-          ])),
-      ]),
-    );
-  }
-}
-
-class _AdminNavItem extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  const _AdminNavItem({required this.label, required this.selected, required this.onTap});
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final muted = dark ? Colors.white60 : const Color(0xFF747A94);
-    final icon = switch (label) {
-      'Overview' => Icons.grid_view_rounded,
-      'Clients' => Icons.people_alt_outlined,
-      'Analytics' => Icons.query_stats_rounded,
-      'Activity' => Icons.shield_outlined,
-      _ => Icons.tune_rounded,
-    };
-    return Padding(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      child: Material(color: selected
-        ? (dark ? const Color(0xFF5146E5).withOpacity(.22) : const Color(0xFFEFEEFF))
-        : Colors.transparent, borderRadius: BorderRadius.circular(11),
-        child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(11),
-          child: Padding(padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
-            child: Row(children: [
-              Icon(icon, size: 18, color: selected ? const Color(0xFF5146E5) : muted),
-              const SizedBox(width: 12),
-              Text(label, style: TextStyle(fontSize: 12, fontWeight: selected
-                ? FontWeight.w800 : FontWeight.w600,
-                color: selected ? const Color(0xFF5146E5) : (dark ? Colors.white70 : const Color(0xFF414761)))),
-
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
-}
+const _destinations = [
+  (label: 'Overview', icon: Icons.dashboard_outlined),
+  (label: 'Clients', icon: Icons.people_alt_outlined),
+  (label: 'Analytics', icon: Icons.query_stats_rounded),
+  (label: 'Activity', icon: Icons.history_rounded),
+  (label: 'Settings', icon: Icons.tune_rounded),
+];
 
 class _AdminHeader extends StatelessWidget {
   final bool wide;
@@ -216,13 +166,16 @@ class _AdminHeader extends StatelessWidget {
       child: Row(children: [
         if (!wide) const Icon(Icons.auto_stories_rounded, color: Color(0xFF5146E5)),
         if (!wide) const SizedBox(width: 8),
-        Text('PageClock Admin', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900,
-          color: dark ? Colors.white : const Color(0xFF171A35))),
-        const Spacer(),
+        Expanded(child: Text('PageClock Admin', maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800,
+            color: dark ? Colors.white : const Color(0xFF171A35)))),
         IconButton(onPressed: onRefresh, tooltip: 'Refresh analytics',
           icon: Icon(Icons.refresh_rounded, color: dark ? Colors.white : const Color(0xFF414761))),
         const SizedBox(width: 6),
-        OutlinedButton.icon(onPressed: onWorkspace,
+        if (!wide)
+          IconButton(onPressed: onWorkspace, tooltip: 'Client workspace',
+            icon: const Icon(Icons.exit_to_app_rounded))
+        else OutlinedButton.icon(onPressed: onWorkspace,
           icon: const Icon(Icons.person_outline_rounded, size: 17),
           label: const Text('Client workspace'),
           style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF5146E5),
@@ -234,45 +187,20 @@ class _AdminHeader extends StatelessWidget {
   }
 }
 
-class _AdminMobileNav extends StatelessWidget {
-  final String selected;
-  final ValueChanged<String> onSelect;
-  const _AdminMobileNav({required this.selected, required this.onSelect});
-  @override
-  Widget build(BuildContext context) => SingleChildScrollView(scrollDirection: Axis.horizontal,
-    padding: const EdgeInsets.fromLTRB(12, 9, 12, 3),
-    child: Row(children: [
-      for (final item in ['Overview', 'Clients', 'Analytics', 'Activity', 'Settings'])
-        Padding(padding: const EdgeInsets.only(right: 7),
-          child: ChoiceChip(label: Text(item), selected: selected == item,
-            onSelected: (_) => onSelect(item))),
-    ]),
-  );
-}
-
 class _AdminHeading extends StatelessWidget {
   final String section;
   const _AdminHeading({required this.section});
   @override
   Widget build(BuildContext context) {
-    final title = section == 'Clients' ? 'Client directory'
-      : section == 'Analytics' ? 'Community analytics'
-      : section == 'Activity' ? 'Activity & audit'
-      : section == 'Settings' ? 'Admin settings' : 'Your reading community';
-    final subtitle = section == 'Clients' ? 'Explore client accounts and reading statistics.'
-      : section == 'Analytics' ? 'Understand focus trends across the PageClock community (UTC calendar days).'
-      : section == 'Activity' ? 'Administrative history and security events.'
-      : section == 'Settings' ? 'Preferences and dashboard configuration.'
-      : 'A focused reading community, powered by PageClock.';
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(section.toUpperCase(), style: const TextStyle(fontSize: 10, letterSpacing: 1.5,
-        color: Color(0xFF5146E5), fontWeight: FontWeight.w900)),
-      const SizedBox(height: 6),
-      Text(title, style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-        fontWeight: FontWeight.w900, letterSpacing: -.7)),
-      const SizedBox(height: 4),
-      Text(subtitle, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-    ]);
+    final title = switch (section) {
+      'Clients' => 'Client directory',
+      'Analytics' => 'Community analytics',
+      'Activity' => 'Recent registrations',
+      'Settings' => 'Admin settings',
+      _ => 'Community overview',
+    };
+    return Text(title, style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+      fontWeight: FontWeight.w800, letterSpacing: -.7));
   }
 }
 
@@ -282,13 +210,10 @@ class _AdminMetrics extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
-      final columns = constraints.maxWidth >= 1100 ? 5
-        : constraints.maxWidth >= 720 ? 3
-        : constraints.maxWidth >= 430 ? 2 : 1;
-      return GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: columns, crossAxisSpacing: 12, mainAxisSpacing: 12,
-      childAspectRatio: columns == 5 ? 1.55 : columns == 3 ? 1.75 : columns == 2 ? 1.85 : 3.2,
-      children: [
+      final minWidth = MediaQuery.textScalerOf(context).scale(150);
+      final columns = ((constraints.maxWidth + 12) / (minWidth + 12)).floor().clamp(1, 5);
+      final width = (constraints.maxWidth - 12 * (columns - 1)) / columns;
+      final cards = [
         _AdminMetric(label: 'Total clients', value: data.totalClients.toString(),
           icon: Icons.people_alt_outlined, tint: const Color(0xFF5146E5), foot: 'Registered accounts'),
         _AdminMetric(label: 'Active today', value: data.activeToday.toString(),
@@ -301,8 +226,10 @@ class _AdminMetrics extends StatelessWidget {
         _AdminMetric(label: 'Countries reached', value: data.countriesReached.toString(),
           icon: Icons.public_rounded, tint: const Color(0xFF0F9D9A),
           foot: data.countryDetectedClients.toString() + ' clients detected'),
-      ],
-    );
+      ];
+      return Wrap(spacing: 12, runSpacing: 12, children: [
+        for (final card in cards) SizedBox(width: width, child: card),
+      ]);
     });
   }
 }
@@ -328,14 +255,15 @@ class _AdminMetric extends StatelessWidget {
           Container(width: 34, height: 34, decoration: BoxDecoration(
             color: tint.withOpacity(.11), borderRadius: BorderRadius.circular(10)),
             child: Icon(icon, color: tint, size: 19)),
+          const SizedBox(height: 12),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             FittedBox(fit: BoxFit.scaleDown, child: Text(value,
               style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900,
                 letterSpacing: -.6, color: fg))),
-            Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg)),
-            Text(foot, maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 9, color: dark ? Colors.white54 : const Color(0xFF858BA2))),
+            Text(label,
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: fg)),
+            Text(foot,
+              style: TextStyle(fontSize: 12, color: dark ? Colors.white70 : const Color(0xFF59647A))),
           ]),
         ]),
     );
@@ -450,7 +378,7 @@ class _AdminClientDirectoryState extends State<_AdminClientDirectory> {
     final onSortChanged = widget.onSortChanged;
     final onSearch = widget.onSearch;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final muted = dark ? Colors.white54 : const Color(0xFF858BA2);
+    final muted = dark ? Colors.white70 : const Color(0xFF59647A);
     final clientsWithSyncedSessions =
         clients.where((client) => client.sessionCount > 0).length;
     final totalSyncedSessions =
@@ -555,7 +483,7 @@ class _AdminClientRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final muted = dark ? Colors.white54 : const Color(0xFF858BA2);
+    final muted = dark ? Colors.white70 : const Color(0xFF59647A);
     return Padding(padding: const EdgeInsets.symmetric(vertical: 8),
       child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(10),
         child: Row(children: [
