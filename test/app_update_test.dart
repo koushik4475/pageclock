@@ -109,7 +109,7 @@ void main() {
               'assets': [
                 {
                   'name': 'pageclock.apk',
-                  'browser_download_url': 'https://example.com/pageclock.apk',
+                  'browser_download_url': 'https://github.com/koushik4475/pageclock/releases/download/v2.0.0/pageclock.apk',
                   'size': 12345,
                 }
               ]
@@ -128,7 +128,7 @@ void main() {
 
       expect(result.hasUpdate, isTrue);
       expect(result.latestVersion, equals('v2.0.0'));
-      expect(result.releaseInfo?.apkDownloadUrl, equals('https://example.com/pageclock.apk'));
+      expect(result.releaseInfo?.apkDownloadUrl, equals('https://github.com/koushik4475/pageclock/releases/download/v2.0.0/pageclock.apk'));
     });
 
     test('Handles 404 cleanly when no releases exist', () async {
@@ -156,7 +156,7 @@ void main() {
             'assets': [
               {
                 'name': 'pageclock.apk',
-                'browser_download_url': 'https://example.com/pageclock.apk',
+                'browser_download_url': 'https://github.com/koushik4475/pageclock/releases/download/v2.0.0/pageclock.apk',
                 'size': 12345,
               }
             ],
@@ -173,6 +173,104 @@ void main() {
       expect(result.hasUpdate, isFalse);
       expect(result.releaseInfo, isNull);
       expect(result.errorMessage, contains('SHA-256 checksum'));
+    });
+
+    test('blocks APK assets outside the PageClock release route', () async {
+      final mockClient = MockClient((request) async => http.Response(
+        json.encode({
+          'tag_name': 'v4.0.0',
+          'body': 'SHA256: ${'a' * 64}',
+          'draft': false,
+          'prerelease': false,
+          'assets': [
+            {
+              'name': 'PageClock-v4.0.0.apk',
+              'browser_download_url': 'https://attacker.example/PageClock.apk',
+              'size': 12345,
+            },
+          ],
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+      ));
+      final service = AppUpdateService(client: mockClient);
+      AppUpdateService.clearCache();
+      final result = await service.checkForUpdate(force: true);
+      expect(result.hasUpdate, isFalse);
+      expect(result.errorMessage, contains('trusted PageClock GitHub release asset'));
+    });
+
+    test('does not request a checksum sidecar from an untrusted host', () async {
+      var untrustedRequested = false;
+      final mockClient = MockClient((request) async {
+        if (request.url.path.endsWith('/releases/latest')) {
+          return http.Response(json.encode({
+            'tag_name': 'v4.0.1',
+            'body': 'Release notes.',
+            'draft': false,
+            'prerelease': false,
+            'assets': [
+              {
+                'name': 'PageClock-v4.0.1.apk',
+                'browser_download_url': 'https://github.com/koushik4475/pageclock/releases/download/v4.0.1/PageClock-v4.0.1.apk',
+                'size': 12345,
+              },
+              {
+                'name': 'PageClock-v4.0.1.apk.sha256',
+                'browser_download_url': 'https://attacker.example/PageClock-v4.0.1.apk.sha256',
+                'size': 64,
+              },
+            ],
+          }), 200);
+        }
+        if (request.url.host == 'attacker.example') untrustedRequested = true;
+        return http.Response('Not Found', 404);
+      });
+      final service = AppUpdateService(client: mockClient);
+      AppUpdateService.clearCache();
+      final result = await service.checkForUpdate(force: true);
+      expect(result.hasUpdate, isFalse);
+      expect(result.errorMessage, contains('SHA-256 checksum'));
+      expect(untrustedRequested, isFalse);
+    });
+
+    test('rejects redirects from a trusted checksum sidecar to an untrusted host', () async {
+      var untrustedRequested = false;
+      final mockClient = MockClient((request) async {
+        if (request.url.path.endsWith('/releases/latest')) {
+          return http.Response(json.encode({
+            'tag_name': 'v4.0.2',
+            'body': 'Release notes.',
+            'draft': false,
+            'prerelease': false,
+            'assets': [
+              {
+                'name': 'PageClock-v4.0.2.apk',
+                'browser_download_url': 'https://github.com/koushik4475/pageclock/releases/download/v4.0.2/PageClock-v4.0.2.apk',
+                'size': 12345,
+              },
+              {
+                'name': 'PageClock-v4.0.2.apk.sha256',
+                'browser_download_url': 'https://github.com/koushik4475/pageclock/releases/download/v4.0.2/PageClock-v4.0.2.apk.sha256',
+                'size': 90,
+              },
+            ],
+          }), 200);
+        }
+        if (request.url.path.endsWith('.sha256')) {
+          return http.Response('', 302, headers: {
+            'location': 'https://attacker.example/redirected.sha256',
+          });
+        }
+        if (request.url.host == 'attacker.example') untrustedRequested = true;
+        return http.Response('Not Found', 404);
+      });
+      final service = AppUpdateService(client: mockClient);
+      AppUpdateService.clearCache();
+      final result = await service.checkForUpdate(force: true);
+      expect(result.hasUpdate, isFalse);
+      expect(result.errorMessage, contains('SHA-256 checksum'));
+      expect(untrustedRequested, isFalse);
     });
 
     test('Handles 403 API rate limit cleanly', () async {
