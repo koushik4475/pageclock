@@ -230,26 +230,7 @@ class AppUpdateService {
         body.write(utf8.decode(chunk, allowMalformed: true));
       }
       final match = RegExp(
-        r'^\\s*([A-Fa-f0-9]{64})(?:\\s+\\*?[^\\r\\n]+)?\\s*
-    _cachedResult = result;
-    _lastCheckTime = DateTime.now();
-  }
-
-  static void clearCache() {
-    _cachedResult = null;
-    _lastCheckTime = null;
-  }
-}
-bool _isValidSha256(String? value) {
-  if (value == null) return false;
-  final normalized = value.trim();
-  if (normalized.length != 64) return false;
-  return normalized.codeUnits.every((unit) =>
-      (unit >= 48 && unit <= 57) ||
-      (unit >= 65 && unit <= 70) ||
-      (unit >= 97 && unit <= 102));
-}
-,
+        r'^\s*([A-Fa-f0-9]{64})(?:\s+\*?[^\r\n]+)?\s*$',
         multiLine: true,
       ).firstMatch(body.toString());
       return match?.group(1);
