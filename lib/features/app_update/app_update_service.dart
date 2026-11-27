@@ -112,7 +112,9 @@ class AppUpdateService {
 
       final release = AppReleaseInfo.fromJson(data);
       final apkUri = Uri.tryParse(release.apkDownloadUrl);
-      if (apkUri == null || !ApkDownloader.isTrustedDownloadUri(apkUri)) {
+      if (apkUri == null ||
+          !ApkDownloader.isTrustedDownloadUri(apkUri) ||
+          apkUri.pathSegments[4] != release.tagName) {
         return UpdateCheckResult(
           hasUpdate: false,
           currentVersion: '$currentVersion+$currentBuild',
@@ -128,7 +130,10 @@ class AppUpdateService {
       String? sha256 = release.expectedSha256;
       if (sha256 == null && release.sha256DownloadUrl != null) {
         try {
-          sha256 = await _fetchTrustedSha256(release.sha256DownloadUrl!);
+          sha256 = await _fetchTrustedSha256(
+            release.sha256DownloadUrl!,
+            expectedTag: release.tagName,
+          );
         } catch (_) {}
       }
 
@@ -179,9 +184,14 @@ class AppUpdateService {
   }
 
 
-  Future<String?> _fetchTrustedSha256(String url) async {
+  Future<String?> _fetchTrustedSha256(
+    String url, {
+    required String expectedTag,
+  }) async {
     final parsedUri = Uri.tryParse(url);
-    if (parsedUri == null || !ApkDownloader.isTrustedChecksumUri(parsedUri)) {
+    if (parsedUri == null ||
+        !ApkDownloader.isTrustedChecksumUri(parsedUri) ||
+        parsedUri.pathSegments[4] != expectedTag) {
       return null;
     }
 
