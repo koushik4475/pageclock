@@ -12,6 +12,7 @@ class AdminClient {
   final DateTime? lastActiveAt;
   final String? signupCountryCode;
   final String? signupCountryName;
+  final String authProvider;
   final int totalFocusMs;
   final int weekFocusMs;
   final int todayFocusMs;
@@ -30,6 +31,7 @@ class AdminClient {
     required this.lastActiveAt,
     required this.signupCountryCode,
     required this.signupCountryName,
+    required this.authProvider,
     required this.totalFocusMs,
     required this.weekFocusMs,
     required this.todayFocusMs,
@@ -49,6 +51,7 @@ class AdminClient {
         lastActiveAt: DateTime.tryParse(json['lastActiveAt'] as String? ?? ''),
         signupCountryCode: json['signupCountryCode'] as String?,
         signupCountryName: json['signupCountryName'] as String?,
+        authProvider: (json['authProvider'] as String? ?? 'email').toLowerCase(),
         totalFocusMs: (json['totalFocusMs'] as num?)?.toInt() ?? 0,
         weekFocusMs: (json['weekFocusMs'] as num?)?.toInt() ?? 0,
         todayFocusMs: (json['todayFocusMs'] as num?)?.toInt() ?? 0,
@@ -173,4 +176,15 @@ String formatAdminDuration(int milliseconds) {
   if (hours <= 0) return '${minutes}m';
   if (remainingMinutes == 0) return '${hours}h';
   return '${hours}h ${remainingMinutes}m';
+}
+
+String formatAdminAuthProvider(String provider) {
+  return switch (provider.toLowerCase()) {
+    'google' => 'Google SSO',
+    'email' => 'Email OTP',
+    'apple' => 'Apple',
+    'github' => 'GitHub',
+    '' => 'Unknown',
+    _ => provider[0].toUpperCase() + provider.substring(1),
+  };
 }

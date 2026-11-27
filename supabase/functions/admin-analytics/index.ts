@@ -245,6 +245,7 @@ Deno.serve(async (req) => {
       const country = signupCountries.get(u.id);
       return {
         id: u.id,
+        authProvider: String(u.app_metadata?.provider ?? (u.app_metadata?.providers?.[0] ?? "unknown")),
         signupCountryCode: country?.country_code ?? null,
         signupCountryName: country?.country_name ?? null,
         signupCountryDetectedAt: country?.detected_at ?? null,
