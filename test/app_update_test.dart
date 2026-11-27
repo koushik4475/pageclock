@@ -156,7 +156,7 @@ void main() {
             'assets': [
               {
                 'name': 'pageclock.apk',
-                'browser_download_url': 'https://github.com/koushik4475/pageclock/releases/download/v2.0.0/pageclock.apk',
+                'browser_download_url': 'https://github.com/koushik4475/pageclock/releases/download/v3.0.0/pageclock.apk',
                 'size': 12345,
               }
             ],
@@ -336,6 +336,41 @@ void main() {
       final result = await service.checkForUpdate(force: true);
       expect(result.hasUpdate, isFalse);
       expect(result.errorMessage, contains('trusted PageClock GitHub release asset'));
+    });
+
+
+    test('does not fetch a checksum sidecar from a different release tag', () async {
+      var sidecarRequested = false;
+      final mockClient = MockClient((request) async {
+        if (request.url.path.endsWith('/releases/latest')) {
+          return http.Response(json.encode({
+            'tag_name': 'v4.0.5',
+            'body': 'Release notes.',
+            'draft': false,
+            'prerelease': false,
+            'assets': [
+              {
+                'name': 'PageClock-v4.0.5.apk',
+                'browser_download_url': 'https://github.com/koushik4475/pageclock/releases/download/v4.0.5/PageClock-v4.0.5.apk',
+                'size': 12345,
+              },
+              {
+                'name': 'PageClock-v4.0.5.apk.sha256',
+                'browser_download_url': 'https://github.com/koushik4475/pageclock/releases/download/v4.0.4/PageClock-v4.0.5.apk.sha256',
+                'size': 90,
+              },
+            ],
+          }), 200);
+        }
+        if (request.url.path.endsWith('.sha256')) sidecarRequested = true;
+        return http.Response('Not Found', 404);
+      });
+      final service = AppUpdateService(client: mockClient);
+      AppUpdateService.clearCache();
+      final result = await service.checkForUpdate(force: true);
+      expect(result.hasUpdate, isFalse);
+      expect(result.errorMessage, contains('SHA-256 checksum'));
+      expect(sidecarRequested, isFalse);
     });
 
     test('Handles 403 API rate limit cleanly', () async {
