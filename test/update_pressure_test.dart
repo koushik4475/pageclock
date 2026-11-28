@@ -168,18 +168,18 @@ void main() {
     });
 
     test('Update Download Multi-Hop Redirect, Streaming & Bit-Level Checksum Verification', () async {
-      final apkBytes = List<int>.generate(1024 * 64, (i) => i % 256);
+      final apkBytes = List<int>.generate(1024 * 64, (i) => i % 256)..setRange(0, 4, [0x50, 0x4B, 0x03, 0x04]);
       final validChecksum = sha256.convert(apkBytes).toString();
 
       final mockClient = MockClient((request) async {
         final url = request.url.toString();
-        if (url == 'https://github.com/releases/download/v1.0.0+119/app.apk') {
+        if (url == 'https://github.com/koushik4475/pageclock/releases/download/v1.0.0+119/app.apk') {
           return http.Response(
             '',
             302,
-            headers: {'location': 'https://s3.amazonaws.com/github-releases/app.apk'},
+            headers: {'location': 'https://release-assets.githubusercontent.com/github-releases/app.apk'},
           );
-        } else if (url == 'https://s3.amazonaws.com/github-releases/app.apk') {
+        } else if (url == 'https://release-assets.githubusercontent.com/github-releases/app.apk') {
           return http.Response.bytes(
             apkBytes,
             200,
@@ -196,7 +196,7 @@ void main() {
 
       // 1. Success case: bit-for-bit verified
       final verifiedFile = await downloader.downloadAndVerifyApk(
-        url: 'https://github.com/releases/download/v1.0.0+119/app.apk',
+        url: 'https://github.com/koushik4475/pageclock/releases/download/v1.0.0+119/app.apk',
         expectedSha256: validChecksum,
       );
 
@@ -208,7 +208,7 @@ void main() {
       final tamperedChecksum = '0' * 64;
       expect(
         () async => await downloader.downloadAndVerifyApk(
-          url: 'https://github.com/releases/download/v1.0.0+119/app.apk',
+          url: 'https://github.com/koushik4475/pageclock/releases/download/v1.0.0+119/app.apk',
           expectedSha256: tamperedChecksum,
         ),
         throwsA(isA<ChecksumMismatchException>()),
@@ -216,7 +216,7 @@ void main() {
     });
 
     test('Download Cancellation Token immediately cleans up temporary files', () async {
-      final apkBytes = List<int>.generate(1024 * 128, (i) => i % 256);
+      final apkBytes = List<int>.generate(1024 * 128, (i) => i % 256)..setRange(0, 4, [0x50, 0x4B, 0x03, 0x04]);
       final validChecksum = sha256.convert(apkBytes).toString();
       final cancelToken = CancellationToken();
 
@@ -233,7 +233,7 @@ void main() {
 
       expect(
         () async => await downloader.downloadAndVerifyApk(
-          url: 'https://github.com/releases/download/app.apk',
+          url: 'https://github.com/koushik4475/pageclock/releases/download/v1.0.0/app.apk',
           expectedSha256: validChecksum,
           cancelToken: cancelToken,
         ),
