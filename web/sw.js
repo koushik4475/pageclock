@@ -1,12 +1,14 @@
 // PageClock offline cache. Use network-first so web deployments are not
 // hidden behind a stale cache-first main.dart.js or index.html.
-const CACHE_NAME = 'pageclock-brand-v4';
+const CACHE_NAME = 'pageclock-brand-v5';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './main.dart.js',
   './flutter.js',
   './flutter_bootstrap.js',
+  './completion_audio.js',
+  ...['calm', 'rain', 'forest', 'ocean', 'bell', 'classic'].map(name => './assets/assets/audio/' + name + '.wav'),
   './manifest.json',
   './favicon.png',
   './icons/apple-touch-icon.png',

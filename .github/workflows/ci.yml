@@ -143,8 +143,8 @@ jobs:
       - name: Install pinned Playwright
         run: npm install --no-save --no-package-lock playwright@1.65.1
 
-      - name: Install WebKit browser
-        run: npx playwright install webkit
+      - name: Install WebKit and Chromium browsers
+        run: npx playwright install webkit chromium
 
       - name: Serve PWA and run iPhone/iPad WebKit smoke checks
         shell: bash
@@ -159,6 +159,7 @@ jobs:
           done
           curl --fail --silent --show-error http://127.0.0.1:4173/ >/dev/null
           PAGECLOCK_WEB_URL=http://127.0.0.1:4173 node tool/ios_webkit_smoke.cjs
+          PAGECLOCK_WEB_URL=http://127.0.0.1:4173 node tool/browser_audio_test.cjs
 
       - name: Upload iOS WebKit viewport screenshots
         if: always()
