@@ -185,6 +185,32 @@ void main() {
     }
   });
 
+  test('rejects redirects to a different PageClock release tag', () async {
+    var secondReleaseRequested = false;
+    const otherTagUrl =
+        'https://github.com/koushik4475/pageclock/releases/download/v1.0.1/app.apk';
+    final client = MockClient((request) async {
+      if (request.url.toString() == releaseApk) {
+        return http.Response(
+          '',
+          302,
+          headers: {'location': otherTagUrl},
+        );
+      }
+      secondReleaseRequested = true;
+      return http.Response('unexpected', 200);
+    });
+
+    await expectLater(
+      ApkDownloader(client: client).downloadAndVerifyApk(
+        url: releaseApk,
+        expectedSha256: '0' * 64,
+      ),
+      throwsA(isA<HttpException>()),
+    );
+    expect(secondReleaseRequested, isFalse);
+  });
+
   test('rejects a non-APK payload even when its checksum matches and removes it', () async {
     final invalidBytes = utf8.encode('<html>not an apk</html>');
     final expectedSha = sha256.convert(invalidBytes).toString();
