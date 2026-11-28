@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'update_model.dart';
+import 'apk_downloader.dart' show ApkDownloader;
 import 'version_comparator.dart';
 
 class UpdateCheckResult {
@@ -110,19 +111,29 @@ class AppUpdateService {
       }
 
       final release = AppReleaseInfo.fromJson(data);
+      final apkUri = Uri.tryParse(release.apkDownloadUrl);
+      if (apkUri == null ||
+          !ApkDownloader.isTrustedDownloadUri(apkUri) ||
+          apkUri.pathSegments[4] != release.tagName) {
+        return UpdateCheckResult(
+          hasUpdate: false,
+          currentVersion: '$currentVersion+$currentBuild',
+          latestVersion: release.tagName,
+          errorMessage:
+              'Update blocked: APK URL is not a trusted PageClock GitHub release asset.',
+        );
+      }
 
-      // Fetch external SHA-256 asset if available and not in body
+      // Older releases may not include GitHub's per-asset SHA-256 digest.
+      // Only fetch a matching checksum sidecar from the PageClock release route
+      // and follow redirects to GitHub's signed asset CDN hosts.
       String? sha256 = release.expectedSha256;
       if (sha256 == null && release.sha256DownloadUrl != null) {
         try {
-          final shaRes = await _client.get(Uri.parse(release.sha256DownloadUrl!))
-              .timeout(const Duration(seconds: 5));
-          if (shaRes.statusCode == 200) {
-            final match = RegExp(r'[A-Fa-f0-9]{64}').firstMatch(shaRes.body);
-            if (match != null) {
-              sha256 = match.group(0);
-            }
-          }
+          sha256 = await _fetchTrustedSha256(
+            release.sha256DownloadUrl!,
+            expectedTag: release.tagName,
+          );
         } catch (_) {}
       }
 
@@ -169,6 +180,73 @@ class AppUpdateService {
         latestVersion: currentVersion,
         errorMessage: 'Network error while checking updates: $e',
       );
+    }
+  }
+
+
+  Future<String?> _fetchTrustedSha256(
+    String url, {
+    required String expectedTag,
+  }) async {
+    final parsedUri = Uri.tryParse(url);
+    if (parsedUri == null ||
+        !ApkDownloader.isTrustedChecksumUri(parsedUri) ||
+        parsedUri.pathSegments[4] != expectedTag) {
+      return null;
+    }
+
+    var currentUri = parsedUri;
+    var redirects = 0;
+    while (true) {
+      final request = http.Request('GET', currentUri)..followRedirects = false;
+      final response = await _client
+          .send(request)
+          .timeout(const Duration(seconds: 5));
+
+      if (response.statusCode >= 300 &&
+          response.statusCode < 400 &&
+          response.headers.containsKey('location')) {
+        final location = response.headers['location']!;
+        final redirectedUri = currentUri.resolve(location);
+        await response.stream.drain<void>();
+        if (!ApkDownloader.isTrustedRedirectUriForTag(
+          redirectedUri,
+          expectedTag,
+        )) {
+          return null;
+        }
+        redirects++;
+        if (redirects > 8) return null;
+        currentUri = redirectedUri;
+        continue;
+      }
+
+      if (response.statusCode != 200) {
+        await response.stream.drain<void>();
+        return null;
+      }
+
+      final declaredLength =
+          int.tryParse(response.headers['content-length'] ?? '');
+      if (declaredLength != null && declaredLength > 4096) {
+        await response.stream.drain<void>();
+        return null;
+      }
+
+      final body = StringBuffer();
+      var receivedBytes = 0;
+      await for (final chunk in response.stream.timeout(
+        const Duration(seconds: 5),
+      )) {
+        receivedBytes += chunk.length;
+        if (receivedBytes > 4096) return null;
+        body.write(utf8.decode(chunk, allowMalformed: true));
+      }
+      final match = RegExp(
+        r'^\s*([A-Fa-f0-9]{64})(?:\s+\*?[^\r\n]+)?\s*$',
+        multiLine: true,
+      ).firstMatch(body.toString());
+      return match?.group(1);
     }
   }
 
