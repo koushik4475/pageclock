@@ -119,8 +119,8 @@ void main() {
       swContent = file.readAsStringSync();
     });
 
-    test('CACHE_NAME is bumped to pageclock-brand-v4', () {
-      expect(swContent, contains("const CACHE_NAME = 'pageclock-brand-v4';"));
+    test('CACHE_NAME is bumped to pageclock-brand-v5', () {
+      expect(swContent, contains("const CACHE_NAME = 'pageclock-brand-v5';"));
     });
 
     test('Bypasses caching for search params containing code= or error=', () {
