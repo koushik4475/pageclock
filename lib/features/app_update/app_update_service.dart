@@ -209,7 +209,10 @@ class AppUpdateService {
         final location = response.headers['location']!;
         final redirectedUri = currentUri.resolve(location);
         await response.stream.drain<void>();
-        if (!ApkDownloader.isTrustedRedirectUri(redirectedUri)) {
+        if (!ApkDownloader.isTrustedRedirectUriForTag(
+          redirectedUri,
+          expectedTag,
+        )) {
           return null;
         }
         redirects++;
