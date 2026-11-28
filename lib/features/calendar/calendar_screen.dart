@@ -31,12 +31,16 @@ class _CalendarSessionSegment {
   final double top;
   final double height;
   final int durationMs;
+  final int laneIndex;
+  final int laneCount;
 
   const _CalendarSessionSegment({
     required this.session,
     required this.top,
     required this.height,
     required this.durationMs,
+    this.laneIndex = 0,
+    this.laneCount = 1,
   });
 }
 
@@ -87,7 +91,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       _selectedDay.day,
     );
     final dayEnd = dayStart.add(const Duration(days: 1));
-    final daySegments = <_CalendarSessionSegment>[];
+    var daySegments = <_CalendarSessionSegment>[];
     for (final session in widget.sessions) {
       if (session.deletedAt != null || session.endedAtUtc == null) continue;
       final offset = Duration(minutes: session.tzOffsetMin);
@@ -120,6 +124,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         );
       }
     }
+
+    // Give concurrent sessions separate horizontal lanes instead of painting
+    // every session over the same full-width rectangle.
+    daySegments = _layoutOverlappingSegments(daySegments);
 
     // Calculate the time overlap (not the whole session) on this selected day.
     final totalMs = daySegments.fold<int>(
@@ -203,10 +211,11 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             child: SingleChildScrollView(
               controller: _scrollController,
               padding: const EdgeInsets.symmetric(vertical: 12),
-              child: SizedBox(
-                height: 24 * 60.0, // 60 pixels per hour
-                child: Stack(
-                  children: [
+              child: LayoutBuilder(
+                builder: (context, constraints) => SizedBox(
+                  height: 24 * 60.0, // 60 pixels per hour
+                  child: Stack(
+                    children: [
                     // Hour grid lines & labels
                     ...List.generate(24, (hour) {
                       final topOffset = hour * 60.0;
@@ -253,11 +262,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       final session = segment.session;
                       return Positioned(
                         top: segment.top,
-                        left: 72,
-                        right: 16,
+                        left: 72 + ((constraints.maxWidth - 88) *
+                            segment.laneIndex / segment.laneCount),
+                        width: (constraints.maxWidth - 88) / segment.laneCount,
                         height: segment.height,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                           decoration: BoxDecoration(
                             color: colorScheme.primary.withOpacity(0.16),
                             borderRadius: BorderRadius.circular(8),
@@ -293,12 +305,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                             ],
                           ),
                         ),
+                        ),
                       );
                     }),
 
                     // Live Current Time Indicator Needle (if viewing today)
                     if (_selectedDay == today) _buildLiveTimeNeedle(now, colorScheme.primary),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -306,6 +320,65 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         ],
       ),
     );
+  }
+
+  List<_CalendarSessionSegment> _layoutOverlappingSegments(
+    List<_CalendarSessionSegment> segments,
+  ) {
+    if (segments.length < 2) return segments;
+
+    final sorted = [...segments]
+      ..sort((a, b) {
+        final byStart = a.top.compareTo(b.top);
+        return byStart != 0 ? byStart : b.height.compareTo(a.height);
+      });
+
+    final result = <_CalendarSessionSegment>[];
+    var cluster = <_CalendarSessionSegment>[];
+    var clusterEnd = -1.0;
+
+    void flushCluster() {
+      if (cluster.isEmpty) return;
+      final laneEnds = <double>[];
+      final assignments = <_CalendarSessionSegment, int>{};
+
+      for (final segment in cluster) {
+        var lane = laneEnds.indexWhere((end) => end <= segment.top);
+        if (lane == -1) {
+          lane = laneEnds.length;
+          laneEnds.add(segment.top + segment.height);
+        } else {
+          laneEnds[lane] = segment.top + segment.height;
+        }
+        assignments[segment] = lane;
+      }
+
+      final laneCount = laneEnds.length;
+      for (final segment in cluster) {
+        result.add(_CalendarSessionSegment(
+          session: segment.session,
+          top: segment.top,
+          height: segment.height,
+          durationMs: segment.durationMs,
+          laneIndex: assignments[segment]!,
+          laneCount: laneCount,
+        ));
+      }
+      cluster = [];
+      clusterEnd = -1.0;
+    }
+
+    for (final segment in sorted) {
+      final end = segment.top + segment.height;
+      if (cluster.isNotEmpty && segment.top >= clusterEnd) {
+        flushCluster();
+      }
+      cluster.add(segment);
+      if (end > clusterEnd) clusterEnd = end;
+    }
+    flushCluster();
+
+    return result;
   }
 
   Widget _buildWeekdayStrip(
