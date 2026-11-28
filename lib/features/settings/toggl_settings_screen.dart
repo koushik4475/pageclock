@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -88,6 +89,11 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                     subtitle: Text(theme.$3),
                     onChanged: (value) async {
                       if (value == null) return;
+                      if (value == 'silent') {
+                        await CompletionSoundService.stopPreview();
+                      } else {
+                        unawaited(CompletionSoundService.prepareFromUserGesture());
+                      }
                       await ref.read(settingsProvider.notifier).update(
                             (s) => s.copyWith(completionSoundTheme: value),
                           );
@@ -117,6 +123,7 @@ class _TogglSettingsScreenState extends ConsumerState<TogglSettingsScreen> {
                         : 'Selected audio · tap to replace',
                   ),
                   onTap: () async {
+                    unawaited(CompletionSoundService.prepareFromUserGesture());
                     final result = await FilePicker.platform.pickFiles(
                       type: FileType.audio,
                       withData: true,
