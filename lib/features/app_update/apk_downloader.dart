@@ -99,6 +99,16 @@ class ApkDownloader {
         _trustedRedirectHosts.contains(host);
   }
 
+  /// Keeps redirects on the same release tag as the original asset request.
+  /// GitHub's signed CDN URLs do not expose the tag in their path, so those
+  /// remain allowed only after an exact PageClock release URL was validated.
+  static bool isTrustedRedirectUriForTag(Uri uri, String expectedTag) {
+    if (!isTrustedRedirectUri(uri)) return false;
+    if (uri.host.toLowerCase() != 'github.com') return true;
+    final segments = uri.pathSegments;
+    return segments.length == 6 && segments[4] == expectedTag;
+  }
+
   /// Downloads a trusted PageClock release APK and requires a SHA-256 digest.
   /// Redirects are followed manually so every destination can be validated.
   Future<File> downloadAndVerifyApk({
@@ -120,6 +130,7 @@ class ApkDownloader {
       );
     }
     var currentUri = parsedUri;
+    final expectedTag = parsedUri.pathSegments[4];
     late http.StreamedResponse response;
     var redirects = 0;
 
@@ -134,7 +145,7 @@ class ApkDownloader {
         final location = response.headers['location']!;
         await response.stream.drain<void>();
         final redirectedUri = currentUri.resolve(location);
-        if (!isTrustedRedirectUri(redirectedUri)) {
+        if (!isTrustedRedirectUriForTag(redirectedUri, expectedTag)) {
           throw HttpException(
             'APK download redirect points to an untrusted host or scheme.',
           );
